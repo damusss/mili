@@ -1,5 +1,4 @@
 import pygame
-import pygame.freetype
 import mili
 import os
 import sys
@@ -43,10 +42,14 @@ class App:
 
         self.mode = 0
 
-        self.desktop_bg = pygame.image.load(
-            os.getenv("APPDATA") + "\\Microsoft\\Windows\\Themes\\TranscodedWallpaper",
-            "png",
+        desktop_path = (
+            os.getenv("APPDATA") + "\\Microsoft\\Windows\\Themes\\TranscodedWallpaper"
         )
+        if os.path.exists(desktop_path):
+            self.desktop_bg = pygame.image.load(desktop_path, "png")
+        else:
+            self.desktop_bg = pygame.Surface((W, H))
+            self.desktop_bg.fill(0)
         mask = pygame.Surface(self.desktop_bg.size, pygame.SRCALPHA)
         mask.fill((40, 40, 40, 180))
         self.desktop_bg.blit(mask, (0, 0))
