@@ -359,6 +359,9 @@ class App:
             get_data=True,
         ) as content_data:
             self.content_scroll.update(content_data)
+            if not self.cur_path in self.folder_contents_abs:
+                self.back_to_content()
+                return
             files = self.folder_contents_abs[self.cur_path]
             if len(files) <= 0:
                 self.back_to_content()
@@ -373,6 +376,7 @@ class App:
                     any_valid = True
             if not any_valid:
                 self.back_to_content()
+                return
 
     def image_card(self, file):
         if self.cur_path is None:
@@ -475,6 +479,8 @@ class App:
         canva.blit(self.img_output, self.img_output.get_rect(center=(W / 2, H / 2)))
 
     def ui_2(self):
+        if self.cur_path is None or self.cur_file is None:
+            self.back_to_folder()
         self.ui_2_back_arrow()
         self.ui_delete(self.delete_image)
 
@@ -695,7 +701,16 @@ class App:
                 "offset": self.content_scroll.get_offset(),
             },
         ):
-            for favpath in self.favorites_paths:
+            for favpath in list(self.favorites_paths):
+                if not os.path.exists(favpath):
+                    self.favorites_paths.remove(favpath)
+                    continue
+                if not os.path.isabs(favpath):
+                    self.favorites_paths.remove(favpath)
+                    continue
+                if not favpath in self.folder_contents_abs:
+                    self.favorites_paths.remove(favpath)
+                    continue
                 self.folder_card(favpath, favpath)
 
     def ui_0_content(self):
@@ -843,7 +858,11 @@ class App:
         self.reset_view()
         self.cur_file = file
         self.mode = 2
-        self.cur_img = self.loaded_images[self.cur_path][self.cur_file]
+        try:
+            self.cur_img = self.loaded_images[self.cur_path][self.cur_file]
+        except:
+            self.back_to_content()
+            return
         if self.cur_img.width >= self.cur_img.height:
             self.img_scale = W / self.cur_img.width
             self.img_wm = 1
@@ -1176,7 +1195,7 @@ class App:
                     self.open_image(self.schedule_for_open)
                     self.schedule_for_open = None
 
-            if pygame.time.get_ticks() - self.last_cache_time > 10000:
+            if pygame.time.get_ticks() - self.last_cache_time > 6000:
                 self.cache_folder_contents()
                 self.last_cache_time = pygame.time.get_ticks()
 
