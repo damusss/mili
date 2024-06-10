@@ -8,6 +8,7 @@ import threading
 import imagesize
 from tkinter import filedialog
 import send2trash
+# import ez_profile
 
 
 W, H = 1920, 1080
@@ -166,6 +167,39 @@ class App:
             (27, 38),
             "RGBA",
         )
+        self.last_cache_time = pygame.time.get_ticks()
+        self.cache_folder_contents()
+
+    def cache_folder_contents(self):
+        self.folder_contents_iter = {}
+        self.folder_contents_abs = {}
+
+        for rootpath in self.search_paths:
+            self.folder_contents_iter[rootpath] = {}
+            for dirpath, subfolders, filenames in os.walk(rootpath):
+                any_image_in_dirpath = False
+                dirpath = dirpath.replace("\\", "/")
+                valid_files = []
+                for file in filenames:
+                    if any(
+                        [
+                            f"{ext}" in file
+                            for ext in [
+                                ".png",
+                                ".jpg",
+                                ".jpeg",
+                                ".svg",
+                                ".gif",
+                                ".bmp",
+                                ".tiff",
+                            ]
+                        ]
+                    ):
+                        valid_files.append(file)
+                        any_image_in_dirpath = True
+                if any_image_in_dirpath:
+                    self.folder_contents_iter[rootpath][dirpath] = valid_files
+                    self.folder_contents_abs[dirpath] = valid_files
 
     def exit(self):
         pygame.quit()
@@ -279,6 +313,9 @@ class App:
             if self.mili.element((60 + S * 2, 0, 0, 0), {"fillx": True}):
                 self.mili.text(f"{self.cur_path}", {"size": 30, "align": "left"})
 
+        if self.cur_path is None:
+            return
+
         self.ui_delete(self.delete_folder)
 
         if self.mili.element((0, 0, 0, 20), {"fillx": "100"}):
@@ -295,26 +332,30 @@ class App:
             get_data=True,
         ) as content_data:
             self.content_scroll.update(content_data)
-            files = os.listdir(self.cur_path)
+            files = self.folder_contents_abs[self.cur_path]
             if len(files) <= 0:
                 self.back_to_content()
                 return
+            any_valid = False
             for file in files:
                 if self.size != "list":
                     self.load_if_necessary(self.cur_path, file)
                 else:
                     self.load_size_if_necessary(self.cur_path, file)
-                self.image_card(file)
+                if self.image_card(file):
+                    any_valid = True
+            if not any_valid:
+                self.back_to_content()
 
     def image_card(self, file):
         if self.cur_path is None:
-            return
+            return False
         img = self.loaded_images[self.cur_path].get(file, None)
         imgsize = self.images_sizes[self.cur_path].get(file, None)
         if self.size == "list" and imgsize is None:
-            return
+            return False
         if img is None and self.size != "list":
-            return
+            return False
         size = (
             (self.image_sizes[self.size], self.image_sizes[self.size])
             if self.size != "list"
@@ -385,6 +426,7 @@ class App:
                     self.schedule_for_open = None
                     self.open_image(file)
             self.card_idx += 1
+        return True
 
     def simple_info(self, file):
         if self.mili.element(
@@ -626,41 +668,38 @@ class App:
             if len(self.favorites_paths) > 0:
                 self.ui_0_favorites()
 
-            for path in list(self.search_paths):
-                self.ui_0_path_title(path)
+            for rootpath, subpaths in self.folder_contents_iter.items():
+                self.ui_0_path_title(rootpath)
 
-                any_found = False
-                with self.mili.begin(
-                    (0, 0, W - S * 2, 0),
-                    {
-                        "resizex": (
-                            False if self.size == "list" else {"max": W - S * 2}
-                        ),
-                        "resizey": True,
-                        "axis": ("y" if self.size == "list" else "x"),
-                        "grid": (False if self.size == "list" else True),
-                        "offset": self.content_scroll.get_offset(),
-                    },
-                    get_data=True,
-                ):
-                    for dirpath, subfolders, files in os.walk(path):
-                        dirpath = dirpath.replace("\\", "/")
-                        any_image = False
-                        for file in files:
-                            if any(
-                                [f"{ext}" in file for ext in [".png", ".jpg", ".jpeg"]]
-                            ):
-                                any_image = True
-                        if any_image:
-                            any_found = True
-                            dirname = dirpath.replace(path + "/", "")
-                            self.folder_card(dirname, dirpath)
-
-                if not any_found:
+                if len(subpaths) > 0:
+                    self.ui_0_content_folder(subpaths, rootpath)
+                else:
                     if self.mili.element(
                         None, {"offset": self.content_scroll.get_offset()}
                     ):
                         self.mili.text("No images found", {"size": 23})
+
+    def ui_0_content_folder(self, subpaths, rootpath):
+        with self.mili.begin(
+            (0, 0, W - S * 2, 0),
+            {
+                "resizex": (False if self.size == "list" else {"max": W - S * 2}),
+                "resizey": True,
+                "axis": ("y" if self.size == "list" else "x"),
+                "grid": (False if self.size == "list" else True),
+                "offset": self.content_scroll.get_offset(),
+            },
+            get_data=True,
+        ):
+            for dirpath, files in subpaths.items():
+                dirpath = dirpath.replace("\\", "/")
+                any_image = False
+                for file in files:
+                    if any([f"{ext}" in file for ext in [".png", ".jpg", ".jpeg"]]):
+                        any_image = True
+                if any_image:
+                    dirname = dirpath.replace(rootpath + "/", "")
+                    self.folder_card(dirname, dirpath)
 
     def folder_card(self, dirname, dirpath):
         size = (
@@ -814,7 +853,8 @@ class App:
             size = self.size if self.size != "list" else "xxs"
             self.mili.rect({"color": (85, 85, 90)})
             self.mili.rect({"color": (150, 150, 150), "outline_size": 1})
-            for file in os.listdir(dirpath):
+            any_valid = False
+            for file in self.folder_contents_abs[dirpath]:
                 loading = False
                 if preview:
                     self.load_if_necessary(dirpath, file)
@@ -828,6 +868,7 @@ class App:
                     s = self.images_sizes[dirpath].get(file, None)
                     if s is None:
                         continue
+                any_valid = True
                 if self.mili.element(
                     (0, 0, self.preview_sizes[size], self.preview_sizes[size])
                     if preview
@@ -847,6 +888,9 @@ class App:
                             )
                     else:
                         self.mili.text(self.image_str(file, dirpath), {"size": 17})
+            if not any_valid:
+                if self.mili.element(None, {}):
+                    self.mili.text(f"Error: No valid images found", {"size": 17})
 
     def load_if_necessary(self, dirpath, file):
         if not dirpath in self.loaded_images:
@@ -1069,7 +1113,7 @@ class App:
                             self.update_view()
                 if e.type == pygame.MOUSEWHEEL:
                     if self.mode == 2:
-                        self.view_zoom += (e.y * 0.08) * self.view_zoom
+                        self.view_zoom += (e.y * 0.05) * self.view_zoom
                         self.view_zoom = pygame.math.clamp(self.view_zoom, 0.01, 1000)
                         self.update_view()
                     else:
@@ -1091,6 +1135,10 @@ class App:
                 if img is not None and img != "loading":
                     self.open_image(self.schedule_for_open)
                     self.schedule_for_open = None
+
+            if pygame.time.get_ticks() - self.last_cache_time > 10000:
+                self.cache_folder_contents()
+                self.last_cache_time = pygame.time.get_ticks()
 
             self.ui()
 

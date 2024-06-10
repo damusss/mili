@@ -4,6 +4,7 @@ from typing import Self as _Self, Literal as _Literal, Sequence as _Sequence
 from collections.abc import Callable as _Callable
 
 # todo: scrollbar to scroll helper
+# todo: text cache
 
 
 class _globalctx:
@@ -1302,3 +1303,15 @@ class MILI:
         if element_id in self._ctx._memory:
             el = self._ctx._memory[element_id]
             return _globalctx._element_data(el, _ctx._get_interaction(el))
+        
+class _MILIPrefabs:
+    def __init__(self, mili: MILI):
+        self._mili = mili
+        
+    def label(self, text: str, rect, element_style: dict[str] | None = None, text_style: dict[str]|None=None, get_data=False):
+        if data:=self._mili.element(rect, element_style, get_data=get_data):
+            self._mili.text(text, text_style)
+        return data
+    
+    # todo: more
+        
