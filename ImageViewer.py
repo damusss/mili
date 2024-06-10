@@ -22,6 +22,8 @@ RECYCLE_ERROR_MSG = "Could not recycle this image (exception message: '{e}'). Th
 DELETE_FOLDER_MSG = "Are you sure you want to recycle the folder contents? If you confirm, all valid images will be sent to the trash. If the folder is empty it will be permanently deleted. If the recycling operation fails, no data will be lost."
 FOLDER_RECYCLE_MSG = "Could not recycle the folder contents (exception message: '{e}'). The contents did not get deleted."
 FOLDER_ERROR_MSG = "The contents have been recycled but the empty folder could not be deleted (exception meesage: '{e}')"
+WRONG_PATH_ABS = "The path '{path}' was removed as it is not an absolute path. Only absolute paths are allowed."
+WRONG_PATH_EXIST = "The path '{path}' was removed as it does not exist anymore."
 
 
 def load_image_async(dirpath, file, storage):
@@ -170,11 +172,33 @@ class App:
         self.last_cache_time = pygame.time.get_ticks()
         self.cache_folder_contents()
 
+    def wrong_path_info(self, path, exists):
+        message = WRONG_PATH_ABS if exists else WRONG_PATH_EXIST
+        pygame.display.message_box(
+            "Path Removed",
+            message.replace("{path}", path),
+            "info",
+            buttons=("Understood",),
+        )
+
     def cache_folder_contents(self):
         self.folder_contents_iter = {}
         self.folder_contents_abs = {}
+        refresh = False
 
-        for rootpath in self.search_paths:
+        for rootpath in list(self.search_paths):
+            if not os.path.exists(rootpath):
+                self.wrong_path_info(rootpath, False)
+                self.search_paths.remove(rootpath)
+                refresh = True
+                continue
+
+            if not os.path.isabs(rootpath):
+                self.wrong_path_info(rootpath, True)
+                self.search_paths.remove(rootpath)
+                refresh = True
+                continue
+
             self.folder_contents_iter[rootpath] = {}
             for dirpath, subfolders, filenames in os.walk(rootpath):
                 any_image_in_dirpath = False
@@ -200,6 +224,9 @@ class App:
                 if any_image_in_dirpath:
                     self.folder_contents_iter[rootpath][dirpath] = valid_files
                     self.folder_contents_abs[dirpath] = valid_files
+
+        if refresh:
+            self.save_data()
 
     def exit(self):
         pygame.quit()
@@ -492,6 +519,7 @@ class App:
             return
         if self.cur_file in self.loaded_images[self.cur_path]:
             self.loaded_images[self.cur_path].pop(self.cur_file)
+        self.cache_folder_contents()
         self.back_to_folder()
 
     def delete_folder(self):
@@ -533,6 +561,7 @@ class App:
         for file in img_files:
             if file in self.loaded_images[self.cur_path]:
                 self.loaded_images[self.cur_path].pop(file)
+        self.cache_folder_contents()
         self.back_to_content()
 
     def ui_2_back_arrow(self):
@@ -599,6 +628,7 @@ class App:
         if directory:
             self.search_paths.append(directory)
             self.last_open = directory
+            self.cache_folder_contents()
             self.save_data()
 
     def ui_0_path_title(self, path):
@@ -639,7 +669,17 @@ class App:
                     return
             except:
                 ...
+
+            if path in self.folder_contents_iter:
+                for subfolder in self.folder_contents_iter[path].keys():
+                    if subfolder in self.loaded_images:
+                        self.loaded_images.pop(subfolder)
+                    if subfolder in self.images_sizes:
+                        self.images_sizes.pop(subfolder)
+
             self.search_paths.remove(path)
+            self.cache_folder_contents()
+
             self.save_data()
 
     def ui_0_favorites(self):
