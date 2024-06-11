@@ -293,7 +293,7 @@ class App:
             self.mili.line((("-25", 0), ("-2", "32")), {"size": 1})
             self.base_btn_hover(a_data)
             if a_data.interaction.left_just_released:
-                if pygame.time.get_ticks() - self.image_back_time > 300:
+                if pygame.time.get_ticks() - self.image_back_time > 10:
                     self.back_to_content()
 
     def ui_1_star(self):
@@ -337,16 +337,21 @@ class App:
             self.ui_1_back_arrow()
             self.ui_1_star()
 
-            if self.mili.element((60 + S * 2, 0, 0, 0), {"fillx": True}):
-                self.mili.text(f"{self.cur_path}", {"size": 30, "align": "left"})
+            self.mili.text_element(
+                f"{self.cur_path}", {"size": 30, "align": "left"}, None, {"fillx": True}
+            )
 
         if self.cur_path is None:
             return
 
         self.ui_delete(self.delete_folder)
 
-        if self.mili.element((0, 0, 0, 20), {"fillx": "100"}):
-            self.mili.line((("-50", 0), ("50", 0)), {"color": (80, 80, 80)})
+        self.mili.line_element(
+            (("-50", 0), ("50", 0)),
+            {"color": (80, 80, 80)},
+            (0, 0, 0, 20),
+            {"fillx": "100"},
+        )
 
         with self.mili.begin(
             (0, 0, W - S * 2, 0),
@@ -460,7 +465,7 @@ class App:
         return True
 
     def simple_info(self, file):
-        if self.mili.element(
+        self.mili.basic_element(
             (pygame.mouse.get_pos(), (0, 0)),
             {
                 "blocking": False,
@@ -468,10 +473,11 @@ class App:
                 "parent_id": self.main_data.id,
                 "z": 9999,
             },
-        ):
-            self.mili.rect({"color": (85, 85, 90)})
-            self.mili.text(self.image_str(file, self.cur_path), {"size": 20})
-            self.mili.rect({"color": (150, 150, 150), "outline_size": 1})
+            self.image_str(file, self.cur_path),
+            {"size": 20},
+            {"color": (85, 85, 90)},
+            {"color": (150, 150, 150)},
+        )
 
     def draw_view(self, canva, rect, clip):
         if self.img_output is None:
@@ -485,10 +491,12 @@ class App:
         self.ui_delete(self.delete_image)
 
         with self.mili.begin(None, {"fillx": True, "resizey": True, "pady": 0}):
-            if self.mili.element(None, {"align": "center"}):
-                self.mili.text(
-                    f"{self.image_str(self.cur_file, self.cur_path)}", {"size": 19}
-                )
+            self.mili.text_element(
+                f"{self.image_str(self.cur_file, self.cur_path)}",
+                {"size": 19},
+                None,
+                {"align": "center"},
+            )
 
     def ui_delete(self, function):
         with self.mili.begin(
@@ -593,13 +601,18 @@ class App:
     def ui_0(self):
         self.card_idx = 0
 
-        if self.mili.element(None, {"fillx": True}):
-            self.mili.text("Images", {"size": 40, "align": "center"})
+        self.mili.text_element(
+            "Images", {"size": 40, "align": "center"}, None, {"fillx": True}
+        )
 
         self.ui_0_add_path()
 
-        if self.mili.element((0, 0, 0, 20), {"fillx": "100"}):
-            self.mili.line((("-50", 0), ("50", 0)), {"color": (80, 80, 80)})
+        self.mili.line_element(
+            (("-50", 0), ("50", 0)),
+            {"color": (80, 80, 80)},
+            (0, 0, 0, 20),
+            {"fillx": "100"},
+        )
 
         self.ui_0_content()
 
@@ -649,8 +662,7 @@ class App:
                 "offset": self.content_scroll.get_offset(),
             },
         ):
-            if self.mili.element(None):
-                self.mili.text(f"{path}", {"size": 28})
+            self.mili.text_element(f"{path}", {"size": 28})
             with self.mili.begin(
                 (0, 0, 32, 32),
                 {"align": "center"},
@@ -664,17 +676,14 @@ class App:
 
     def remove_path(self, path):
         if path in self.search_paths:
-            try:
-                msg = pygame.display.message_box(
-                    "Confirm Path Removal",
-                    REMOVE_PATH_MSG,
-                    "info",
-                    buttons=("Remove Path", "Cancel"),
-                )
-                if msg == 1:
-                    return
-            except:
-                ...
+            msg = pygame.display.message_box(
+                "Confirm Path Removal",
+                REMOVE_PATH_MSG,
+                "info",
+                buttons=("Remove Path", "Cancel"),
+            )
+            if msg == 1:
+                return
 
             if path in self.folder_contents_iter:
                 for subfolder in self.folder_contents_iter[path].keys():
@@ -685,12 +694,15 @@ class App:
 
             self.search_paths.remove(path)
             self.cache_folder_contents()
-
             self.save_data()
 
     def ui_0_favorites(self):
-        if self.mili.element(None, {"offset": self.content_scroll.get_offset()}):
-            self.mili.text(f"Favorites", {"size": 30})
+        self.mili.text_element(
+            f"Favorites",
+            {"size": 30},
+            None,
+            {"offset": self.content_scroll.get_offset()},
+        )
         with self.mili.begin(
             (0, 0, W - S * 2, 1),
             {
@@ -729,10 +741,12 @@ class App:
                 if len(subpaths) > 0:
                     self.ui_0_content_folder(subpaths, rootpath)
                 else:
-                    if self.mili.element(
-                        None, {"offset": self.content_scroll.get_offset()}
-                    ):
-                        self.mili.text("No images found", {"size": 23})
+                    self.mili.text_element(
+                        "No images found",
+                        {"size": 23},
+                        None,
+                        {"offset": self.content_scroll.get_offset()},
+                    )
 
     def ui_0_content_folder(self, subpaths, rootpath):
         with self.mili.begin(
@@ -948,8 +962,7 @@ class App:
                     else:
                         self.mili.text(self.image_str(file, dirpath), {"size": 17})
             if not any_valid:
-                if self.mili.element(None, {}):
-                    self.mili.text(f"Error: No valid images found", {"size": 17})
+                self.mili.text_element(f"Error: No valid images found", {"size": 17})
 
     def load_if_necessary(self, dirpath, file):
         if not dirpath in self.loaded_images:
@@ -1062,14 +1075,12 @@ class App:
             if self.mode == 2:
                 self.size_menu_reset_view()
 
-            if self.mili.element(None):
-                self.mili.text(f"Smoothscale", {"size": 22})
+            self.mili.text_element(f"Smoothscale", {"size": 22})
             with self.mili.begin(None, {"fillx": True, "resizey": True, "axis": "x"}):
                 self.size_menu_smoothscale_option(True, self.smoothscale)
                 self.size_menu_smoothscale_option(False, not self.smoothscale)
 
-            if self.mili.element(None):
-                self.mili.text(f"Size", {"size": 22})
+            self.mili.text_element(f"Size", {"size": 22})
             for size_name in ["list"] + list(self.folder_sizes.keys()):
                 self.size_menu_size(size_name)
 
@@ -1126,13 +1137,14 @@ class App:
                     self.update_view()
 
     def glow(self, parent_id, abs_rect):
-        if i := self.mili.element(
+        self.mili.image_element(
+            self.hover_surf,
+            {"cache": self.hover_cache},
             pygame.Rect(0, 0, 300, 300).move_to(
                 center=pygame.Vector2(pygame.mouse.get_pos()) - abs_rect.topleft
             ),
             {"blocking": False, "ignore_grid": True, "parent_id": parent_id},
-        ):
-            self.mili.image(self.hover_surf, {"cache": self.hover_cache})
+        )
 
     def image_str(self, file, dirpath):
         self.load_size_if_necessary(dirpath, file)

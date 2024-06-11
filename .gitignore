@@ -8,6 +8,7 @@ stats.prof
 DEPRECATED/
 .ruff_cache/
 data.json
+*.exe
 
 build/
 dist/

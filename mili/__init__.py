@@ -1046,6 +1046,8 @@ class ScrollHelper:
         self._element_data: ElementData = None
 
     def update(self, element_data: ElementData) -> ElementData:
+        if not isinstance(element_data, ElementData):
+            raise TypeError(f"element_data argument must be of type ElementData")
         self._element_data = element_data
         self.clamp()
         return element_data
@@ -1180,6 +1182,9 @@ def percentage(percentage: float, value: float) -> float:
     return (percentage * value) / 100
 
 
+def indent(*args): ...
+
+
 class MILI:
     def __init__(self, canva: pygame.Surface | None = None):
         self._ctx = _ctx(self)
@@ -1277,13 +1282,47 @@ class MILI:
     def rect(self, style: dict[str] | None = None):
         self._ctx._add_component("rect", None, style)
 
+    def rect_element(
+        self,
+        rect_style: dict[str] | None = None,
+        element_rect: pygame.Rect = None,
+        element_style: dict[str] | None = None,
+        get_data: bool = False,
+    ) -> Interaction | ElementData:
+        data = self.element(element_rect, element_style, get_data)
+        self.rect(rect_style)
+        return data
+
     def circle(self, style: dict[str] | None = None):
         self._ctx._add_component("circle", None, style)
+
+    def circle_element(
+        self,
+        circle_style: dict[str] | None = None,
+        element_rect: pygame.Rect = None,
+        element_style: dict[str] | None = None,
+        get_data: bool = False,
+    ) -> Interaction | ElementData:
+        data = self.element(element_rect, element_style, get_data)
+        self.circle(circle_style)
+        return data
 
     def polygon(
         self, points: list[tuple[int | str, int | str]], style: dict[str] | None = None
     ):
         self._ctx._add_component("polygon", points, style)
+
+    def polygon_element(
+        self,
+        points: list[tuple[int | str, int | str]],
+        polygon_style: dict[str] | None = None,
+        element_rect: pygame.Rect = None,
+        element_style: dict[str] | None = None,
+        get_data: bool = False,
+    ) -> Interaction | ElementData:
+        data = self.element(element_rect, element_style, get_data)
+        self.polygon(points, polygon_style)
+        return data
 
     def line(
         self,
@@ -1292,26 +1331,77 @@ class MILI:
     ):
         self._ctx._add_component("line", start_end, style)
 
+    def line_element(
+        self,
+        start_end: list[tuple[int | str, int | str]],
+        line_style: dict[str] | None = None,
+        element_rect: pygame.Rect = None,
+        element_style: dict[str] | None = None,
+        get_data: bool = False,
+    ) -> Interaction | ElementData:
+        data = self.element(element_rect, element_style, get_data)
+        self.line(start_end, line_style)
+        return data
+
     def text(self, text: str, style: dict[str] | None = None):
         self._ctx._add_component("text", text, style)
 
+    def text_element(
+        self,
+        text: str,
+        text_style: dict[str] | None = None,
+        element_rect: pygame.Rect = None,
+        element_style: dict[str] | None = None,
+        get_data: bool = False,
+    ) -> Interaction | ElementData:
+        data = self.element(element_rect, element_style, get_data)
+        self.text(text, text_style)
+        return data
+
     def image(self, surface: pygame.Surface, style: dict[str] | None = None):
         self._ctx._add_component("image", surface, style)
+
+    def image_element(
+        self,
+        surface: pygame.Surface,
+        image_style: dict[str] | None = None,
+        element_rect: pygame.Rect = None,
+        element_style: dict[str] | None = None,
+        get_data: bool = False,
+    ) -> Interaction | ElementData:
+        data = self.element(element_rect, element_style, get_data)
+        self.image(surface, image_style)
+        return data
+
+    def basic_element(
+        self,
+        rect: pygame.Rect,
+        style: dict[str] | None = None,
+        comp_data=None,
+        comp_style: dict[str] | None = None,
+        bg_style: dict[str] | None = None,
+        outline_style: dict[str] | None = None,
+        component="text",
+        get_data: bool = False,
+    ) -> Interaction | ElementData:
+        if not component in ["text", "image", "rect", "circle", "line", "polygon"]:
+            raise ValueError(f"Invalid component name")
+        if not outline_style:
+            outline_style = {}
+        if not "outline_size" in outline_style:
+            outline_style["outline_size"] = 1
+        data = self.element(rect, style, get_data)
+        self.rect(bg_style)
+        comp = getattr(self, component)
+        try:
+            comp(comp_data, comp_style)
+        except TypeError:
+            comp(comp_style)
+        self.rect(outline_style)
+        return data
 
     def data_from_id(self, element_id: int) -> ElementData:
         self._ctx._start_check()
         if element_id in self._ctx._memory:
             el = self._ctx._memory[element_id]
             return _globalctx._element_data(el, _ctx._get_interaction(el))
-        
-class _MILIPrefabs:
-    def __init__(self, mili: MILI):
-        self._mili = mili
-        
-    def label(self, text: str, rect, element_style: dict[str] | None = None, text_style: dict[str]|None=None, get_data=False):
-        if data:=self._mili.element(rect, element_style, get_data=get_data):
-            self._mili.text(text, text_style)
-        return data
-    
-    # todo: more
-        
