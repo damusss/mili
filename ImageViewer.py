@@ -10,8 +10,8 @@ from tkinter import filedialog
 import send2trash
 # import ez_profile
 
-
-W, H = 1920, 1080
+pygame.init()
+W, H = pygame.display.get_desktop_sizes()[0]
 S = 5
 
 REMOVE_PATH_MSG = "Are you sure you want to remove this path? Note that the actual directory will not be deleted but you'll need to add it again if you change your mind."
@@ -29,14 +29,13 @@ WRONG_PATH_EXIST = "The path '{path}' was removed as it does not exist anymore."
 def load_image_async(dirpath, file, storage):
     try:
         img = pygame.image.load(os.path.join(dirpath, file)).convert_alpha()
-    except:
+    except Exception:
         img = None
     storage[file] = img
 
 
 class App:
     def __init__(self):
-        pygame.init()
         self.screen = pygame.display.set_mode((W, H))
 
         self.clock = pygame.Clock()
@@ -364,7 +363,7 @@ class App:
             get_data=True,
         ) as content_data:
             self.content_scroll.update(content_data)
-            if not self.cur_path in self.folder_contents_abs:
+            if self.cur_path not in self.folder_contents_abs:
                 self.back_to_content()
                 return
             files = self.folder_contents_abs[self.cur_path]
@@ -698,7 +697,7 @@ class App:
 
     def ui_0_favorites(self):
         self.mili.text_element(
-            f"Favorites",
+            "Favorites",
             {"size": 30},
             None,
             {"offset": self.content_scroll.get_offset()},
@@ -720,7 +719,7 @@ class App:
                 if not os.path.isabs(favpath):
                     self.favorites_paths.remove(favpath)
                     continue
-                if not favpath in self.folder_contents_abs:
+                if favpath not in self.folder_contents_abs:
                     self.favorites_paths.remove(favpath)
                     continue
                 self.folder_card(favpath, favpath)
@@ -874,7 +873,7 @@ class App:
         self.mode = 2
         try:
             self.cur_img = self.loaded_images[self.cur_path][self.cur_file]
-        except:
+        except Exception:
             self.back_to_content()
             return
         if self.cur_img.width >= self.cur_img.height:
@@ -950,7 +949,7 @@ class App:
                 ):
                     if preview:
                         if loading:
-                            self.mili.text(f"Loading...", {"size": 17})
+                            self.mili.text("Loading...", {"size": 17})
                         else:
                             self.mili.image(
                                 img,
@@ -962,14 +961,14 @@ class App:
                     else:
                         self.mili.text(self.image_str(file, dirpath), {"size": 17})
             if not any_valid:
-                self.mili.text_element(f"Error: No valid images found", {"size": 17})
+                self.mili.text_element("Error: No valid images found", {"size": 17})
 
     def load_if_necessary(self, dirpath, file):
-        if not dirpath in self.loaded_images:
+        if dirpath not in self.loaded_images:
             self.loaded_images[dirpath] = {}
             self.images_cache[dirpath] = {}
             self.images_sizes[dirpath] = {}
-        if not file in self.loaded_images[dirpath]:
+        if file not in self.loaded_images[dirpath]:
             self.loaded_images[dirpath][file] = "loading"
             self.images_cache[dirpath][file] = mili.ImageCache()
             try:
@@ -985,16 +984,16 @@ class App:
                     target=load_image_async,
                     args=(dirpath, file, self.loaded_images[dirpath]),
                 ).start()
-            except:
+            except Exception:
                 self.loaded_images[dirpath][file] = None
                 self.images_sizes[dirpath][file] = None
 
     def load_size_if_necessary(self, dirpath, file):
-        if not dirpath in self.loaded_images:
+        if dirpath not in self.loaded_images:
             self.loaded_images[dirpath] = {}
             self.images_cache[dirpath] = {}
             self.images_sizes[dirpath] = {}
-        if not file in self.images_sizes[dirpath]:
+        if file not in self.images_sizes[dirpath]:
             try:
                 imgsize = imagesize.get(os.path.join(dirpath, file))
                 if imgsize[0] == -1 or imgsize[1] == -1:
@@ -1004,7 +1003,7 @@ class App:
                 self.images_sizes[dirpath][file] = imgsize
                 if imgsize[0] > 20000 or imgsize[1] > 20000:
                     self.loaded_images[dirpath][file] = None
-            except:
+            except Exception:
                 self.loaded_images[dirpath][file] = None
                 self.images_sizes[dirpath][file] = None
 
@@ -1075,12 +1074,12 @@ class App:
             if self.mode == 2:
                 self.size_menu_reset_view()
 
-            self.mili.text_element(f"Smoothscale", {"size": 22})
+            self.mili.text_element("Smoothscale", {"size": 22})
             with self.mili.begin(None, {"fillx": True, "resizey": True, "axis": "x"}):
                 self.size_menu_smoothscale_option(True, self.smoothscale)
                 self.size_menu_smoothscale_option(False, not self.smoothscale)
 
-            self.mili.text_element(f"Size", {"size": 22})
+            self.mili.text_element("Size", {"size": 22})
             for size_name in ["list"] + list(self.folder_sizes.keys()):
                 self.size_menu_size(size_name)
 
@@ -1094,7 +1093,7 @@ class App:
                     {"color": (75, 75, 80)},
                 )
             )
-            self.mili.text(f"Reset View", {"size": 19})
+            self.mili.text("Reset View", {"size": 19})
             self.mili.rect({"color": (145, 145, 150), "outline_size": 1})
             if rv_int.left_just_released:
                 self.reset_view_data()
@@ -1128,7 +1127,7 @@ class App:
                     selected,
                 )
             )
-            self.mili.text(f"ON" if option else "OFF", {"size": 19})
+            self.mili.text("ON" if option else "OFF", {"size": 19})
             self.mili.rect({"color": (145, 145, 150), "outline_size": 1})
             if opt_int.left_just_released:
                 self.smoothscale = option
@@ -1151,7 +1150,7 @@ class App:
         size = self.images_sizes[dirpath].get(file, None)
         img: pygame.Surface = self.loaded_images[dirpath].get(file, None)
         if size is None:
-            return f"Couldn't load image (you shouldn't be able to see this error, report it please)"
+            return "Couldn't load image (you shouldn't be able to see this error, report it please)"
         if img == "loading":
             return f"{file} | {size[0]} x {size[1]} (loading...)"
         return f"{file} | {size[0]} x {size[1]}"

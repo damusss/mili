@@ -1,7 +1,6 @@
 import pygame
 from functools import partialmethod
-from typing import Self as _Self, Literal as _Literal, Sequence as _Sequence
-from collections.abc import Callable as _Callable
+from typing import Self as _Self
 
 # todo: scrollbar to scroll helper
 # todo: text cache
@@ -453,9 +452,9 @@ class _ctx:
             self._style_val(style, "element", f"fill{oa}", False),
             self._style_val(style, "element", f"fill{a}", False),
         )
-        if resizeoa and bool(_filloa) != False:
+        if resizeoa and bool(_filloa) is not False:
             raise RuntimeError(f"Cannot have resize{oa} True and fill{oa} not False")
-        if resizea and bool(_filla) != False:
+        if resizea and bool(_filla) is not False:
             raise RuntimeError(f"Cannot have resize{a} True and fill{a} not False")
 
         padded_oa = getattr(rect, oav) - padoa * 2
@@ -497,12 +496,12 @@ class _ctx:
             el_style = el["style"]
             el_filloa = self._style_val(el_style, "element", f"fill{oa}", False)
             el_filla = self._style_val(el_style, "element", f"fill{a}", False)
-            if bool(el_filloa) == False and getattr(el_rect, oav) > biggest_oa:
+            if bool(el_filloa) is False and getattr(el_rect, oav) > biggest_oa:
                 biggest_oa = getattr(el_rect, oav)
-            if bool(el_filloa) == True:
+            if bool(el_filloa) is True:
                 elements_with_filloa.append(el)
             fixed_elements_a += space
-            if bool(el_filla) == False:
+            if bool(el_filla) is False:
                 fixed_elements_a += getattr(el_rect, av)
             else:
                 elements_with_filla.append(el)
@@ -527,7 +526,7 @@ class _ctx:
             el_rect = filloa_el["rect"]
             el_style = filloa_el["style"]
             filloa = self._style_val(el_style, "element", f"fill{oa}", False)
-            if filloa == True:
+            if filloa is True:
                 filloa = "100"
             el_filloa = _globalctx._abs_perc(filloa, padded_oa)
             setattr(el_rect, oav, el_filloa)
@@ -538,7 +537,7 @@ class _ctx:
             el_rect = filla_el["rect"]
             el_style = filla_el["style"]
             filla = self._style_val(el_style, "element", f"fill{a}", False)
-            if filla == True:
+            if filla is True:
                 filla = "100"
             el_filla = _globalctx._abs_perc(
                 filla,
@@ -723,7 +722,7 @@ class _ctx:
             rx, ry = _globalctx._abs_perc(rx, rect.w), _globalctx._abs_perc(ry, rect.h)
             points.append((rect.centerx + rx, rect.centery + ry))
         if len(points) != 2:
-            raise ValueError(f"Wrong number of points")
+            raise ValueError("Wrong number of points")
         color = self._style_val(style, "line", "color", "black")
         size = _globalctx._abs_perc(
             self._style_val(style, "line", "size", 1), min(rect.w, rect.h)
@@ -1047,7 +1046,7 @@ class ScrollHelper:
 
     def update(self, element_data: ElementData) -> ElementData:
         if not isinstance(element_data, ElementData):
-            raise TypeError(f"element_data argument must be of type ElementData")
+            raise TypeError("element_data argument must be of type ElementData")
         self._element_data = element_data
         self.clamp()
         return element_data
@@ -1384,11 +1383,11 @@ class MILI:
         component="text",
         get_data: bool = False,
     ) -> Interaction | ElementData:
-        if not component in ["text", "image", "rect", "circle", "line", "polygon"]:
-            raise ValueError(f"Invalid component name")
+        if component not in ["text", "image", "rect", "circle", "line", "polygon"]:
+            raise ValueError("Invalid component name")
         if not outline_style:
             outline_style = {}
-        if not "outline_size" in outline_style:
+        if "outline_size" not in outline_style:
             outline_style["outline_size"] = 1
         data = self.element(rect, style, get_data)
         self.rect(bg_style)
