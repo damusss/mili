@@ -117,7 +117,7 @@ class App:
         self.images_cache = {}
         self.images_sizes = {}
 
-        self.content_scroll = mili.ScrollHelper()
+        self.content_scroll = mili.Scroll()
         self.back_topleft = (S, S)
 
         self.cur_path = None

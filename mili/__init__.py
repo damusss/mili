@@ -1,9 +1,15 @@
 import pygame
 from functools import partialmethod
-from typing import Self as _Self
+from typing import Self as _Self, Sequence as _Sequence
 
 # todo: scrollbar to scroll helper
 # todo: text cache
+
+
+class MILIError(RuntimeError): ...
+
+
+class MILIValueError(ValueError): ...
 
 
 class _globalctx:
@@ -31,6 +37,8 @@ class _globalctx:
         "text",
         "image",
     }
+    _mouse_pos = pygame.Vector2()
+    _mouse_rel = pygame.Vector2()
 
     @staticmethod
     def _abs_perc(val, dim) -> float:
@@ -170,7 +178,7 @@ class _globalctx:
             align = "midbottom"
             x, y = rect.centerx, rect.bottom - pady
         else:
-            raise ValueError("Invalid text alignment")
+            raise MILIValueError("Invalid text alignment")
         return {align: (x, y)}
 
 
@@ -403,7 +411,7 @@ class _ctx:
 
     def _check_align(self, align):
         if align not in ["first", "last", "center", "max_spacing"]:
-            raise ValueError(f"Invalid alignment/anchoring '{align}'")
+            raise MILIValueError(f"Invalid alignment/anchoring '{align}'")
 
     def _organize_element(self, element: _globalctx._ElementLike):
         style = element["style"]
@@ -411,7 +419,7 @@ class _ctx:
         children = element["children_grid"]
         a = self._style_val(style, "element", "axis", "y")
         if a not in ["x", "y"]:
-            raise ValueError(f"Invalid axis {a}")
+            raise MILIValueError(f"Invalid axis {a}")
         oa = "x" if a == "y" else "y"
         av = "w" if a == "x" else "h"
         oav = "w" if av == "h" else "h"
@@ -453,9 +461,9 @@ class _ctx:
             self._style_val(style, "element", f"fill{a}", False),
         )
         if resizeoa and bool(_filloa) is not False:
-            raise RuntimeError(f"Cannot have resize{oa} True and fill{oa} not False")
+            raise MILIError(f"Cannot have resize{oa} True and fill{oa} not False")
         if resizea and bool(_filla) is not False:
-            raise RuntimeError(f"Cannot have resize{a} True and fill{a} not False")
+            raise MILIError(f"Cannot have resize{a} True and fill{a} not False")
 
         padded_oa = getattr(rect, oav) - padoa * 2
         padded_a = getattr(rect, av) - pada * 2
@@ -647,7 +655,7 @@ class _ctx:
         style = self._default_styles[type].copy()
         style.update(arg_style)
         if not self._element:
-            raise RuntimeError("Cannot add component if no element was created")
+            raise MILIError("Cannot add component if no element was created")
         if type == "text":
             self._text_resize(self._element["rect"], data, style)
         self._element["components"].append({"type": type, "data": data, "style": style})
@@ -678,7 +686,11 @@ class _ctx:
         )
         color = self._style_val(style, "rect", "color", "black")
         pygame.draw.rect(
-            self._canva, color, rect.inflate(-padx, -pady), outline, border_radius
+            self._canva,
+            color,
+            rect.inflate(-padx, -pady),
+            int(outline),
+            int(border_radius),
         )
 
     def _draw_comp_circle(self, data, style, el, rect: pygame.Rect):
@@ -694,10 +706,12 @@ class _ctx:
         color = self._style_val(style, "circle", "color", "black")
         if padx == pady:
             pygame.draw.circle(
-                self._canva, color, rect.center, rect.w / 2 - padx, outline
+                self._canva, color, rect.center, rect.w / 2 - padx, int(outline)
             )
         else:
-            pygame.draw.ellipse(self._canva, color, rect.inflate(-padx, -pady), outline)
+            pygame.draw.ellipse(
+                self._canva, color, rect.inflate(-padx, -pady), int(outline)
+            )
 
     def _draw_comp_polygon(
         self, data: list[tuple[int, int]], style, el, rect: pygame.Rect
@@ -711,7 +725,7 @@ class _ctx:
         outline = _globalctx._abs_perc(
             self._style_val(style, "polygon", "outline_size", 0), min(rect.w, rect.h)
         )
-        pygame.draw.polygon(self._canva, color, points, outline)
+        pygame.draw.polygon(self._canva, color, points, int(outline))
 
     def _draw_comp_line(
         self, data: list[tuple[int, int]], style, el, rect: pygame.Rect
@@ -720,14 +734,14 @@ class _ctx:
         for raw_p in data:
             rx, ry = raw_p
             rx, ry = _globalctx._abs_perc(rx, rect.w), _globalctx._abs_perc(ry, rect.h)
-            points.append((rect.centerx + rx, rect.centery + ry))
+            points.append((rect.centerx + int(rx), rect.centery + int(ry)))
         if len(points) != 2:
-            raise ValueError("Wrong number of points")
+            raise MILIValueError("Wrong number of points")
         color = self._style_val(style, "line", "color", "black")
         size = _globalctx._abs_perc(
             self._style_val(style, "line", "size", 1), min(rect.w, rect.h)
         )
-        pygame.draw.line(self._canva, color, points[0], points[1], size)
+        pygame.draw.line(self._canva, color, points[0], points[1], int(size))
 
     def _draw_comp_text(self, data: str, style, el, rect: pygame.Rect):
         font = self._get_font(style)
@@ -763,6 +777,15 @@ class _ctx:
 
         txtrect = surf.get_rect(**_globalctx._text_align(align, rect, padx, pady))
         self._canva.blit(surf, txtrect)
+
+    def _text_size(self, data: str, style):
+        font = self._get_font(style)
+        font.align = self._style_val(style, "text", "font_align", pygame.FONT_CENTER)
+        font.bold = self._style_val(style, "text", "bold", False)
+        font.italic = self._style_val(style, "text", "italic", False)
+        font.underline = self._style_val(style, "text", "underline", False)
+        font.strikethrough = self._style_val(style, "text", "strikethrough", False)
+        return font.size(data)
 
     def _text_resize(self, rect: pygame.Rect, data, style):
         growx, growy = (
@@ -935,7 +958,7 @@ class _ctx:
 
     def _start_check(self):
         if not self._started:
-            raise RuntimeError("MILI.start() was not called")
+            raise MILIError("MILI.start() was not called")
 
 
 class ImageCache:
@@ -1026,20 +1049,59 @@ class ElementData:
         raise AttributeError
 
 
-class SelectableHelper:
+class Selectable:
     def __init__(self, selected: bool = False):
         self.selected: bool = selected
 
-    def update(self, element: Interaction | ElementData) -> Interaction | ElementData:
+    def update(
+        self,
+        element: Interaction | ElementData,
+        selectable_group: _Sequence["Selectable"] = None,
+        can_deselect_group: bool = True,
+    ) -> Interaction | ElementData:
+        if selectable_group is None:
+            selectable_group = []
         interaction = element
         if isinstance(element, ElementData):
             interaction = element.interaction
         if interaction.left_just_released:
             self.selected = not self.selected
+            if len(selectable_group) > 0:
+                if self.selected:
+                    for sel in selectable_group:
+                        if sel is not self:
+                            sel.selected = False
+                elif not can_deselect_group:
+                    one = False
+                    for sel in selectable_group:
+                        if sel is not self and sel.selected:
+                            one = True
+                            break
+                    if not one:
+                        self.selected = True
+        elif len(selectable_group) > 0:
+            for sel in selectable_group:
+                if sel is not self and sel.selected:
+                    self.selected = False
+                    break
         return element
 
 
-class ScrollHelper:
+class Dragger:
+    def __init__(self, position: _Sequence = None):
+        if position is None:
+            position = (0, 0)
+        self.position = pygame.Vector2(position)
+        self.rel = pygame.Vector2()
+
+    def update(self, element: Interaction | ElementData) -> Interaction | ElementData:
+        if element.left_pressed:
+            self.position += _globalctx._mouse_rel
+            self.rel = _globalctx._mouse_rel.copy()
+        return element
+
+
+class Scroll:
     def __init__(self):
         self.scroll_offset: pygame.Vector2 = pygame.Vector2()
         self._element_data: ElementData = None
@@ -1073,126 +1135,170 @@ class ScrollHelper:
         return (-self.scroll_offset.x, -self.scroll_offset.y)
 
 
-class StyleHelper:
-    def __init__(
-        self,
-        element: dict[str] | None = None,
-        rect: dict[str] | None = None,
-        circle: dict[str] | None = None,
-        polygon: dict[str] | None = None,
-        line: dict[str] | None = None,
-        text: dict[str] | None = None,
-        image: dict[str] | None = None,
-    ):
-        self.styles = {
-            "element": element if element else {},
-            "rect": rect if rect else {},
-            "circle": circle if circle else {},
-            "polygon": polygon if polygon else {},
-            "line": line if line else {},
-            "text": text if text else {},
-            "image": image if image else {},
-        }
+class style:
+    class Style:
+        def __init__(
+            self,
+            element: dict[str] | None = None,
+            rect: dict[str] | None = None,
+            circle: dict[str] | None = None,
+            polygon: dict[str] | None = None,
+            line: dict[str] | None = None,
+            text: dict[str] | None = None,
+            image: dict[str] | None = None,
+        ):
+            self.styles = {
+                "element": element if element else {},
+                "rect": rect if rect else {},
+                "circle": circle if circle else {},
+                "polygon": polygon if polygon else {},
+                "line": line if line else {},
+                "text": text if text else {},
+                "image": image if image else {},
+            }
 
-    def set(self, type: str, style: dict[str]):
-        if type not in self.styles:
-            raise ValueError("Invalid style type")
-        self.styles[type] = style
+        def set(self, type: str, style: dict[str]):
+            if type not in self.styles:
+                raise MILIValueError("Invalid style type")
+            self.styles[type] = style
 
-    def get(self, type: str) -> dict[str]:
-        if type not in self.styles:
-            raise ValueError("Invalid style type")
-        return self.styles[type]
+        def get(self, type: str) -> dict[str]:
+            if type not in self.styles:
+                raise MILIValueError("Invalid style type")
+            return self.styles[type]
 
-    get_element = partialmethod(get, "element")
-    get_rect = partialmethod(get, "rect")
-    get_circle = partialmethod(get, "circle")
-    get_polygon = partialmethod(get, "polygon")
-    get_line = partialmethod(get, "line")
-    get_text = partialmethod(get, "text")
-    get_image = partialmethod(get, "image")
+        get_element = partialmethod(get, "element")
+        get_rect = partialmethod(get, "rect")
+        get_circle = partialmethod(get, "circle")
+        get_polygon = partialmethod(get, "polygon")
+        get_line = partialmethod(get, "line")
+        get_text = partialmethod(get, "text")
+        get_image = partialmethod(get, "image")
 
-    def set_default(self, mili: "MILI"):
-        for name, style in self.styles.items():
-            mili.default_style(name, style)
+        def set_default(self, mili: "MILI"):
+            for name, style in self.styles.items():
+                mili.default_style(name, style)
 
+    class StyleStatus:
+        def __init__(
+            self,
+            base: "style.Style" = None,
+            hover: "style.Style" = None,
+            press: "style.Style" = None,
+        ):
+            self.base = base if base else style.Style()
+            self.hover = hover if hover else style.Style()
+            self.press = press if press else style.Style()
 
-class StyleStatusHelper:
-    def __init__(
-        self,
-        base: StyleHelper | None = None,
-        hover: StyleHelper | None = None,
-        press: StyleHelper | None = None,
-    ):
-        self.base = base if base else StyleHelper()
-        self.hover = hover if hover else StyleHelper()
-        self.press = press if press else StyleHelper()
+        def set(self, status: str, style: "style.Style"):
+            if status not in ["base", "press", "hover"]:
+                raise MILIValueError("Invalid status type")
+            setattr(self, status, style)
 
-    def set(self, status: str, style: StyleHelper):
-        if status not in ["base", "press", "hover"]:
-            raise ValueError("Invalid status type")
-        setattr(self, status, style)
+        def get(self, type: str, interaction: Interaction) -> dict[str]:
+            if type not in _globalctx._default_style_names:
+                raise MILIValueError("Invalid style type")
+            return style.conditional(
+                interaction,
+                self.base.get(type),
+                self.hover.get(type),
+                self.press.get(type),
+            )
 
-    def get(self, type: str, interaction: Interaction) -> dict[str]:
-        if type not in _globalctx._default_style_names:
-            raise ValueError("Invalid style type")
-        return conditional_style(
-            interaction, self.base.get(type), self.hover.get(type), self.press.get(type)
-        )
+        get_element = partialmethod(get, "element")
+        get_rect = partialmethod(get, "rect")
+        get_circle = partialmethod(get, "circle")
+        get_polygon = partialmethod(get, "polygon")
+        get_line = partialmethod(get, "line")
+        get_text = partialmethod(get, "text")
+        get_image = partialmethod(get, "image")
 
-    get_element = partialmethod(get, "element")
-    get_rect = partialmethod(get, "rect")
-    get_circle = partialmethod(get, "circle")
-    get_polygon = partialmethod(get, "polygon")
-    get_line = partialmethod(get, "line")
-    get_text = partialmethod(get, "text")
-    get_image = partialmethod(get, "image")
-
-
-def conditional_style(
-    interaction: Interaction | ElementData,
-    base: dict[str] | None = None,
-    hover: dict[str] | None = None,
-    press: dict[str] | None = None,
-    selected=False,
-) -> dict[str]:
-    if isinstance(interaction, ElementData):
-        interaction = interaction.interaction
-    if hover is None:
-        hover = {}
-    if press is None:
-        press = {}
-    if base is None:
-        base = {}
-    new_base = {}
-    new_base.update(base)
-    if interaction.hovered:
-        if interaction.left_pressed or selected:
-            new_base.update(press)
+    @staticmethod
+    def conditional(
+        interaction: Interaction | ElementData,
+        base: dict[str] | None = None,
+        hover: dict[str] | None = None,
+        press: dict[str] | None = None,
+        selected=False,
+    ) -> dict[str]:
+        if isinstance(interaction, ElementData):
+            interaction = interaction.interaction
+        if hover is None:
+            hover = {}
+        if press is None:
+            press = {}
+        if base is None:
+            base = {}
+        new_base = {}
+        new_base.update(base)
+        if interaction.hovered:
+            if interaction.left_pressed or selected:
+                new_base.update(press)
+            else:
+                new_base.update(hover)
         else:
-            new_base.update(hover)
-    else:
-        if selected:
-            new_base.update(press)
-    return new_base
+            if selected:
+                new_base.update(press)
+        return new_base
+
+    @staticmethod
+    def filter(
+        style: dict[str],
+        whitelist: list[str] | set[str] | None = None,
+        blacklist: list[str] | set[str] | None = None,
+    ) -> dict[str]:
+        if style is None:
+            style = {}
+        style = style.copy()
+        if whitelist is not None:
+            whitelist = set(whitelist)
+            for name in list(style.keys()):
+                if name not in whitelist:
+                    style.pop(name)
+        if blacklist is not None:
+            blacklist = set(blacklist)
+            for bname in blacklist:
+                if bname in style:
+                    style.pop(bname)
+        return style
+
+    @staticmethod
+    def same(value, *names: str):
+        return {name: value for name in names}
 
 
 def percentage(percentage: float, value: float) -> float:
     return (percentage * value) / 100
 
 
-def indent(*args): ...
+def gray(value=100):
+    return (value, value, value)
+
+
+def indent(*args, **kwargs): ...
+
+
+RESIZE = {"resizex": True, "resizey": True}
+X = {"axis": "x"}
+CENTER = {
+    "grid_align": "center",
+    "anchor": "center",
+    "align": "center",
+    "font_align": pygame.FONT_CENTER,
+}
 
 
 class MILI:
     def __init__(self, canva: pygame.Surface | None = None):
+        if not pygame.get_init():
+            pygame.init()
         self._ctx = _ctx(self)
         if canva is not None:
             self.set_canva(canva)
 
     def default_style(self, type: str, style: dict[str]):
         if type not in self._ctx._default_styles:
-            raise ValueError("Invalid style type")
+            raise MILIValueError("Invalid style type")
         self._ctx._default_styles[type].update(style)
 
     def default_styles(self, **types_styles: dict[str]):
@@ -1202,10 +1308,12 @@ class MILI:
     def reset_style(self, *types: str):
         for tp in types:
             if tp not in self._ctx._default_styles:
-                raise ValueError("Invalid style type")
+                raise MILIValueError("Invalid style type")
             self._ctx._default_styles[tp] = {}
 
     def start(self, style: dict[str] | None = None):
+        if self._ctx._canva is None:
+            raise MILIError("Canva was not set")
         if style is None:
             style = {}
         style.update(blocking=False)
@@ -1226,6 +1334,10 @@ class MILI:
         self._ctx._parents_stack = [self._ctx._stack]
         self._ctx._abs_hovered = []
         self._ctx._started = True
+
+        mouse_pos = pygame.Vector2(pygame.mouse.get_pos())
+        _globalctx._mouse_rel = mouse_pos - _globalctx._mouse_pos
+        _globalctx._mouse_pos = mouse_pos
 
     def set_canva(self, surface: pygame.Surface):
         self._ctx._canva = surface
@@ -1271,7 +1383,7 @@ class MILI:
         if self._ctx._parent and self._ctx._parent["id"] != 0:
             self._ctx._organize_element(self._ctx._parent)
         else:
-            raise RuntimeError("end() called too many times")
+            raise MILIError("end() called too many times")
         if len(self._ctx._parents_stack) > 1:
             self._ctx._parents_stack.pop()
             self._ctx._parent = self._ctx._parents_stack[-1]
@@ -1343,7 +1455,7 @@ class MILI:
         return data
 
     def text(self, text: str, style: dict[str] | None = None):
-        self._ctx._add_component("text", text, style)
+        self._ctx._add_component("text", str(text), style)
 
     def text_element(
         self,
@@ -1356,6 +1468,11 @@ class MILI:
         data = self.element(element_rect, element_style, get_data)
         self.text(text, text_style)
         return data
+
+    def text_size(self, text: str, style: dict[str] | None = None) -> pygame.Vector2:
+        if style is None:
+            style = {}
+        return pygame.Vector2(self._ctx._text_size(text, style))
 
     def image(self, surface: pygame.Surface, style: dict[str] | None = None):
         self._ctx._add_component("image", surface, style)
@@ -1384,7 +1501,7 @@ class MILI:
         get_data: bool = False,
     ) -> Interaction | ElementData:
         if component not in ["text", "image", "rect", "circle", "line", "polygon"]:
-            raise ValueError("Invalid component name")
+            raise MILIValueError("Invalid component name")
         if not outline_style:
             outline_style = {}
         if "outline_size" not in outline_style:

@@ -18,3 +18,7 @@ pip install -r requirements.txt
 pyinstaller --onefile ImageViewer.py
 start dist/ImageViewer.exe
 ```
+
+# Guide
+
+### [Styles Guide](mili/style.md)
