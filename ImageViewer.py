@@ -37,11 +37,8 @@ def load_image_async(dirpath, file, storage):
 class App:
     def __init__(self):
         self.screen = pygame.display.set_mode((W, H))
-
         self.clock = pygame.Clock()
-
         self.mili = mili.MILI(self.screen)
-
         self.mode = 0
 
         desktop_path = (
@@ -71,14 +68,14 @@ class App:
                         max(0, min(255, int((1 - ((dist / (s // 2)) ** 0.6)) * 45))),
                     ),
                 )
+
         self.hover_cache = mili.ImageCache()
         self.drag_pos = pygame.Vector2(0, 0)
         self.drag_offset = pygame.Vector2(0, 0)
+        self.cards_cache = [mili.ImageCache() for _ in range(1000)]
 
         self.square = pygame.Surface((10, 10))
         self.square.fill("white")
-
-        self.cards_cache = [mili.ImageCache() for _ in range(1000)]
 
         self.mili.default_styles(
             text={
@@ -278,7 +275,7 @@ class App:
 
     def base_btn_hover(self, data):
         if data.hovered and not data.left_pressed:
-            self.mili.rect({"color": (150, 150, 150), "outline_size": 1})
+            self.mili.rect({"color": (150, 150, 150), "outline": 1})
             self.glow(data.id, data.absolute_rect)
 
     def ui_1_back_arrow(self):
@@ -315,7 +312,7 @@ class App:
                 ],
                 {
                     "color": (255, 230, 0),
-                    "outline_size": (0 if self.cur_path in self.favorites_paths else 1),
+                    "outline": (0 if self.cur_path in self.favorites_paths else 1),
                 },
             )
             self.base_btn_hover(f_data)
@@ -406,7 +403,7 @@ class App:
         ) as i_data:
             self.mili.image(
                 self.square,
-                mili.conditional_style(
+                mili.style.conditional(
                     i_data,
                     {
                         "fill_color": (80, 80, 80),
@@ -445,7 +442,7 @@ class App:
                         },
                     )
             if i_data.interaction.hovered and not i_data.interaction.left_pressed:
-                self.mili.rect({"color": (150, 150, 150), "outline_size": 1})
+                self.mili.rect({"color": (150, 150, 150), "outline": 1})
                 self.glow(i_data.id, i_data.absolute_rect)
                 if i_data.press_button != pygame.BUTTON_MIDDLE:
                     if self.size != "list":
@@ -782,7 +779,7 @@ class App:
         ) as f_data:
             self.mili.image(
                 self.square,
-                mili.conditional_style(
+                mili.style.conditional(
                     f_data,
                     {
                         "fill_color": (80, 80, 80),
@@ -808,7 +805,7 @@ class App:
                 },
             )
             if f_data.interaction.hovered and not f_data.interaction.left_pressed:
-                self.mili.rect({"color": (150, 150, 150), "outline_size": 1})
+                self.mili.rect({"color": (150, 150, 150), "outline": 1})
                 self.glow(f_data.id, f_data.absolute_rect)
                 self.content_info(dirpath)
             if f_data.interaction.left_just_released:
@@ -924,7 +921,7 @@ class App:
         ):
             size = self.size if self.size != "list" else "xxs"
             self.mili.rect({"color": (85, 85, 90)})
-            self.mili.rect({"color": (150, 150, 150), "outline_size": 1})
+            self.mili.rect({"color": (150, 150, 150), "outline": 1})
             any_valid = False
             for file in self.folder_contents_abs[dirpath]:
                 loading = False
@@ -1069,7 +1066,7 @@ class App:
                     self.size_menu_open = False
 
             self.mili.rect({"color": (75, 75, 80)})
-            self.mili.rect({"color": (150, 150, 150), "outline_size": 1})
+            self.mili.rect({"color": (150, 150, 150), "outline": 1})
 
             if self.mode == 2:
                 self.size_menu_reset_view()
@@ -1086,7 +1083,7 @@ class App:
     def size_menu_reset_view(self):
         if rv_int := self.mili.element(None, {"fillx": True}):
             self.mili.rect(
-                mili.conditional_style(
+                mili.style.conditional(
                     rv_int,
                     {"color": (85, 85, 90)},
                     {"color": (105, 105, 110)},
@@ -1094,7 +1091,7 @@ class App:
                 )
             )
             self.mili.text("Reset View", {"size": 19})
-            self.mili.rect({"color": (145, 145, 150), "outline_size": 1})
+            self.mili.rect({"color": (145, 145, 150), "outline": 1})
             if rv_int.left_just_released:
                 self.reset_view_data()
                 self.update_view()
@@ -1102,7 +1099,7 @@ class App:
     def size_menu_size(self, size_name):
         if s_int := self.mili.element((0, 0, mili.percentage(8, W), 0)):
             self.mili.rect(
-                mili.conditional_style(
+                mili.style.conditional(
                     s_int,
                     {"color": (85, 85, 90)},
                     {"color": (105, 105, 110)},
@@ -1111,7 +1108,7 @@ class App:
                 )
             )
             self.mili.text(f"{size_name.upper()}", {"size": 19, "growx": False})
-            self.mili.rect({"color": (145, 145, 150), "outline_size": 1})
+            self.mili.rect({"color": (145, 145, 150), "outline": 1})
             if s_int.left_just_released:
                 self.size = size_name
                 self.save_data()
@@ -1119,7 +1116,7 @@ class App:
     def size_menu_smoothscale_option(self, option, selected):
         if opt_int := self.mili.element(None, {"fillx": True}):
             self.mili.rect(
-                mili.conditional_style(
+                mili.style.conditional(
                     opt_int,
                     {"color": (85, 85, 90)},
                     {"color": (105, 105, 110)},
@@ -1128,7 +1125,7 @@ class App:
                 )
             )
             self.mili.text("ON" if option else "OFF", {"size": 19})
-            self.mili.rect({"color": (145, 145, 150), "outline_size": 1})
+            self.mili.rect({"color": (145, 145, 150), "outline": 1})
             if opt_int.left_just_released:
                 self.smoothscale = option
                 self.save_data()

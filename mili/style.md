@@ -73,7 +73,7 @@ The following styles modify the appearance of the rect component (draws using `p
 | Name          | Type/Value          | Description                                                        | Default |
 | ------------- | ------------------- | ------------------------------------------------------------------ | ------- |
 | padx, pady    | `number/percentage` | _control the space between the drawn rect and the element borders_ | `0`     |
-| outline_size  | `number/percentage` | _control the size of the outline. 0 means no outline_              | `0`     |
+| outline  | `number/percentage` | _control the size of the outline. 0 means no outline_              | `0`     |
 | border_radius | `number/percentage` | _control how round are the corners_                                | `0`     |
 | color         | `color value`       | _control the rect color_                                           | `black` |
 
@@ -84,7 +84,7 @@ The following styles modify the appearance of the circle/ellipse component (draw
 | Name         | Type/Value          | Description                                                                                                   | Default |
 | ------------ | ------------------- | ------------------------------------------------------------------------------------------------------------- | ------- |
 | padx, pady   | `number/percentage` | _control the space between the circle and the element borders. if padx differs from pady an ellipse is drawn_ | `0`     |
-| outline_size | `number/percentage` | _control the size of the outline. 0 means no outline_                                                         | `0`     |
+| outline | `number/percentage` | _control the size of the outline. 0 means no outline_                                                         | `0`     |
 | color        | `color value`       | _control the circle color_                                                                                    | `black` |
 
 ## Text Style
@@ -105,7 +105,7 @@ For every combination of font name and size a font object is created and cached.
 | strikethrough | `True/False`            | _control the font strikethrough style_                                                      | `False`              |
 | antialias     | `True/False`            | _control the antialiasing of the font, pixel fonts should set this to `False`_              | `True`               |
 | color         | `color value`           | _control the text color_                                                                    | `black`              |
-| bg_color      | `color value/None`      | _control the color behind the text. None disables this_                                     | `None`               |
+| bg_color      | `color value/None`      | _control the color behind the text. `None` disables this_                                     | `None`               |
 | growx, growy  | `True/False`            | _control whether the element size can grow if the rendered text is bigger than the element_ | `False`              |
 | padx, pady    | `number/percentage`     | _control the space between the text and the element borders_                                | `5/3`                |
 | wraplen       | `number/percentage`     | _manually control the maximum width the text can have. 0 means the text is not restricted_  | `0`                  |
@@ -146,5 +146,23 @@ The points should be a sequence of at least 2 sequences where the x and y values
 
 | Name         | Type/Value          | Description                                           | Default |
 | ------------ | ------------------- | ----------------------------------------------------- | ------- |
-| outline_size | `number/percentage` | _control the size of the outline. 0 means no outline_ | `0`     |
+| outline | `number/percentage` | _control the size of the outline. 0 means no outline_ | `0`     |
 | color        | `color value`       | _control the polygon color_                           | `black` |
+
+## Style Helpers
+
+`mili.percentage()` will help you with element sizes<br>
+
+`mili.gray()` will shorten the gray colors, expanding your value to a tuple of the same value 3 times<br>
+
+`mili.style.filter()` will help you select the style names you want using a whitelist and a blacklist<br>
+
+`mili.style.same()` creates a dictionary with the same value for different style names<br>
+
+`mili.style.conditional()` will use the base style and expand it with the hover and press style based on the interaction status and selection status<br>
+
+`my_mili.default_style()` and `my_mili.default_styles()` sets the default styles for a mili object<br>
+
+`mili.style.Style` will help you cache common styles. you can retrieve them with `get(type)` or use the shortcuts like `get_rect()`<br>
+
+`mili.style.StyleStatus` will help you cache styles for different interactions, using `mili.style.Style` objects for base, hover and press statuses that you can retrieve with the `get(type, interaction)` or use the shortcuts like `get_rect(interaction)` (similar to `mili.style.conditional()`)

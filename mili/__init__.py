@@ -2,7 +2,7 @@ import pygame
 from functools import partialmethod
 from typing import Self as _Self, Sequence as _Sequence
 
-# todo: scrollbar to scroll helper
+# todo: scrollbar size to scroll helper
 # todo: text cache
 
 
@@ -47,6 +47,10 @@ class _globalctx:
             if val.startswith("-"):
                 val = val.replace("-", "")
                 sign = -1
+            try:
+                val = float(val)
+            except ValueError:
+                raise MILIValueError(f"Invalid percentage value '{val}'")
             return ((dim * float(val)) / 100) * sign
         return val
 
@@ -679,7 +683,7 @@ class _ctx:
             _globalctx._abs_perc(pady, rect.h),
         )
         outline = _globalctx._abs_perc(
-            self._style_val(style, "rect", "outline_size", 0), min(rect.w, rect.h)
+            self._style_val(style, "rect", "outline", 0), min(rect.w, rect.h)
         )
         border_radius = _globalctx._abs_perc(
             self._style_val(style, "rect", "border_radius", 7), min(rect.w, rect.h)
@@ -701,7 +705,7 @@ class _ctx:
             _globalctx._abs_perc(pady, rect.h),
         )
         outline = _globalctx._abs_perc(
-            self._style_val(style, "circle", "outline_size", 0), min(rect.w, rect.h)
+            self._style_val(style, "circle", "outline", 0), min(rect.w, rect.h)
         )
         color = self._style_val(style, "circle", "color", "black")
         if padx == pady:
@@ -723,7 +727,7 @@ class _ctx:
             points.append((rect.centerx + rx, rect.centery + ry))
         color = self._style_val(style, "polygon", "color", "black")
         outline = _globalctx._abs_perc(
-            self._style_val(style, "polygon", "outline_size", 0), min(rect.w, rect.h)
+            self._style_val(style, "polygon", "outline", 0), min(rect.w, rect.h)
         )
         pygame.draw.polygon(self._canva, color, points, int(outline))
 
@@ -1195,7 +1199,9 @@ class style:
                 raise MILIValueError("Invalid status type")
             setattr(self, status, style)
 
-        def get(self, type: str, interaction: Interaction) -> dict[str]:
+        def get(
+            self, type: str, interaction: Interaction, selected: bool = False
+        ) -> dict[str]:
             if type not in _globalctx._default_style_names:
                 raise MILIValueError("Invalid style type")
             return style.conditional(
@@ -1203,6 +1209,7 @@ class style:
                 self.base.get(type),
                 self.hover.get(type),
                 self.press.get(type),
+                selected,
             )
 
         get_element = partialmethod(get, "element")
@@ -1286,6 +1293,7 @@ CENTER = {
     "align": "center",
     "font_align": pygame.FONT_CENTER,
 }
+PADLESS = {"padx": 0, "pady": 0}
 
 
 class MILI:
@@ -1295,6 +1303,26 @@ class MILI:
         self._ctx = _ctx(self)
         if canva is not None:
             self.set_canva(canva)
+
+    @property
+    def stack_id(self) -> int:
+        return self._ctx._stack["id"]
+
+    @property
+    def current_parent_id(self) -> int:
+        return self._ctx._parent["id"] if self._ctx._parent else -1
+
+    @property
+    def all_elements_ids(self) -> list[int]:
+        return list(self._ctx._memory.keys())
+
+    @property
+    def canva(self) -> pygame.Surface:
+        return self._ctx._canva
+
+    @canva.setter
+    def canva(self, v: pygame.Surface):
+        self.set_canva(v)
 
     def default_style(self, type: str, style: dict[str]):
         if type not in self._ctx._default_styles:
@@ -1504,8 +1532,8 @@ class MILI:
             raise MILIValueError("Invalid component name")
         if not outline_style:
             outline_style = {}
-        if "outline_size" not in outline_style:
-            outline_style["outline_size"] = 1
+        if "outline" not in outline_style:
+            outline_style["outline"] = 1
         data = self.element(rect, style, get_data)
         self.rect(bg_style)
         comp = getattr(self, component)
