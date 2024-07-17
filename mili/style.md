@@ -126,6 +126,7 @@ By default the surface keeps its aspect ratio while fitting in the element area.
 | smoothscale        | `True/False`        | _control the scale backend to use_                                                                                               | `False` |
 | border_radius      | `number/percentage` | _control how rounded are the corners of the surface_                                                                             | `0`     |
 | alpha              | `integer 0-255`     | _control the surface alpha_                                                                                                      | `255`   |
+| ninepatch_size     | `number/percentage` | _if > 0, the surface will be scaled to fit the element but the 4 corners of the specified size will be preserved_ (**incompatible with fill, stretchx, and stretchy**) | `0` |
 
 ## Line Style
 
@@ -150,6 +151,8 @@ The points should be a sequence of at least 2 sequences where the x and y values
 | color        | `color value`       | _control the polygon color_                           | `black` |
 
 ## Style Helpers
+
+you can find typehinting helpers in the `mili.typing` submodule.
 
 `mili.percentage()` will help you with element sizes<br>
 
