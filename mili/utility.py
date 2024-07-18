@@ -85,8 +85,8 @@ class Scroll:
     def clamp(self):
         maxx, maxy = float("inf"), float("inf")
         if self._element_data is not None and self._element_data.grid is not None:
-            maxx = self._element_data.grid.overflow_x
-            maxy = self._element_data.grid.overflow_y
+            maxx = self._element_data.grid.overflowx
+            maxy = self._element_data.grid.overflowy
         self.scroll_offset.x = pygame.math.clamp(self.scroll_offset.x, 0, maxx)
         self.scroll_offset.y = pygame.math.clamp(self.scroll_offset.y, 0, maxy)
 

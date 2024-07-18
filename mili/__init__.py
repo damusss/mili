@@ -1,4 +1,4 @@
-from .mili import MILI
+from .mili import MILI, register_custom_component
 from .data import ElementData, Interaction, ImageCache
 from .utility import Selectable, Dragger, Scroll, percentage, gray, indent
 from .style import RESIZE, X, CENTER, PADLESS
@@ -17,6 +17,7 @@ __all__ = (
     "percentage",
     "gray",
     "indent",
+    "register_custom_component",
     "RESIZE",
     "X",
     "CENTER",
@@ -25,3 +26,5 @@ __all__ = (
     "style",
     "typing",
 )
+
+# todo: scroll helper to size scrollbar

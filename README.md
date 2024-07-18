@@ -2,13 +2,12 @@
 
 Minimal immediate-mode python user interface library.
 
-On the same repository an image viewer using mili.
-
 # Guide
 
+### [General Guide](mili/guide.md)
 ### [Styles Guide](mili/style.md)
 
-# Run
+# Image Viewer
 
 Run from source the image viewer:
 ```shell

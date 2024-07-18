@@ -1,5 +1,6 @@
 import pygame
 import typing
+from mili import error as _error
 
 if typing.TYPE_CHECKING:
     from mili import MILI as _MILI
@@ -8,6 +9,9 @@ __all__ = ("ImageCache", "Interaction", "ElementData")
 
 
 class ImageCache:
+    _preallocated_caches = []
+    _preallocated_index = -1
+
     def __init__(self):
         self._cache = None
 
@@ -15,6 +19,19 @@ class ImageCache:
         if self._cache is None:
             return None
         return self._cache.get("output", None)
+
+    @classmethod
+    def preallocate_caches(cls, amount: int):
+        cls._preallocated_caches = [ImageCache() for _ in range(amount)]
+
+    @classmethod
+    def get_next_cache(cls):
+        cls._preallocated_index += 1
+        if cls._preallocated_index > len(cls._preallocated_caches) - 1:
+            raise _error.MILIStatusError(
+                "Too few image caches preallocated, failed to retrieve the next one"
+            )
+        return cls._preallocated_caches[cls._preallocated_index]
 
 
 class Interaction:
@@ -64,8 +81,11 @@ class Interaction:
 
 
 class ElementGridData:
-    overflow_x: float
-    overflow_y: float
+    overflowx: float
+    overflowy: float
+    padx: float
+    pady: float
+    spacing: float
 
     def __init__(self, **kwargs):
         for name, value in kwargs.items():

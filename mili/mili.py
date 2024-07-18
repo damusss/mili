@@ -1,5 +1,6 @@
 import pygame
 import typing
+
 from mili import _core
 from mili import error as _error
 from mili import data as _data
@@ -7,6 +8,10 @@ from mili import typing as _typing
 
 
 __all__ = ("MILI",)
+
+
+def register_custom_component(name: str, component_type: _typing.ComponentProtocol):
+    _core._globalctx._component_types[name] = component_type
 
 
 class MILI:
@@ -79,6 +84,7 @@ class MILI:
         mouse_pos = pygame.Vector2(pygame.mouse.get_pos())
         _core._globalctx._mouse_rel = mouse_pos - _core._globalctx._mouse_pos
         _core._globalctx._mouse_pos = mouse_pos
+        _data.ImageCache._preallocated_index = -1
         return True
 
     def set_canva(self, surface: pygame.Surface):
@@ -251,7 +257,7 @@ class MILI:
         component="text",
         get_data: bool = False,
     ) -> _data.Interaction | _data.ElementData:
-        if component not in ["text", "image", "rect", "circle", "line", "polygon"]:
+        if component not in _core._globalctx._component_types.keys():
             raise _error.MILIValueError("Invalid component name")
         if not outline_style:
             outline_style = {}
@@ -266,6 +272,18 @@ class MILI:
             comp(comp_style)
         self.rect(outline_style)
         return data
+
+    def custom_component(
+        self, component: str, data: typing.Any, style: dict[str] | None
+    ):
+        if (
+            component not in self._ctx._default_styles
+            and component in _core._globalctx._component_types
+        ):
+            self._ctx._default_styles[component] = {}
+        elif component not in _core._globalctx._component_types:
+            raise _error.MILIStatusError(f"No custom component '{component}' registered")
+        self._ctx._add_component(component, data, style)
 
     def data_from_id(self, element_id: int) -> _data.ElementData:
         self._ctx._start_check()

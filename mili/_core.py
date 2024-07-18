@@ -2,6 +2,7 @@ import pygame
 import typing
 from mili import error
 from mili import data as _data
+from mili import typing as _typing
 
 if typing.TYPE_CHECKING:
     from mili import MILI as _MILI
@@ -23,15 +24,9 @@ class _globalctx:
         top: bool
 
     _font_cache = {}
-    _default_style_names = {
-        "element",
-        "rect",
-        "circle",
-        "polygon",
-        "line",
-        "text",
-        "image",
-    }
+    _component_types: dict[str, str | _typing.ComponentProtocol] = dict.fromkeys(
+        ["rect", "circle", "line", "polygon", "line", "text", "image"], "builtin"
+    )
     _mouse_pos = pygame.Vector2()
     _mouse_rel = pygame.Vector2()
 
@@ -181,11 +176,16 @@ class _globalctx:
             children_ids=list(old_data["children_ids"]),
             parent_id=old_data["parent_id"],
             grid=(
-                _data.ElementGridData(overflow_x=-1, overflow_y=-1)
+                _data.ElementGridData(
+                    overflowx=-1, overflowy=-1, padx=0, pady=0, spacing=0
+                )
                 if grid is None
                 else _data.ElementGridData(
-                    overflow_x=grid["overflow_x"],
-                    overflow_y=grid["overflow_y"],
+                    overflowx=grid["overflowx"],
+                    overflowy=grid["overflowy"],
+                    padx=grid["padx"],
+                    pady=grid["pady"],
+                    spacing=grid["spacing"],
                 )
             ),
         )
@@ -245,7 +245,6 @@ class _ctx:
         self._canva_rect: pygame.Rect = None
         self._abs_hovered: list[_globalctx._ElementLike] = []
         self._started = False
-
         self._default_styles = {
             "element": {},
             "rect": {},
@@ -257,7 +256,7 @@ class _ctx:
         }
 
     def _get_element(
-        self, rect: pygame.Rect, arg_style
+        self, rect: _typing.RectLike, arg_style
     ) -> tuple[_globalctx._ElementLike, "_data.Interaction"]:
         if arg_style is None:
             arg_style = {}
@@ -445,6 +444,9 @@ class _ctx:
         element["grid"] = {
             f"overflow_{oa}": max(0, lines_size_oa - padded_oa),
             f"overflow_{a}": max(0, longest_line_size_a - padded_a),
+            f"pad{a}": pada,
+            f"pad{oa}": padoa,
+            "spacing": space,
         }
 
     def _check_align(self, align):
@@ -646,6 +648,9 @@ class _ctx:
         element["grid"] = {
             f"overflow_{oa}": max(0, biggest_oa - padded_oa),
             f"overflow_{a}": max(0, total_a - padded_a),
+            f"pad{a}": pada,
+            f"pad{oa}": padoa,
+            "spacing": space,
         }
 
         for el in list(changed):
@@ -702,6 +707,8 @@ class _ctx:
             )
         if type == "text":
             self._text_resize(self._element["rect"], data, style)
+        if _globalctx._component_types[type] != "builtin":
+            _globalctx._component_types[type].added(self, data, style, self._element)
         self._element["components"].append({"type": type, "data": data, "style": style})
 
     def _get_font(self, style) -> pygame.Font:
@@ -994,9 +1001,15 @@ class _ctx:
             pre_draw(self._canva, el_data, clip)
             self._canva.set_clip(clip)
         for component in element["components"]:
-            getattr(self, f"_draw_comp_{component["type"]}")(
-                component["data"], component["style"], element, absolute_rect
-            )
+            comp_type = component["type"]
+            if _globalctx._component_types[comp_type] == "builtin":
+                getattr(self, f"_draw_comp_{comp_type}")(
+                    component["data"], component["style"], element, absolute_rect
+                )
+            else:
+                _globalctx._component_types[comp_type].draw(
+                    self, component["data"], component["style"], element, absolute_rect
+                )
         if mid_draw:
             if el_data is None:
                 el_data = _globalctx._element_data(self._mili, element, None)

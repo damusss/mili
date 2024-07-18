@@ -1,8 +1,9 @@
 import typing
 import pygame
 import functools
-from mili import error as _error
+
 from mili import _core
+from mili import error as _error
 from mili import data as _data
 from mili import typing as _typing
 
@@ -85,7 +86,7 @@ class StyleStatus:
     def get(
         self, type: str, interaction: _data.Interaction, selected: bool = False
     ) -> _typing.AnyStyleLike:
-        if type not in _core._globalctx._default_style_names:
+        if type not in _core._globalctx._component_types.keys():
             raise _error.MILIValueError("Invalid style type")
         return conditional(
             interaction,

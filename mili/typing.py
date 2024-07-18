@@ -2,6 +2,9 @@ import typing
 import pygame
 from mili import data as _data
 
+if typing.TYPE_CHECKING:
+    from mili import _core
+
 __all__ = (
     "NumberOrPercentage",
     "ColorLike",
@@ -33,6 +36,16 @@ class ElementStyleLike(typing.TypedDict):
     align: typing.Literal["first", "center", "last"]
     z: int
     parent_id: int
+    offset: typing.Sequence[float]
+    pre_draw_func: (
+        typing.Callable[[pygame.Surface, _data.ElementData, pygame.Rect], None] | None
+    )
+    mid_draw_func: (
+        typing.Callable[[pygame.Surface, _data.ElementData, pygame.Rect], None] | None
+    )
+    post_draw_func: (
+        typing.Callable[[pygame.Surface, _data.ElementData, pygame.Rect], None] | None
+    )
 
     axis: typing.Literal["x", "y"]
     spacing: NumberOrPercentage
@@ -125,4 +138,24 @@ type AnyStyleLike = (
     | PolygonStyleLike
     | TextStyleLike
     | ImageStyleLike
+    | dict[str]
 )
+
+
+class ComponentProtocol(typing.Protocol):
+    def draw(
+        self,
+        ctx: "_core._ctx",
+        data: typing.Any,
+        style: dict[str],
+        element: "_core._globalctx.ElementLike",
+        absolute_rect: pygame.Rect,
+    ): ...
+
+    def added(
+        self,
+        ctx: "_core._ctx",
+        data: typing.Any,
+        style: dict[str],
+        element: "_core._globalctx.ElementLike",
+    ): ...
