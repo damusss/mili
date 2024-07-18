@@ -442,8 +442,8 @@ class _ctx:
             current_pos_oa += spacing
 
         element["grid"] = {
-            f"overflow_{oa}": max(0, lines_size_oa - padded_oa),
-            f"overflow_{a}": max(0, longest_line_size_a - padded_a),
+            f"overflow{oa}": max(0, lines_size_oa - padded_oa),
+            f"overflow{a}": max(0, longest_line_size_a - padded_a),
             f"pad{a}": pada,
             f"pad{oa}": padoa,
             "spacing": space,
@@ -604,7 +604,11 @@ class _ctx:
                 total_a = padded_a
             else:
                 total_a = fixed_elements_a
-            multiplier = available_to_filla / filla_totalsize
+            multiplier = 1
+            if filla_totalsize > available_to_filla:
+                multiplier = available_to_filla / filla_totalsize
+            else:
+                total_a = fixed_elements_a + filla_totalsize
             for filla_el in elements_with_filla:
                 el_rect = filla_el["rect"]
                 setattr(el_rect, av, filla_el["filla"] * multiplier)
@@ -646,8 +650,8 @@ class _ctx:
                 setattr(el_rect, f"center{oa}", getattr(rect, oav) / 2)
 
         element["grid"] = {
-            f"overflow_{oa}": max(0, biggest_oa - padded_oa),
-            f"overflow_{a}": max(0, total_a - padded_a),
+            f"overflow{oa}": max(0, biggest_oa - padded_oa),
+            f"overflow{a}": max(0, total_a - padded_a),
             f"pad{a}": pada,
             f"pad{oa}": padoa,
             "spacing": space,

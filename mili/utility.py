@@ -3,7 +3,15 @@ import typing
 from mili import data as _data
 from mili import _core
 
-__all__ = ("Selectable", "Dragger", "Scroll", "percentage", "gray", "indent")
+__all__ = (
+    "Selectable",
+    "Dragger",
+    "Scroll",
+    "Scrollbar",
+    "percentage",
+    "gray",
+    "indent",
+)
 
 
 class Selectable:
@@ -45,19 +53,60 @@ class Selectable:
 
 
 class Dragger:
-    def __init__(self, position: typing.Sequence = None):
+    def __init__(
+        self,
+        position: typing.Sequence[float] | None = None,
+        lock_x: bool = False,
+        lock_y: bool = False,
+    ):
         if position is None:
             position = (0, 0)
         self.position = pygame.Vector2(position)
         self.rel = pygame.Vector2()
+        self.lock_x = lock_x
+        self.lock_y = lock_y
+        self.changed = False
+        self._clamp_x = None
+        self._clamp_y = None
 
     def update(
-        self, element: _data.Interaction | _data.ElementData
+        self,
+        element: _data.Interaction | _data.ElementData,
+        clamp_x: tuple[int, int] | None = None,
+        clamp_y: tuple[int, int] | None = None,
     ) -> _data.Interaction | _data.ElementData:
         if element.left_pressed:
-            self.position += _core._globalctx._mouse_rel
-            self.rel = _core._globalctx._mouse_rel.copy()
+            rel = _core._globalctx._mouse_rel.copy()
+            if self.lock_x:
+                rel.x = 0
+            if self.lock_y:
+                rel.y = 0
+            prev = self.position.copy()
+            self.position += rel
+            if clamp_x is not None:
+                self.position.x = pygame.math.clamp(self.position.x, *clamp_x)
+            self._clamp_x = clamp_x
+            if clamp_y is not None:
+                self.position.y = pygame.math.clamp(self.position.y, *clamp_y)
+            self._clamp_y = clamp_y
+            if self.position != prev:
+                self.changed = True
+            self.rel = rel.copy()
         return element
+
+    def clamp(
+        self,
+        clamp_x: tuple[int, int] | None = None,
+        clamp_y: tuple[int, int] | None = None,
+        previous_clamps: bool = True,
+    ):
+        if previous_clamps:
+            clamp_x = self._clamp_x
+            clamp_y = self._clamp_y
+        if clamp_x is not None:
+            self.position.x = pygame.math.clamp(self.position.x, *clamp_x)
+        if clamp_y is not None:
+            self.position.y = pygame.math.clamp(self.position.y, *clamp_y)
 
 
 class Scroll:
@@ -93,12 +142,153 @@ class Scroll:
     def get_offset(self) -> tuple[float, float]:
         return (-self.scroll_offset.x, -self.scroll_offset.y)
 
+    def get_handle_size(
+        self, scrollbar_size: int, axis: typing.Literal["x", "y"] = "y"
+    ):
+        if self._element_data is not None and self._element_data.grid is not None:
+            if axis == "x":
+                rectsize = self._element_data.rect.w
+                overflow = self._element_data.grid.overflowx
+            else:
+                rectsize = self._element_data.rect.h
+                overflow = self._element_data.grid.overflowy
+            return (rectsize / (rectsize + overflow)) * scrollbar_size
+        return 0
+
+    def get_rel_handle_pos_from_scroll(
+        self,
+        scrollbar_size: int,
+        handle_size: int,
+        axis: typing.Literal["x", "y"] = "y",
+    ):
+        if self._element_data is None or self._element_data.grid is None:
+            return 0
+        if axis == "x":
+            offset = self.scroll_offset.x
+            overflow = self._element_data.grid.overflowx
+        else:
+            offset = self.scroll_offset.y
+            overflow = self._element_data.grid.overflowy
+        return (offset / overflow) * (scrollbar_size - handle_size)
+
+    def set_scroll_from_rel_handle_pos(
+        self,
+        scrollbar_size: int,
+        rel_handle_pos: int,
+        handle_size: int,
+        axis: typing.Literal["x", "y"] = "y",
+    ):
+        if self._element_data is None or self._element_data.grid is None:
+            return
+        if axis == "x":
+            self.scroll_offset.x = self._element_data.grid.overflowx * (
+                rel_handle_pos / (scrollbar_size - handle_size)
+            )
+        else:
+            self.scroll_offset.y = self._element_data.grid.overflowy * (
+                rel_handle_pos / (scrollbar_size - handle_size)
+            )
+        self.clamp()
+
+
+class Scrollbar:
+    def __init__(
+        self,
+        scroll: Scroll,
+        short_size: int,
+        border_dist: int = 3,
+        padding: int = 3,
+        size_reduce: int = 0,
+        axis: typing.Literal["x", "y"] = "y",
+    ):
+        self._scroll = scroll
+        self.axis = axis
+        self.short_size = short_size
+        self.border_dist = border_dist
+        self.padding = padding
+        self.size_reduce = size_reduce
+        self.size: int = 0
+        self.handle_size: int = 0
+        self.handle_dragger: Dragger = Dragger(
+            lock_x=self.axis == "y", lock_y=self.axis == "x"
+        )
+        self.bar_rect: pygame.Rect = pygame.Rect()
+        self.handle_rect: pygame.Rect = pygame.Rect()
+
+    def update(self, element: _data.ElementData) -> _data.ElementData:
+        if element is None:
+            return element
+        rectsize = element.rect.h if self.axis == "x" else element.rect.w
+        self.size = (
+            (element.rect.w if self.axis == "x" else element.rect.h)
+            - self.padding * 2
+            - self.size_reduce
+        )
+        if self.axis == "x":
+            self.bar_rect = pygame.Rect(
+                self.padding,
+                rectsize - self.border_dist - self.short_size,
+                self.size,
+                self.short_size,
+            )
+        else:
+            self.bar_rect = pygame.Rect(
+                rectsize - self.border_dist - self.short_size,
+                self.padding,
+                self.short_size,
+                self.size,
+            )
+        self.handle_size = self._scroll.get_handle_size(self.size, self.axis)
+        return element
+
+    def update_handle(
+        self, element: _data.ElementData | _data.Interaction
+    ) -> _data.ElementData | _data.Interaction:
+        if element is None:
+            return element
+        self.handle_dragger.update(
+            element,
+            clamp_x=(0, self.size - self.handle_size) if self.axis == "x" else None,
+            clamp_y=(0, self.size - self.handle_size) if self.axis == "y" else None,
+        )
+        if self.handle_dragger.changed:
+            self._scroll.set_scroll_from_rel_handle_pos(
+                self.size,
+                (
+                    self.handle_dragger.position.x
+                    if self.axis == "x"
+                    else self.handle_dragger.position.y
+                ),
+                self.handle_size,
+                self.axis,
+            )
+        if self.axis == "x":
+            self.handle_rect = pygame.Rect(
+                self.handle_dragger.position.x, 0, self.handle_size, self.short_size
+            )
+        else:
+            self.handle_rect = pygame.Rect(
+                0, self.handle_dragger.position.y, self.short_size, self.handle_size
+            )
+
+    def scroll_moved(self):
+        pos = self._scroll.get_rel_handle_pos_from_scroll(
+            self.size, self.handle_size, self.axis
+        )
+        if self.axis == "x":
+            self.handle_dragger.position.x = pos
+        else:
+            self.handle_dragger.position.y = pos
+        self.handle_dragger.clamp()
+
 
 def percentage(percentage: float, value: float) -> float:
     return (percentage * value) / 100
 
 
-def gray(value=100):
+def gray(
+    value: int | typing.Any,
+) -> tuple[int | typing.Any, int | typing.Any, int | typing.Any]:
     return (value, value, value)
 
 

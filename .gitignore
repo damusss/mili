@@ -2,10 +2,9 @@
 
 .VSCodeCounter/
 __pycache__/
-test.*
+test**.*
 temp.*
 stats.prof
-DEPRECATED/
 .ruff_cache/
 data.json
 *.exe
