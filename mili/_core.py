@@ -161,6 +161,7 @@ class _globalctx:
                 "rect": pygame.Rect(),
                 "abs_rect": pygame.Rect(),
                 "children_ids": [],
+                "components": [],
                 "parent_id": 0,
                 "grid": None,
             }
@@ -175,6 +176,7 @@ class _globalctx:
             style=el["style"].copy(),
             children_ids=list(old_data["children_ids"]),
             parent_id=old_data["parent_id"],
+            components=old_data["components"].copy(),
             grid=(
                 _data.ElementGridData(
                     overflowx=-1, overflowy=-1, padx=0, pady=0, spacing=0
@@ -245,6 +247,8 @@ class _ctx:
         self._canva_rect: pygame.Rect = None
         self._abs_hovered: list[_globalctx._ElementLike] = []
         self._started = False
+        self._started_pressing_element = None
+        self._started_pressing_button = -1
         self._default_styles = {
             "element": {},
             "rect": {},
@@ -660,6 +664,34 @@ class _ctx:
         for el in list(changed):
             self._organize_element(el)
 
+    def _start(self, style):
+        self._parent = {
+            "rect": pygame.Rect((0, 0), self._canva.size),
+            "style": style,
+            "id": 0,
+            "children": [],
+            "children_grid": [],
+            "components": [],
+            "parent": None,
+            "top": False,
+            "z": 0,
+        }
+        self._id = 1
+        self._element = self._parent
+        self._stack = self._parent
+        self._parents_stack = [self._stack]
+        self._abs_hovered = []
+        self._started = True
+
+        if btn := _globalctx._get_first_button(pygame.mouse.get_just_pressed()) > -1:
+            self._started_pressing_button = btn
+        if (
+            _globalctx._get_first_button(pygame.mouse.get_just_released())
+            == self._started_pressing_button
+        ):
+            self._started_pressing_button = -1
+            self._started_pressing_element = None
+
     def _check_interaction(self, element: _globalctx._ElementLike):
         if not self._style_val(element["style"], "element", "blocking", True):
             return
@@ -674,30 +706,58 @@ class _ctx:
 
     def _get_interaction(self, element: _globalctx._ElementLike) -> "_data.Interaction":
         if element["id"] not in self._memory:
-            return _data.Interaction(self._mili, -1, False, -1, -1, -1, False)
+            return _data.Interaction(self._mili, -1, False, -1, -1, -1, False, False)
         old_el = self._memory[element["id"]]
         self._old_data[element["id"]] = {
             "rect": old_el["rect"],
             "abs_rect": old_el["abs_rect"],
+            "components": old_el["components"],
             "children_ids": [ch["id"] for ch in old_el["children"]],
             "parent_id": old_el["parent"]["id"] if old_el["parent"] else 0,
             "grid": old_el["grid"] if "grid" in old_el else None,
         }
         absolute_hover = old_el["abs_rect"].collidepoint(pygame.mouse.get_pos())
         if old_el["top"]:
-            return _data.Interaction(
-                self._mili,
-                element["id"],
-                absolute_hover,
-                _globalctx._get_first_button(pygame.mouse.get_pressed(5)),
-                _globalctx._get_first_button(pygame.mouse.get_just_pressed()),
-                _globalctx._get_first_button(pygame.mouse.get_just_released()),
-                absolute_hover,
+            if (
+                self._started_pressing_button > -1
+                and self._started_pressing_element is None
+            ):
+                self._started_pressing_element = element["id"]
+                return self._total_interaction(
+                    element, absolute_hover, absolute_hover, False
+                )
+            if (
+                self._started_pressing_button > -1
+                and element["id"] != self._started_pressing_element
+            ):
+                return self._partial_interaction(element, absolute_hover)
+            return self._total_interaction(
+                element, absolute_hover, absolute_hover, False
             )
         else:
-            return _data.Interaction(
-                self._mili, element["id"], False, -1, -1, -1, absolute_hover
-            )
+            if (
+                self._started_pressing_button > -1
+                and element["id"] == self._started_pressing_element
+            ):
+                return self._total_interaction(element, absolute_hover, False, True)
+            return self._partial_interaction(element, absolute_hover)
+
+    def _partial_interaction(self, element, absolute_hover):
+        return _data.Interaction(
+            self._mili, element["id"], False, -1, -1, -1, absolute_hover, False
+        )
+
+    def _total_interaction(self, element, absolute_hover, hovered, unhovered):
+        return _data.Interaction(
+            self._mili,
+            element["id"],
+            absolute_hover and hovered,
+            _globalctx._get_first_button(pygame.mouse.get_pressed(5)),
+            _globalctx._get_first_button(pygame.mouse.get_just_pressed()),
+            _globalctx._get_first_button(pygame.mouse.get_just_released()),
+            absolute_hover,
+            unhovered,
+        )
 
     def _add_component(self, type, data, arg_style):
         self._start_check()
@@ -975,7 +1035,7 @@ class _ctx:
         image_rect = output.get_rect(center=rect.center)
         self._canva.blit(output, image_rect)
 
-    def _draw_element(
+    def _draw_update_element(
         self, element: _globalctx._ElementLike, parent_pos, parent_clip=None
     ):
         offset = self._style_val(element["style"], "element", "offset", (0, 0))
@@ -1004,8 +1064,12 @@ class _ctx:
                 el_data = _globalctx._element_data(self._mili, element, None)
             pre_draw(self._canva, el_data, clip)
             self._canva.set_clip(clip)
+        render_above = []
         for component in element["components"]:
             comp_type = component["type"]
+            if self._style_val(component["style"], comp_type, "draw_above", False):
+                render_above.append(component)
+                continue
             if _globalctx._component_types[comp_type] == "builtin":
                 getattr(self, f"_draw_comp_{comp_type}")(
                     component["data"], component["style"], element, absolute_rect
@@ -1022,8 +1086,18 @@ class _ctx:
         if len(element["children"]) > 0:
             for child in sorted(element["children"], key=lambda c: c["z"]):
                 self._canva.set_clip(clip)
-                self._draw_element(child, absolute_rect.topleft, clip)
+                self._draw_update_element(child, absolute_rect.topleft, clip)
                 self._canva.set_clip(clip)
+        for component in render_above:
+            comp_type = component["type"]
+            if _globalctx._component_types[comp_type] == "builtin":
+                getattr(self, f"_draw_comp_{comp_type}")(
+                    component["data"], component["style"], element, absolute_rect
+                )
+            else:
+                _globalctx._component_types[comp_type].draw(
+                    self, component["data"], component["style"], element, absolute_rect
+                )
         if post_draw:
             if el_data is None:
                 el_data = _globalctx._element_data(self._mili, element, None)

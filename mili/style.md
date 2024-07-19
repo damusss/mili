@@ -80,6 +80,7 @@ The following styles modify the appearance of the rect component (draws using `p
 | outline  | `number/percentage` | _control the size of the outline. 0 means no outline_              | `0`     |
 | border_radius | `number/percentage` | _control how round are the corners_                                | `0`     |
 | color         | `color value`       | _control the rect color_                                           | `black` |
+| draw_above    | `True/False`        | _the rect is drawn above the children_                             | `False` |
 
 ## Circle Style
 
@@ -90,6 +91,7 @@ The following styles modify the appearance of the circle/ellipse component (draw
 | padx, pady   | `number/percentage` | _control the space between the circle and the element borders. if padx differs from pady an ellipse is drawn_ | `0`     |
 | outline | `number/percentage` | _control the size of the outline. 0 means no outline_                                                         | `0`     |
 | color        | `color value`       | _control the circle color_                                                                                    | `black` |
+| draw_above    | `True/False`        | _the circle is drawn above the children_                             | `False` |
 
 ## Text Style
 
@@ -113,6 +115,7 @@ For every combination of font name and size a font object is created and cached.
 | growx, growy  | `True/False`            | _control whether the element size can grow if the rendered text is bigger than the element_ | `False`              |
 | padx, pady    | `number/percentage`     | _control the space between the text and the element borders_                                | `5/3`                |
 | wraplen       | `number/percentage`     | _manually control the maximum width the text can have. 0 means the text is not restricted_  | `0`                  |
+| draw_above    | `True/False`        | _the text is drawn above the children_                             | `False` |
 
 ## Image Style
 
@@ -131,6 +134,7 @@ By default the surface keeps its aspect ratio while fitting in the element area.
 | border_radius      | `number/percentage` | _control how rounded are the corners of the surface_                                                                             | `0`     |
 | alpha              | `integer 0-255`     | _control the surface alpha_                                                                                                      | `255`   |
 | ninepatch_size     | `number/percentage` | _if > 0, the surface will be scaled to fit the element but the 4 corners of the specified size will be preserved_ (**incompatible with fill, stretchx, and stretchy**) | `0` |
+| draw_above    | `True/False`        | _the image is drawn above the children_                             | `False` |
 
 ## Line Style
 
@@ -142,6 +146,7 @@ The start_end should be a sequence of 2 sequences where the x and y values can b
 | ----- | ------------------- | --------------------------- | ------- |
 | size  | `number/percentage` | _control the size the line_ | `1`     |
 | color | `color value`       | _control the line color_    | `black` |
+| draw_above    | `True/False`        | _the line is drawn above the children_                             | `False` |
 
 ## Polygon Style
 
@@ -153,6 +158,7 @@ The points should be a sequence of at least 2 sequences where the x and y values
 | ------------ | ------------------- | ----------------------------------------------------- | ------- |
 | outline | `number/percentage` | _control the size of the outline. 0 means no outline_ | `0`     |
 | color        | `color value`       | _control the polygon color_                           | `black` |
+| draw_above    | `True/False`        | _the polygon is drawn above the children_                             | `False` |
 
 ## Style Helpers
 

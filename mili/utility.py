@@ -1,7 +1,10 @@
 import pygame
 import typing
-from mili import data as _data
 from mili import _core
+from mili import data as _data
+from mili import typing as _typing
+from mili import error as _error
+from mili.mili import MILI as _MILI
 
 __all__ = (
     "Selectable",
@@ -109,6 +112,50 @@ class Dragger:
             self.position.y = pygame.math.clamp(self.position.y, *clamp_y)
 
 
+class GenericApp:
+    def __init__(self, window: pygame.Window):
+        if not pygame.get_init():
+            raise _error.MILIStatusError(
+                "pygame.init() must be called before creating a generic app"
+            )
+        self.window = window
+        self.clock = pygame.Clock()
+        self.target_framerate: int = 60
+        self.mili = _MILI(self.window.get_surface())
+        self.clear_color: _typing.ColorLike = 0
+        self.start_style: _typing.ElementStyleLike | None = None
+        self.delta_time: float = 0
+
+    def update(self): ...
+
+    def ui(self): ...
+
+    def event(self, event: pygame.Event): ...
+
+    def quit(self):
+        self.on_quit()
+        pygame.quit()
+        raise SystemExit
+
+    def on_quit(self): ...
+
+    def run(self):
+        while True:
+            self.mili.start(self.start_style)
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.quit()
+                else:
+                    self.event(event)
+
+            self.window.get_surface().fill(self.clear_color)
+            self.update()
+            self.ui()
+            self.mili.update_draw()
+            self.window.flip()
+            self.delta_time = self.clock.tick(self.target_framerate)/1000
+
+
 class Scroll:
     def __init__(self):
         self.scroll_offset: pygame.Vector2 = pygame.Vector2()
@@ -152,7 +199,9 @@ class Scroll:
             else:
                 rectsize = self._element_data.rect.h
                 overflow = self._element_data.grid.overflowy
-            return (rectsize / (rectsize + overflow)) * scrollbar_size
+            return min(
+                scrollbar_size, (rectsize / (rectsize + overflow)) * scrollbar_size
+            )
         return 0
 
     def get_rel_handle_pos_from_scroll(
@@ -169,6 +218,8 @@ class Scroll:
         else:
             offset = self.scroll_offset.y
             overflow = self._element_data.grid.overflowy
+        if overflow == 0:
+            return 0
         return (offset / overflow) * (scrollbar_size - handle_size)
 
     def set_scroll_from_rel_handle_pos(
@@ -179,6 +230,8 @@ class Scroll:
         axis: typing.Literal["x", "y"] = "y",
     ):
         if self._element_data is None or self._element_data.grid is None:
+            return
+        if scrollbar_size - handle_size == 0:
             return
         if axis == "x":
             self.scroll_offset.x = self._element_data.grid.overflowx * (
@@ -214,6 +267,22 @@ class Scrollbar:
         )
         self.bar_rect: pygame.Rect = pygame.Rect()
         self.handle_rect: pygame.Rect = pygame.Rect()
+
+        self.bar_style: _typing.ElementStyleLike = {"ignore_grid": True, "z": 999}
+        self.handle_style: _typing.ElementStyleLike = {"ignore_grid": True, "z": 9999}
+
+    @property
+    def needed(self):
+        if (
+            self._scroll._element_data is None
+            or self._scroll._element_data.grid is None
+        ):
+            return False
+        return (
+            self._scroll._element_data.grid.overflowy
+            if self.axis == "y"
+            else self._scroll._element_data.grid.overflowx
+        ) > 0
 
     def update(self, element: _data.ElementData) -> _data.ElementData:
         if element is None:

@@ -44,6 +44,7 @@ class Interaction:
         just_pressed_button: bool,
         just_released_button: bool,
         absolute_hover: bool,
+        unhover_pressed: bool,
     ):
         self._mili = mili
         self.id = id
@@ -53,12 +54,14 @@ class Interaction:
             self.just_pressed_button,
             self.just_released_button,
             self.absolute_hover,
+            self.unhover_pressed,
         ) = (
             hovered,
             press_button,
             just_pressed_button,
             just_released_button,
             absolute_hover,
+            unhover_pressed,
         )
 
     @property
@@ -100,6 +103,7 @@ class ElementData:
     id: int
     style: dict[str]
     children_ids: list[int]
+    components: dict[typing.Literal["type", "style", "data"], typing.Any]
     parent_id: int
     grid: ElementGridData | None
 

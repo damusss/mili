@@ -17,6 +17,7 @@ def register_custom_component(name: str, component_type: _typing.ComponentProtoc
 class MILI:
     def __init__(self, canva: pygame.Surface | None = None):
         self._ctx = _core._ctx(self)
+        self.always_get_data: bool = False
         if canva is not None:
             self.set_canva(canva)
 
@@ -63,24 +64,7 @@ class MILI:
         if style is None:
             style = {}
         style.update(blocking=False)
-        self._ctx._parent = {
-            "rect": pygame.Rect((0, 0), self._ctx._canva.size),
-            "style": style,
-            "id": 0,
-            "children": [],
-            "children_grid": [],
-            "components": [],
-            "parent": None,
-            "top": False,
-            "z": 0,
-        }
-        self._ctx._id = 1
-        self._ctx._element = self._ctx._parent
-        self._ctx._stack = self._ctx._parent
-        self._ctx._parents_stack = [self._ctx._stack]
-        self._ctx._abs_hovered = []
-        self._ctx._started = True
-
+        self._ctx._start(style)
         mouse_pos = pygame.Vector2(pygame.mouse.get_pos())
         _core._globalctx._mouse_rel = mouse_pos - _core._globalctx._mouse_pos
         _core._globalctx._mouse_pos = mouse_pos
@@ -94,7 +78,7 @@ class MILI:
     def update_draw(self):
         self._ctx._organize_element(self._ctx._stack)
         self._ctx._started = False
-        self._ctx._draw_element(self._ctx._stack, (0, 0))
+        self._ctx._draw_update_element(self._ctx._stack, (0, 0))
         abs_hovered = sorted(self._ctx._abs_hovered, key=lambda e: e["z"], reverse=True)
         if len(abs_hovered) > 0:
             abs_hovered[0]["top"] = True
@@ -107,7 +91,7 @@ class MILI:
     ) -> _data.Interaction | _data.ElementData:
         self._ctx._start_check()
         el, interaction = self._ctx._get_element(rect, style)
-        if get_data:
+        if get_data or self.always_get_data:
             return _core._globalctx._element_data(self, el, interaction)
         return interaction
 
@@ -122,7 +106,7 @@ class MILI:
         el, interaction = self._ctx._get_element(rect, style)
         self._ctx._parent = el
         self._ctx._parents_stack.append(el)
-        if get_data:
+        if get_data or self.always_get_data:
             return _core._globalctx._element_data(self, el, interaction)
         return interaction
 
@@ -282,7 +266,9 @@ class MILI:
         ):
             self._ctx._default_styles[component] = {}
         elif component not in _core._globalctx._component_types:
-            raise _error.MILIStatusError(f"No custom component '{component}' registered")
+            raise _error.MILIStatusError(
+                f"No custom component '{component}' registered"
+            )
         self._ctx._add_component(component, data, style)
 
     def data_from_id(self, element_id: int) -> _data.ElementData:

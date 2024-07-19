@@ -64,6 +64,7 @@ class RectStyleLike(typing.TypedDict):
     outline: NumberOrPercentage
     border_radius: NumberOrPercentage
     color: ColorLike
+    draw_above: bool
 
 
 class CircleStyleLike(typing.TypedDict):
@@ -71,16 +72,19 @@ class CircleStyleLike(typing.TypedDict):
     pady: NumberOrPercentage
     outline: NumberOrPercentage
     color: ColorLike
+    draw_above: bool
 
 
 class LineStyleLike(typing.TypedDict):
     size: NumberOrPercentage
     color: ColorLike
+    draw_above: bool
 
 
 class PolygonStyleLike(typing.TypedDict):
     outline: NumberOrPercentage
     color: ColorLike
+    draw_above: bool
 
 
 class TextStyleLike(typing.TypedDict):
@@ -114,6 +118,7 @@ class TextStyleLike(typing.TypedDict):
     padx: NumberOrPercentage
     pady: NumberOrPercentage
     wraplen: NumberOrPercentage
+    draw_above: bool
 
 
 class ImageStyleLike(typing.TypedDict):
@@ -128,6 +133,7 @@ class ImageStyleLike(typing.TypedDict):
     border_radius: NumberOrPercentage
     alpha: int
     ninepatch_size: NumberOrPercentage
+    draw_above: bool
 
 
 type AnyStyleLike = (
