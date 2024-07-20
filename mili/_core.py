@@ -11,18 +11,6 @@ __all__ = ()
 
 
 class _globalctx:
-    class _ElementLike(typing.TypedDict):
-        id: int
-        rect: pygame.Rect
-        abs_rect: pygame.Rect
-        z: int
-        style: dict[str]
-        children: list[typing.Self]
-        children_grid: list[typing.Self]
-        parent: typing.Self
-        components: list[dict[str]]
-        top: bool
-
     _font_cache = {}
     _component_types: dict[str, str | _typing.ComponentProtocol] = dict.fromkeys(
         ["rect", "circle", "line", "polygon", "line", "text", "image"], "builtin"
@@ -152,7 +140,7 @@ class _globalctx:
 
     @staticmethod
     def _element_data(
-        mili: "_MILI", el: _ElementLike, interaction: "_data.Interaction"
+        mili: "_MILI", el: dict[str, typing.Any], interaction: "_data.Interaction"
     ) -> "_data.ElementData":
         if el["id"] in mili._ctx._old_data:
             old_data = mili._ctx._old_data[el["id"]]
@@ -225,7 +213,7 @@ class _globalctx:
 class _ctx:
     def __init__(self, mili: "_MILI"):
         self._mili = mili
-        self._parent: _globalctx._ElementLike = {
+        self._parent: dict[str, typing.Any] = {
             "rect": pygame.Rect(0, 0, 1, 1),
             "abs_rect": pygame.Rect(0, 0, 1, 1),
             "style": {},
@@ -237,15 +225,15 @@ class _ctx:
             "top": False,
             "z": 0,
         }
-        self._stack: _globalctx._ElementLike = self._parent
+        self._stack: dict[str, typing.Any] = self._parent
         self._parents_stack = [self._stack]
         self._id = 1
-        self._memory: dict[int, _globalctx._ElementLike] = {}
-        self._old_data: dict[int, _globalctx._ElementLike] = {}
-        self._element: _globalctx._ElementLike = self._parent
+        self._memory: dict[int, dict[str, typing.Any]] = {}
+        self._old_data: dict[int, dict[str, typing.Any]] = {}
+        self._element: dict[str, typing.Any] = self._parent
         self._canva: pygame.Surface = None
         self._canva_rect: pygame.Rect = None
-        self._abs_hovered: list[_globalctx._ElementLike] = []
+        self._abs_hovered: list[dict[str, typing.Any]] = []
         self._started = False
         self._started_pressing_element = None
         self._started_pressing_button = -1
@@ -261,7 +249,7 @@ class _ctx:
 
     def _get_element(
         self, rect: _typing.RectLike, arg_style
-    ) -> tuple[_globalctx._ElementLike, "_data.Interaction"]:
+    ) -> tuple[dict[str, typing.Any], "_data.Interaction"]:
         if arg_style is None:
             arg_style = {}
         style = self._default_styles["element"].copy()
@@ -269,7 +257,7 @@ class _ctx:
         if rect is None:
             rect = (0, 0, 0, 0)
         rect = pygame.Rect(rect)
-        element: _globalctx._ElementLike = {
+        element: dict[str, typing.Any] = {
             "rect": rect,
             "abs_rect": rect.copy(),
             "style": style,
@@ -280,6 +268,7 @@ class _ctx:
             "parent": self._parent,
             "top": False,
             "z": 1,
+            "hovered": False,
         }
         interaction = self._get_interaction(element)
         self._memory[self._id] = element
@@ -457,7 +446,7 @@ class _ctx:
         if align not in ["first", "last", "center", "max_spacing"]:
             raise error.MILIValueError(f"Invalid alignment/anchoring '{align}'")
 
-    def _organize_element(self, element: _globalctx._ElementLike):
+    def _organize_element(self, element: dict[str, typing.Any]):
         style = element["style"]
         rect = element["rect"]
         children = element["children_grid"]
@@ -692,7 +681,7 @@ class _ctx:
             self._started_pressing_button = -1
             self._started_pressing_element = None
 
-    def _check_interaction(self, element: _globalctx._ElementLike):
+    def _check_interaction(self, element: dict[str, typing.Any]):
         if not self._style_val(element["style"], "element", "blocking", True):
             return
         hover = element["abs_rect"].collidepoint(pygame.mouse.get_pos())
@@ -704,9 +693,11 @@ class _ctx:
         if hover and parent_hover:
             self._abs_hovered.append(element)
 
-    def _get_interaction(self, element: _globalctx._ElementLike) -> "_data.Interaction":
+    def _get_interaction(self, element: dict[str, typing.Any]) -> "_data.Interaction":
         if element["id"] not in self._memory:
-            return _data.Interaction(self._mili, -1, False, -1, -1, -1, False, False)
+            return _data.Interaction(
+                self._mili, -1, False, -1, -1, -1, False, False, False, False
+            )
         old_el = self._memory[element["id"]]
         self._old_data[element["id"]] = {
             "rect": old_el["rect"],
@@ -724,7 +715,7 @@ class _ctx:
             ):
                 self._started_pressing_element = element["id"]
                 return self._total_interaction(
-                    element, absolute_hover, absolute_hover, False
+                    element, absolute_hover, absolute_hover, False, old_el
                 )
             if (
                 self._started_pressing_button > -1
@@ -732,23 +723,35 @@ class _ctx:
             ):
                 return self._partial_interaction(element, absolute_hover)
             return self._total_interaction(
-                element, absolute_hover, absolute_hover, False
+                element, absolute_hover, absolute_hover, False, old_el
             )
         else:
             if (
                 self._started_pressing_button > -1
                 and element["id"] == self._started_pressing_element
             ):
-                return self._total_interaction(element, absolute_hover, False, True)
+                return self._total_interaction(
+                    element, absolute_hover, False, True, old_el
+                )
             return self._partial_interaction(element, absolute_hover)
 
     def _partial_interaction(self, element, absolute_hover):
+        element["hovered"] = False
         return _data.Interaction(
-            self._mili, element["id"], False, -1, -1, -1, absolute_hover, False
+            self._mili,
+            element["id"],
+            False,
+            -1,
+            -1,
+            -1,
+            absolute_hover,
+            False,
+            False,
+            False,
         )
 
-    def _total_interaction(self, element, absolute_hover, hovered, unhovered):
-        return _data.Interaction(
+    def _total_interaction(self, element, absolute_hover, hovered, unhovered, old_el):
+        i = _data.Interaction(
             self._mili,
             element["id"],
             absolute_hover and hovered,
@@ -757,7 +760,15 @@ class _ctx:
             _globalctx._get_first_button(pygame.mouse.get_just_released()),
             absolute_hover,
             unhovered,
+            False,
+            False,
         )
+        if i.hovered and not old_el["hovered"]:
+            i.just_hovered = True
+        if not i.hovered and old_el["hovered"]:
+            i.just_unhovered = True
+        element["hovered"] = i.hovered
+        return i
 
     def _add_component(self, type, data, arg_style):
         self._start_check()
@@ -1036,9 +1047,11 @@ class _ctx:
         self._canva.blit(output, image_rect)
 
     def _draw_update_element(
-        self, element: _globalctx._ElementLike, parent_pos, parent_clip=None
+        self, element: dict[str, typing.Any], parent_pos, parent_clip=None
     ):
-        offset = self._style_val(element["style"], "element", "offset", (0, 0))
+        el_style = element["style"]
+        offset = self._style_val(el_style, "element", "offset", (0, 0))
+        do_clip = self._style_val(el_style, "element", "clip_draw", True)
         absolute_rect = element["rect"].move(
             (parent_pos[0] + offset[0], parent_pos[1] + offset[1])
         )
@@ -1048,12 +1061,15 @@ class _ctx:
             parent_clip = absolute_rect
         if not absolute_rect.colliderect(parent_clip):
             return
-        clip = absolute_rect.clip(parent_clip)
+        if do_clip:
+            clip = absolute_rect.clip(parent_clip)
+        else:
+            clip = parent_clip
         element["abs_rect"] = absolute_rect
         self._check_interaction(element)
 
         pre_draw, mid_draw, post_draw = [
-            self._style_val(element["style"], "element", name, None)
+            self._style_val(el_style, "element", name, None)
             for name in ["pre_draw_func", "mid_draw_func", "post_draw_func"]
         ]
         el_data = None

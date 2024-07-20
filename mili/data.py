@@ -1,6 +1,7 @@
 import pygame
 import typing
 from mili import error as _error
+from dataclasses import dataclass
 
 if typing.TYPE_CHECKING:
     from mili import MILI as _MILI
@@ -34,35 +35,18 @@ class ImageCache:
         return cls._preallocated_caches[cls._preallocated_index]
 
 
+@dataclass
 class Interaction:
-    def __init__(
-        self,
-        mili: "_MILI",
-        id: int,
-        hovered: bool,
-        press_button: bool,
-        just_pressed_button: bool,
-        just_released_button: bool,
-        absolute_hover: bool,
-        unhover_pressed: bool,
-    ):
-        self._mili = mili
-        self.id = id
-        (
-            self.hovered,
-            self.press_button,
-            self.just_pressed_button,
-            self.just_released_button,
-            self.absolute_hover,
-            self.unhover_pressed,
-        ) = (
-            hovered,
-            press_button,
-            just_pressed_button,
-            just_released_button,
-            absolute_hover,
-            unhover_pressed,
-        )
+    _mili: "_MILI"
+    id: int
+    hovered: bool
+    press_button: int
+    just_pressed_button: int
+    just_released_button: int
+    absolute_hover: bool
+    unhover_pressed: bool
+    just_hovered: bool
+    just_unhovered: bool
 
     @property
     def left_pressed(self) -> bool:
@@ -101,7 +85,7 @@ class ElementData:
     absolute_rect: pygame.Rect
     z: int
     id: int
-    style: dict[str]
+    style: dict[str, typing.Any]
     children_ids: list[int]
     components: dict[typing.Literal["type", "style", "data"], typing.Any]
     parent_id: int

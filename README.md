@@ -2,10 +2,7 @@
 
 Minimal immediate-mode python user interface library.
 
-# Guide
-
-### [General Guide](mili/guide.md)
-### [Styles Guide](mili/style.md)
+# [MILI Guide](guide/guide.md)
 
 # Image Viewer
 

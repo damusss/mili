@@ -11,6 +11,7 @@ __all__ = (
     "Dragger",
     "Scroll",
     "Scrollbar",
+    "GenericApp",
     "percentage",
     "gray",
     "indent",
@@ -153,7 +154,7 @@ class GenericApp:
             self.ui()
             self.mili.update_draw()
             self.window.flip()
-            self.delta_time = self.clock.tick(self.target_framerate)/1000
+            self.delta_time = self.clock.tick(self.target_framerate) / 1000
 
 
 class Scroll:

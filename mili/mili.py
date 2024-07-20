@@ -7,11 +7,15 @@ from mili import data as _data
 from mili import typing as _typing
 
 
-__all__ = ("MILI",)
+__all__ = ("MILI", "register_custom_component", "pack_component")
 
 
 def register_custom_component(name: str, component_type: _typing.ComponentProtocol):
     _core._globalctx._component_types[name] = component_type
+
+
+def pack_component(name: str, data: typing.Any, style: _typing.AnyStyleLike):
+    return {"type": name, "data": data, "style": style}
 
 
 class MILI:
@@ -42,8 +46,11 @@ class MILI:
         self.set_canva(v)
 
     def default_style(self, type: str, style: _typing.AnyStyleLike):
-        if type not in self._ctx._default_styles:
+        if type not in _core._globalctx._component_types:
             raise _error.MILIValueError("Invalid style type")
+        else:
+            if type not in self._ctx._default_styles:
+                self._ctx._default_styles[type] = {}
         self._ctx._default_styles[type].update(style)
 
     def default_styles(self, **types_styles: _typing.AnyStyleLike):
@@ -52,7 +59,7 @@ class MILI:
 
     def reset_style(self, *types: str):
         for tp in types:
-            if tp not in self._ctx._default_styles:
+            if tp not in _core._globalctx._component_types:
                 raise _error.MILIValueError("Invalid style type")
             self._ctx._default_styles[tp] = {}
 
@@ -258,7 +265,7 @@ class MILI:
         return data
 
     def custom_component(
-        self, component: str, data: typing.Any, style: dict[str] | None
+        self, component: str, data: typing.Any, style: dict[str, typing.Any] | None
     ):
         if (
             component not in self._ctx._default_styles
@@ -270,6 +277,15 @@ class MILI:
                 f"No custom component '{component}' registered"
             )
         self._ctx._add_component(component, data, style)
+
+    def packed_component(
+        self,
+        *packed_components: dict[typing.Literal["type", "style", "data"], typing.Any],
+    ):
+        for comp in packed_components:
+            if comp["type"] not in _core._globalctx._component_types:
+                _error.MILIStatusError(f"No component '{comp['type']}' exists")
+            self._ctx._add_component(comp["type"], comp["data"], comp["style"])
 
     def data_from_id(self, element_id: int) -> _data.ElementData:
         self._ctx._start_check()

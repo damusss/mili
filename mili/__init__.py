@@ -1,11 +1,22 @@
-from .mili import MILI, register_custom_component
+from .mili import MILI, register_custom_component, pack_component
 from .data import ElementData, Interaction, ImageCache
-from .utility import Selectable, Dragger, Scroll, Scrollbar, GenericApp, percentage, gray, indent
 from .style import RESIZE, X, CENTER, PADLESS
+from .utility import (
+    Selectable,
+    Dragger,
+    Scroll,
+    Scrollbar,
+    GenericApp,
+    percentage,
+    gray,
+    indent,
+)
+
 from . import error
 from . import style
 from . import typing
 from . import data
+from . import animation
 
 __all__ = (
     "MILI",
@@ -21,6 +32,7 @@ __all__ = (
     "gray",
     "indent",
     "register_custom_component",
+    "pack_component",
     "RESIZE",
     "X",
     "CENTER",
@@ -29,6 +41,7 @@ __all__ = (
     "style",
     "typing",
     "data",
+    "animation",
 )
 
-# fix unhover press
+# TODO: remake general guide

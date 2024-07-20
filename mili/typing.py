@@ -10,6 +10,8 @@ __all__ = (
     "ColorLike",
     "RectLike",
     "PointsLike",
+    "AnimValueLike",
+    "EasingLike",
     "ElementStyleLike",
     "RectStyleLike",
     "CircleStyleLike",
@@ -18,12 +20,15 @@ __all__ = (
     "TextStyleLike",
     "ImageStyleLike",
     "AnyStyleLike",
+    "ComponentProtocol"
 )
 
 type NumberOrPercentage = int | float | str
 type ColorLike = int | str | typing.Sequence[int] | pygame.Color
 type RectLike = typing.Sequence[float | typing.Sequence[float]] | pygame.Rect
 type PointsLike = typing.Sequence[typing.Sequence[NumberOrPercentage]]
+type AnimValueLike = float | pygame.Color | typing.Sequence[float]
+type EasingLike = typing.Callable[[float], float]
 
 
 class ElementStyleLike(typing.TypedDict):
@@ -37,6 +42,7 @@ class ElementStyleLike(typing.TypedDict):
     z: int
     parent_id: int
     offset: typing.Sequence[float]
+    clip_draw: bool
     pre_draw_func: (
         typing.Callable[[pygame.Surface, _data.ElementData, pygame.Rect], None] | None
     )
@@ -154,7 +160,7 @@ class ComponentProtocol(typing.Protocol):
         ctx: "_core._ctx",
         data: typing.Any,
         style: dict[str],
-        element: "_core._globalctx.ElementLike",
+        element: dict[str, typing.Any],
         absolute_rect: pygame.Rect,
     ): ...
 
@@ -163,5 +169,5 @@ class ComponentProtocol(typing.Protocol):
         ctx: "_core._ctx",
         data: typing.Any,
         style: dict[str],
-        element: "_core._globalctx.ElementLike",
+        element: dict[str, typing.Any],
     ): ...

@@ -16,6 +16,7 @@ __all__ = (
     "conditional",
     "filter",
     "same",
+    "merge",
     "RESIZE",
     "X",
     "CENTER",
@@ -105,14 +106,13 @@ class StyleStatus:
     get_image = functools.partialmethod(get, "image")
 
 
-@staticmethod
-def conditional(
+def conditional[TK, TV](
     interaction: _data.Interaction | _data.ElementData,
-    base: dict[str] | None = None,
-    hover: dict[str] | None = None,
-    press: dict[str] | None = None,
+    base: dict[TK, TV] | None = None,
+    hover: dict[TK, TV] | None = None,
+    press: dict[TK, TV] | None = None,
     selected=False,
-) -> dict[str]:
+) -> dict[TK, TV]:
     if isinstance(interaction, _data.ElementData):
         interaction = interaction.interaction
     if hover is None:
@@ -134,12 +134,11 @@ def conditional(
     return new_base
 
 
-@staticmethod
-def filter(
-    style: dict[str],
+def filter[TK, TV](
+    style: dict[TK, TV],
     whitelist: list[str] | set[str] | None = None,
     blacklist: list[str] | set[str] | None = None,
-) -> dict[str]:
+) -> dict[TK, TV]:
     if style is None:
         style = {}
     style = style.copy()
@@ -156,12 +155,19 @@ def filter(
     return style
 
 
-@staticmethod
-def same(value, *names: str):
+def same[TV](value: TV, *names: str) -> dict[str, TV]:
     return {name: value for name in names}
 
 
+def merge[TK, TV](*styles: dict[TK, TV]) -> dict[TK, TV]:
+    result = {}
+    for style in styles:
+        result |= style
+    return result
+
+
 RESIZE = {"resizex": True, "resizey": True}
+PADLESS = {"padx": 0, "pady": 0}
 X = {"axis": "x"}
 CENTER = {
     "grid_align": "center",
@@ -169,4 +175,3 @@ CENTER = {
     "align": "center",
     "font_align": pygame.FONT_CENTER,
 }
-PADLESS = {"padx": 0, "pady": 0}
