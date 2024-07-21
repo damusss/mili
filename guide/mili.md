@@ -1,4 +1,4 @@
-[<- BACK](guide.md)
+[<- BACK](https://github.com/damusss/mili/blob/main/guide/guide.md)
 
 # MILI Class Guide
 
