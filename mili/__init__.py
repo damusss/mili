@@ -43,5 +43,3 @@ __all__ = (
     "data",
     "animation",
 )
-
-# TODO: remake general guide

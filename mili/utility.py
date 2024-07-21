@@ -25,7 +25,7 @@ class Selectable:
     def update(
         self,
         element: _data.Interaction | _data.ElementData,
-        selectable_group: typing.Sequence["Selectable"] = None,
+        selectable_group: typing.Sequence["Selectable"] | None = None,
         can_deselect_group: bool = True,
     ) -> _data.Interaction | _data.ElementData:
         if selectable_group is None:
