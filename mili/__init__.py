@@ -6,9 +6,10 @@ from .utility import (
     Dragger,
     Scroll,
     Scrollbar,
+    Slider,
     GenericApp,
+    InteractionSound,
     percentage,
-    gray,
     indent,
 )
 
@@ -27,9 +28,10 @@ __all__ = (
     "Dragger",
     "Scroll",
     "Scrollbar",
+    "Slider",
     "GenericApp",
+    "InteractionSound",
     "percentage",
-    "gray",
     "indent",
     "register_custom_component",
     "pack_component",

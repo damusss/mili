@@ -174,8 +174,8 @@ The points should be a sequence of at least 2 sequences where the x and y values
 
 - `mili.style.conditional()` will use the base style and expand it with the hover and press style based on the interaction status and selection status<br>
 
-- `mili.style.merge()` will merge multiple style dictionaries into one<br>
-
 - `mili.style.Style` will help you cache common styles. you can retrieve them with `get(type)` or use the shortcuts like `get_rect()`<br>
 
 - `mili.style.StyleStatus` will help you cache styles for different interactions, using `mili.style.Style` objects for base, hover and press statuses that you can retrieve with the `get(type, interaction)` or use the shortcuts like `get_rect(interaction)` (similar to `mili.style.conditional()`)
+
+Keep in mind that you can merge styles using the pipe operator, for example `mili.CENTER | mili.PADLESS`

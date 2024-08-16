@@ -102,17 +102,17 @@ Example usage of components:
 
 ```py
 my_mili.start(mili.CENTER)
-my_mili.rect({"color": mili.gray(30)}) # component attached to the start element
+my_mili.rect({"color": (30,) * 3}) # component attached to the start element
 
 with my_mili.begin(None, {"fillx": "50", "filly": "80"}) as container:
-    my_mili.rect({"color": mili.gray(50)}) # component attached to container
-    my_mili.rect({"color": mili.gray(100), "outline": 1, "draw_above": True}) # component attached to container
+    my_mili.rect({"color": (50,) * 3}) # component attached to container
+    my_mili.rect({"color": (100,) * 3, "outline": 1, "draw_above": True}) # component attached to container
 
     for i in range(5):
         if interaction:=my_mili.element((0, 0, 0, 50), {"fillx": True}): # if used for indentation, always True
-            my_mili.rect({"color": mili.gray(80 if interaction.hovered else 60)}) # component attached to element, conditionally changes color
+            my_mili.rect({"color": (80 if interaction.hovered else 60,) * 3}) # component attached to element, conditionally changes color
             my_mili.text(f"Button {i}", {"size": 30}) # component attached to element
-            my_mili.rect({"color": mili.gray(120), "outline": 1}) # component attached to element
+            my_mili.rect({"color": (120,) * 3, "outline": 1}) # component attached to element
 
             if interaction.left_just_released:...
                 # action on button press

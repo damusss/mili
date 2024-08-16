@@ -7,7 +7,6 @@ The `mili.utility` module contains functions and classes to simplify managing el
 ## Functions
 
 - `mili.percentage`: Calculates the percentage of a value and returns it. The same calculation is used internally for percentage strings.
-- `mili.gray`: Return a tuple where the input value is repeated three times. `mili.gray(50)` -> `(50, 50, 50)`. Useful to make black to white colors for styles, hence the name.
 - `mili.indent`: This function doesn't do anything, but you can use the python syntax to put lines on different indentations, for example:
   ```py
   mili.indent(
@@ -20,18 +19,23 @@ The `mili.utility` module contains functions and classes to simplify managing el
   ```
   You can really achieve the same by using the if statement, as the return value of element or begin will always compute to True.
 
+Keep in mind that to make gray colors (generally to repeat a value in a tuple) you can use the multiply operator. `(50,) * 3` -> `(50, 50, 50)`
+
 ## `Dragger`
 
-An object that changes a position attribute when an element is dragged around. You can then pass the position to the element rect. This object will work if you call the `update` function passing the target element's interaction object (or element data object) to it, like below:
+An object that changes the position attribute when an element is dragged around. You can use the position in the element rect to see the position. It's advised to set the ignore grid style to True. You can use the shortcut `Dragger.style` attribute for it.
 
+You can use the following methods to make the dragger work:
+- `Dragger.update`: Responsible for moving the element, the input is returned as output
+- `Dragger.clamp`: Clamp the position. You can provide new clamp values or use the previously stored ones
+
+Update must always be called after the element creation:
 ```py
 interaction = mili.element((dragger.position, size), style)
 dragger.update(interaction)
 ```
 
-That function will return the value it was passed in, but you can use the `changed` attribute to know if the user actually dragged the element.
-
-You can also lock the x axis or the x axis in the constructor and you can clamp the position in the update function or `clamp` function. This object is used internally by the scrollbar object.
+Since the update function returns the element as output, the flag stating if the position changed or not is stored in `Dragger.changed`. You can also lock the x or y axis to restrict the position even more.
 
 ## `Selectable`
 
@@ -92,7 +96,7 @@ with my_mili.begin((0, 0, 500, 500), get_data=True) as container:
 
     for i in range(50):
         my_mili.element((0, 0, 0, 30), {"fillx": True, "offset": scroll.get_offset()})
-        my_mili.rect({"color": mili.gray(50)})
+        my_mili.rect({"color": (50,) * 3})
         my_mili.text(f"element {i}")
 
 # event loop
@@ -104,7 +108,7 @@ if event.type == pygame.MOUSEWHEEL:
 
 The scrollbar extends the scroll functionality supporting scrollbar utilities. It can work at one axis at a time and it needs an **independent** scroll object to rely on.
 
-You can specify the axis and a few styling parameters in the constructor. A `Dragger` is used internally for the handle.
+You can specify the axis and a few styling parameters in the constructor. A `Dragger` is used internally for the handle. For that reason, the axis attribute cannot be changed dynamically and requires the `Scrollbar.change_axis` method.
 
 Note that this utility cannot create the scrollbar nor the handle elements, you need to create them, but you can use the `bar_rect`, ○
 `bar_style`, `handle_rect`, `handle_style` attributes to simplify the process. They will only work if the handle is a children of the scrollbar.
@@ -128,12 +132,12 @@ with my_mili.begin((0, 0, 500, 500), get_data=True) as container:
 
     for i in range(50):
         my_mili.element((0, 0, 0, 30), {"fillx": ("96.5" if scrollbar.needed else "100"), "offset": scroll.get_offset()})
-        my_mili.rect({"color": mili.gray(50)})
+        my_mili.rect({"color": (50,) * 3})
         my_mili.text(f"element {i}")
 
     if scrollbar.needed:
         with my_mili.begin(scrollbar.bar_rect, scrollbar.bar_style):
-            my_mili.rect({"color": mili.gray(40)})
+            my_mili.rect({"color": (40,) * 3})
 
             handle_interaction = my_mili.element(scrollbar.handle_rect, scrollbar.handle_style)
             scrollbar.update_handle(handle_interaction)
@@ -142,4 +146,59 @@ with my_mili.begin((0, 0, 500, 500), get_data=True) as container:
 if event.type == pygame.MOUSEWHEEL:
     scroll.scroll(event.x*2, event.y*2)
     scrollbar.scroll_moved()
+```
+
+## `Slider`
+
+An object that simplifies the implementation of 1D or 2D sliders. The axis locks can turn a 2D slider in a single-axis slider. To make the construction easier, the classmethod `Slider.from_axis` can be used. The handle size must be specified for both dimentions.
+
+The `strict_borders` flag/attribute specifies wether the handle can exceed the area borders by half its size or if it should be perfectly contained. Changing the slider axis locking dynamically is allowed without undefined behaviour.
+
+The `area_style` and `handle_style` are shortcuts with the required styles for a correct slider appearance and functionality. The `handle_rect` attribute should be passed as-is to the handle element.
+For the handle rect position to be accurate, the handle **must** be a children of the area without grid sorting. The slider won't make the elements for you, but it will manage them. The `Slider.update_area` and `Slider.update_handle` must be called sequentially with the appropriate element datas:
+
+```py
+slider = mili.Slider(False, False, (30, 30), True)
+
+# ui loop
+with self.mili.begin((0, 0, 300, 100), mili.CENTER|slider.area_style, get_data=True) as area:
+    slider.update_area(area)
+
+    self.mili.rect({"color": (40,)*3})
+    self.mili.rect({"color": (60,)*3, "outline": 1})
+
+    if handle:=self.mili.element(slider.handle_rect, slider.handle_style):
+        self.slider.update_handle(handle)
+
+        self.mili.rect({"color": (50,)*3})
+        self.mili.rect({"color": (70,)*3, "outline": 1})
+
+        if self.slider.moved:
+            print(self.slider.value)
+```
+
+Since the update function returns the input as output, wether the handle moved is stored in the `Slider.moved` attribute. You can also retrieve or change the 2-component `value` in range 0-1. Modifying the value x and y attributes directly won't affect the position, therefore the `valuex` and `valuey` shortcuts can be used.
+
+## `InteractionSound`
+
+This utility class allows you to play sounds when elements are interacted. You have to create an instance of it for every sounds collection. Not to complicate the implementation, an instance will only play click sounds for a selected mouse button, you need multiple instances for multiple mouse buttons. Every sound is optional.
+
+You can pass the sound objects to the constructor or change the attributes at runtime. To hear the sounds you need to call `InteractionSound.play()` passing the interaction or the element data as the main argument (the same object is returned for stacked calls). An optional channel and play settings can be specified to customize it more. The function will check the interaction and play the correct sounds.
+
+Example usage:
+
+```py
+hover = pygame.mixer.Sound("hover.ogg")
+press = pygame.mixer.Sound("press.ogg")
+
+sound = mili.InteractionSound(hover=hover, press=press)
+
+# ui loop
+for i in range(30):
+    if interaction:=mili.element(rect, style):
+        mili.rect({"color": (50,) * 3})
+        mili.text(f"button {i}")
+        mili.rect({"color": (80,) * 3, "outline": 1})
+
+        sound.play(interaction)
 ```

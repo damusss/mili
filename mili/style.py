@@ -16,7 +16,6 @@ __all__ = (
     "conditional",
     "filter",
     "same",
-    "merge",
     "RESIZE",
     "X",
     "CENTER",
@@ -157,13 +156,6 @@ def filter[TK, TV](
 
 def same[TV](value: TV, *names: str) -> dict[str, TV]:
     return {name: value for name in names}
-
-
-def merge[TK, TV](*styles: dict[TK, TV]) -> dict[TK, TV]:
-    result = {}
-    for style in styles:
-        result |= style
-    return result
 
 
 RESIZE = {"resizex": True, "resizey": True}
