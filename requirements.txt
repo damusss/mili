@@ -1,4 +1,1 @@
 pygame-ce>=2.5.0
-# IMAGE VIEWER
-imagesize>=1.4.1
-send2trash>=1.8.3
