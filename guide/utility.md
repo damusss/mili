@@ -18,6 +18,7 @@ The `mili.utility` module contains functions and classes to simplify managing el
   )
   ```
   You can really achieve the same by using the if statement, as the return value of element or begin will always compute to True.
+- `mili.fit_image`: Return a surface that is constrained inside the provided rectangle plus extra applied styles which are the same that you would provide to an image component and work the same.
 
 Keep in mind that to make gray colors (generally to repeat a value in a tuple) you can use the multiply operator. `(50,) * 3` -> `(50, 50, 50)`
 
@@ -26,10 +27,12 @@ Keep in mind that to make gray colors (generally to repeat a value in a tuple) y
 An object that changes the position attribute when an element is dragged around. You can use the position in the element rect to see the position. It's advised to set the ignore grid style to True. You can use the shortcut `Dragger.style` attribute for it.
 
 You can use the following methods to make the dragger work:
+
 - `Dragger.update`: Responsible for moving the element, the input is returned as output
 - `Dragger.clamp`: Clamp the position. You can provide new clamp values or use the previously stored ones
 
 Update must always be called after the element creation:
+
 ```py
 interaction = mili.element((dragger.position, size), style)
 dragger.update(interaction)

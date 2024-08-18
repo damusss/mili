@@ -20,6 +20,7 @@ __all__ = (
     "X",
     "CENTER",
     "PADLESS",
+    "FLOATING",
 )
 
 
@@ -167,3 +168,4 @@ CENTER = {
     "align": "center",
     "font_align": pygame.FONT_CENTER,
 }
+FLOATING = {"ignore_grid": True, "parent_id": 0}

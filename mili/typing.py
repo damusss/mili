@@ -78,6 +78,7 @@ class CircleStyleLike(typing.TypedDict):
     pady: NumberOrPercentage
     outline: NumberOrPercentage
     color: ColorLike
+    antialias: bool
     draw_above: bool
 
 
@@ -125,6 +126,7 @@ class TextStyleLike(typing.TypedDict):
     pady: NumberOrPercentage
     wraplen: NumberOrPercentage
     draw_above: bool
+    slow_grow: bool
 
 
 class ImageStyleLike(typing.TypedDict):

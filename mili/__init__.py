@@ -1,6 +1,6 @@
 from .mili import MILI, register_custom_component, pack_component
 from .data import ElementData, Interaction, ImageCache
-from .style import RESIZE, X, CENTER, PADLESS
+from .style import RESIZE, X, CENTER, PADLESS, FLOATING
 from .utility import (
     Selectable,
     Dragger,
@@ -11,6 +11,7 @@ from .utility import (
     InteractionSound,
     percentage,
     indent,
+    fit_image,
 )
 
 from . import error
@@ -33,12 +34,14 @@ __all__ = (
     "InteractionSound",
     "percentage",
     "indent",
+    "fit_image",
     "register_custom_component",
     "pack_component",
     "RESIZE",
     "X",
     "CENTER",
     "PADLESS",
+    "FLOATING",
     "error",
     "style",
     "typing",

@@ -96,6 +96,7 @@ The following styles modify the appearance of the circle/ellipse component (draw
 | padx, pady | `number/percentage` | _control the space between the circle and the element borders. if padx differs from pady an ellipse is drawn_ | `0` |
 | outline | `number/percentage` | _control the size of the outline. 0 means no outline_ | `0` |
 | color | `color value` | _control the circle color_ | `black` |
+| antialias | `True/False` | _wether the circle is antialiased. currently not supported for ellipse_ | `False` |
 | draw_above | `True/False` | _the circle is drawn above the children_ | `False` |
 
 ## Text Style
@@ -121,6 +122,7 @@ For every combination of font name and size a font object is created and cached.
 | padx, pady | `number/percentage` | _control the space between the text and the element borders_ | `5/3` |
 | wraplen | `number/percentage` | _manually control the maximum width the text can have. 0 means the text is not restricted_ | `0` |
 | draw_above | `True/False` | _the text is drawn above the children_ | `False` |
+| slow_grow  | `True/False` | _temporary style, since Font.size() does not implement wrapline or newlines, if slow\_grow is set to True Font.render will be used (which is slower). incompatible with growx_ | `False` |
 
 ## Image Style
 
@@ -166,7 +168,18 @@ The points should be a sequence of at least 2 sequences where the x and y values
 | draw_above | `True/False` | _the polygon is drawn above the children_ | `False` |
 
 ## Style Helpers
+
 ### (exported in the `mili.style` module)
+
+- `mili.CENTER`: Centers text, anchoring and aligment
+
+- `mili.X`: Expands to `{"axis": "x"}`
+
+- `mili.PADLESS`: Sets padding to zero on both axis
+
+- `mili.RESIZE`: Sets resizing to true on both axis
+
+- `mili.FLOATING`: Styles to ignore the parent and have the stack as parent
 
 - `mili.style.filter()` will help you select the style names you want using a whitelist and a blacklist<br>
 

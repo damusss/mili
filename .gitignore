@@ -6,7 +6,6 @@ test**.*
 temp.*
 stats.prof
 .ruff_cache/
-data.json
 *.exe
 
 build/

@@ -237,6 +237,7 @@ class _ctx:
         self._started = False
         self._started_pressing_element = None
         self._started_pressing_button = -1
+        self._z = 0
         self._default_styles = {
             "element": {},
             "rect": {},
@@ -278,15 +279,18 @@ class _ctx:
                 parent = self._memory[style["parent_id"]]
 
         if parent:
-            z = len(parent["children"])
+            z = self._z
             if "z" in style:
                 z = style["z"]
+            if parent["z"] > z:
+                z = parent["z"] + len(parent["children"]) + 1
             parent["children"].append(element)
             if not self._style_val(style, "element", "ignore_grid", False):
                 parent["children_grid"].append(element)
-            element["z"] = parent["z"] + z + 1
+            element["z"] = z + 1
         self._id += 1
         self._element = element
+        self._z += 1
         return element, interaction
 
     def _style_val(self, style: dict, major, minor, default):
@@ -671,8 +675,9 @@ class _ctx:
         self._parents_stack = [self._stack]
         self._abs_hovered = []
         self._started = True
+        self._z = 0
 
-        if btn := _globalctx._get_first_button(pygame.mouse.get_just_pressed()) > -1:
+        if (btn := _globalctx._get_first_button(pygame.mouse.get_just_pressed())) > -1:
             self._started_pressing_button = btn
         if (
             _globalctx._get_first_button(pygame.mouse.get_just_released())
@@ -684,12 +689,15 @@ class _ctx:
     def _check_interaction(self, element: dict[str, typing.Any]):
         if not self._style_val(element["style"], "element", "blocking", True):
             return
+        clipdraw = self._style_val(element["style"], "element", "clip_draw", True)
         hover = element["abs_rect"].collidepoint(pygame.mouse.get_pos())
         parent_hover = True
         if element["parent"] is not None:
             parent_hover = element["parent"]["abs_rect"].collidepoint(
                 pygame.mouse.get_pos()
             )
+            if clipdraw:
+                parent_hover = True
         if hover and parent_hover:
             self._abs_hovered.append(element)
 
@@ -830,8 +838,9 @@ class _ctx:
             self._style_val(style, "circle", "outline", 0), min(rect.w, rect.h)
         )
         color = self._style_val(style, "circle", "color", "black")
+        antialias = self._style_val(style, "circle", "antialias", False)
         if padx == pady:
-            pygame.draw.circle(
+            (pygame.draw.aacircle if antialias else pygame.draw.circle)(
                 self._canva, color, rect.center, rect.w / 2 - padx, int(outline)
             )
         else:
@@ -867,7 +876,7 @@ class _ctx:
         size = _globalctx._abs_perc(
             self._style_val(style, "line", "size", 1), min(rect.w, rect.h)
         )
-        pygame.draw.line(self._canva, color, points[0], points[1], int(size))
+        pygame.draw.line(self._canva, color, points[0], points[1], max(1, int(size)))
 
     def _draw_comp_text(self, data: str, style, el, rect: pygame.Rect):
         font = self._get_font(style)
@@ -894,7 +903,7 @@ class _ctx:
             self._style_val(style, "text", "wraplen", 0), rect.w - padx * 2
         )
 
-        surf = font.render(str(data), antialias, color, bg_color, int(wraplen))
+        surf = font.render(str(data), antialias, color, bg_color, max(0, int(wraplen)))
         sw, sh = surf.size
         if growy and sh > rect.h + pady * 2:
             rect.h = sh + pady * 2
@@ -911,6 +920,13 @@ class _ctx:
         font.italic = self._style_val(style, "text", "italic", False)
         font.underline = self._style_val(style, "text", "underline", False)
         font.strikethrough = self._style_val(style, "text", "strikethrough", False)
+        if self._style_val(style, "text", "slow_grow", False):
+            wraplen = _globalctx._abs_perc(
+                self._style_val(style, "text", "wraplen", 0), 0
+            )
+            return font.render(
+                data, True, "white", None, max(0, int(wraplen))
+            ).get_size()
         return font.size(data)
 
     def _text_resize(self, rect: pygame.Rect, data, style):
@@ -920,6 +936,7 @@ class _ctx:
         )
         if not growx and not growy:
             return
+        slow_grow = self._style_val(style, "text", "slow_grow", False)
         padx = self._style_val(style, "text", "padx", 5)
         pady = self._style_val(style, "text", "pady", 3)
         padx, pady = (
@@ -927,7 +944,22 @@ class _ctx:
             _globalctx._abs_perc(pady, rect.h),
         )
         font = self._get_font(style)
-        sw, sh = font.size(str(data))
+        if slow_grow and not growx:
+            font.align = self._style_val(
+                style, "text", "font_align", pygame.FONT_CENTER
+            )
+            font.bold = self._style_val(style, "text", "bold", False)
+            font.italic = self._style_val(style, "text", "italic", False)
+            font.underline = self._style_val(style, "text", "underline", False)
+            font.strikethrough = self._style_val(style, "text", "strikethrough", False)
+            wraplen = _globalctx._abs_perc(
+                self._style_val(style, "text", "wraplen", 0), rect.w - padx * 2
+            )
+            sw, sh = font.render(
+                data, True, "white", None, max(0, int(wraplen))
+            ).get_size()
+        else:
+            sw, sh = font.size(str(data))
         if growy and sh > rect.h + pady * 2:
             rect.h = sh + pady * 2
         if growx and sw > rect.w + padx * 2:
