@@ -81,10 +81,12 @@ class Dragger:
         self,
         element: IT,
     ) -> IT:
+        if _core._globalctx._mili is None:
+            raise _error.MILIStatusError("MILI.start() not called")
         self.changed = False
         self._before_update_pos = self.position.copy()
         if element.left_pressed:
-            rel = _core._globalctx._mouse_rel.copy()
+            rel = _core._globalctx._mili._ctx._mouse_rel.copy()
             if self.lock_x:
                 rel.x = 0
             if self.lock_y:
@@ -150,7 +152,7 @@ class GenericApp:
         while True:
             self.mili.start(self.start_style)
             for event in pygame.event.get():
-                if event.type == pygame.QUIT:
+                if event.type == pygame.WINDOWCLOSE and event.window == self.window:
                     self.quit()
                 else:
                     self.event(event)
@@ -510,7 +512,7 @@ class Slider:
 
     @valuey.setter
     def valuey(self, v: float):
-        self.valuey = pygame.Vector2(self.value.x, v)
+        self.value = pygame.Vector2(self.value.x, v)
 
 
 class InteractionSound:

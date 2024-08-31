@@ -15,8 +15,8 @@ class _globalctx:
     _component_types: dict[str, str | _typing.ComponentProtocol] = dict.fromkeys(
         ["rect", "circle", "line", "polygon", "line", "text", "image"], "builtin"
     )
-    _mouse_pos = pygame.Vector2()
-    _mouse_rel = pygame.Vector2()
+    _mili_stack = []
+    _mili: "_MILI" = None
 
     @staticmethod
     def _abs_perc(val, dim) -> float:
@@ -238,6 +238,8 @@ class _ctx:
         self._started_pressing_element = None
         self._started_pressing_button = -1
         self._z = 0
+        self._mouse_pos = pygame.Vector2()
+        self._mouse_rel = pygame.Vector2()
         self._default_styles = {
             "element": {},
             "rect": {},
@@ -258,6 +260,12 @@ class _ctx:
         if rect is None:
             rect = (0, 0, 0, 0)
         rect = pygame.Rect(rect)
+        parent = self._parent
+        if "parent_id" in style:
+            if style["parent_id"] in self._memory:
+                parent = self._memory[style["parent_id"]]
+            elif style["parent_id"] == 0:
+                parent = self._stack
         element: dict[str, typing.Any] = {
             "rect": rect,
             "abs_rect": rect.copy(),
@@ -266,18 +274,13 @@ class _ctx:
             "children": [],
             "components": [],
             "children_grid": [],
-            "parent": self._parent,
+            "parent": parent,
             "top": False,
             "z": 1,
             "hovered": False,
         }
         interaction = self._get_interaction(element)
         self._memory[self._id] = element
-        parent = self._parent
-        if "parent_id" in style:
-            if style["parent_id"] in self._memory:
-                parent = self._memory[style["parent_id"]]
-
         if parent:
             z = self._z
             if "z" in style:
@@ -579,7 +582,7 @@ class _ctx:
                 filloa = "100"
             el_filloa = _globalctx._abs_perc(filloa, padded_oa)
             setattr(el_rect, oav, el_filloa)
-            changed.append(el)
+            changed.append(filloa_el)
 
         filla_totalsize = 0
         for filla_el in elements_with_filla:
@@ -876,7 +879,10 @@ class _ctx:
         size = _globalctx._abs_perc(
             self._style_val(style, "line", "size", 1), min(rect.w, rect.h)
         )
-        pygame.draw.line(self._canva, color, points[0], points[1], max(1, int(size)))
+        antialias = self._style_val(style, "line", "antialias", False)
+        (pygame.draw.aaline if antialias else pygame.draw.line)(
+            self._canva, color, points[0], points[1], max(1, int(size))
+        )
 
     def _draw_comp_text(self, data: str, style, el, rect: pygame.Rect):
         font = self._get_font(style)

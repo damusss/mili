@@ -89,7 +89,7 @@ The following styles modify the appearance of the rect component (draws using `p
 
 ## Circle Style
 
-The following styles modify the appearance of the circle/ellipse component (draws using `pygame.draw.circle` and `pygame.draw.ellipse`)
+The following styles modify the appearance of the circle/ellipse component (draws using `pygame.draw.(aa)circle` and `pygame.draw.ellipse`)
 
 | Name | Type/Value | Description | Default |
 | ------------ | ------------ | ------------ | ------------ |
@@ -145,7 +145,7 @@ By default the surface keeps its aspect ratio while fitting in the element area.
 
 ## Line Style
 
-The following styles modify the appearance of the line component (draws using `pygame.draw.line`)<br>
+The following styles modify the appearance of the line component (draws using `pygame.draw.(aa)line`)<br>
 
 The start_end should be a sequence of 2 sequences where the x and y values can be numbers or percentages relative to the element center.
 
@@ -153,6 +153,7 @@ The start_end should be a sequence of 2 sequences where the x and y values can b
 | ------------ | ------------ | ------------ | ------------ |
 | size | `number/percentage` | _control the size the line_ | `1` |
 | color | `color value` | _control the line color_ | `black` |
+| antialias | `True/False` | _wether the line is antialiased_ | `False` |
 | draw_above | `True/False` | _the line is drawn above the children_ | `False` |
 
 ## Polygon Style

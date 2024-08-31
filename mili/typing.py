@@ -20,7 +20,7 @@ __all__ = (
     "TextStyleLike",
     "ImageStyleLike",
     "AnyStyleLike",
-    "ComponentProtocol"
+    "ComponentProtocol",
 )
 
 type NumberOrPercentage = int | float | str
@@ -85,6 +85,7 @@ class CircleStyleLike(typing.TypedDict):
 class LineStyleLike(typing.TypedDict):
     size: NumberOrPercentage
     color: ColorLike
+    antialias: bool
     draw_above: bool
 
 
@@ -97,6 +98,7 @@ class PolygonStyleLike(typing.TypedDict):
 class TextStyleLike(typing.TypedDict):
     name: str | None
     size: int
+    sysfont: bool
     align: typing.Literal[
         "center",
         "topleft",

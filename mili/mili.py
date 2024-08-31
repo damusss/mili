@@ -64,18 +64,21 @@ class MILI:
             self._ctx._default_styles[tp] = {}
 
     def start(
-        self, style: _typing.ElementStyleLike | None = None
+        self, style: _typing.ElementStyleLike | None = None, is_global=True
     ) -> typing.Literal[True]:
         if self._ctx._canva is None:
             raise _error.MILIStatusError("Canva was not set")
+        _core._globalctx._mili_stack.append(self)
+        _core._globalctx._mili = self
         if style is None:
             style = {}
         style.update(blocking=False)
         self._ctx._start(style)
         mouse_pos = pygame.Vector2(pygame.mouse.get_pos())
-        _core._globalctx._mouse_rel = mouse_pos - _core._globalctx._mouse_pos
-        _core._globalctx._mouse_pos = mouse_pos
-        _data.ImageCache._preallocated_index = -1
+        self._ctx._mouse_rel = mouse_pos - self._ctx._mouse_pos
+        self._ctx._mouse_pos = mouse_pos
+        if is_global:
+            _data.ImageCache._preallocated_index = -1
         return True
 
     def set_canva(self, surface: pygame.Surface):
@@ -89,6 +92,12 @@ class MILI:
         abs_hovered = sorted(self._ctx._abs_hovered, key=lambda e: e["z"], reverse=True)
         if len(abs_hovered) > 0:
             abs_hovered[0]["top"] = True
+        if len(_core._globalctx._mili_stack) > 0:
+            _core._globalctx._mili_stack.pop()
+        if len(_core._globalctx._mili_stack) > 0:
+            _core._globalctx._mili = _core._globalctx._mili_stack[-1]
+        else:
+            _core._globalctx._mili = None
 
     def element(
         self,
@@ -292,3 +301,6 @@ class MILI:
         if element_id in self._ctx._memory:
             el = self._ctx._memory[element_id]
             return _core._globalctx._element_data(el, self._ctx._get_interaction(el))
+
+    def clear_memory(self):
+        self._ctx._memory = {}

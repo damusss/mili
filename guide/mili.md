@@ -19,7 +19,7 @@ MILI has a few methods related to styling:
 
 The following are two essential functions in the game loop:
 
-- `MILI.start(style)`: Must be called at the start of the game loop. Acts like the parent of all elements, so it supports styling and components.
+- `MILI.start(style)`: Must be called at the start of the game loop. Acts like the parent of all elements, so it supports styling and components. If `is_global` is True the `ImageCache` preallocated index will be reset. You only want one MILI instance to start as global.
 - `MILI.update_draw`: Update the interaction and draws all elements. Elements are sorted using their z index which automatically increases when new elements are created.
 
 Boilerplate example code for MILI (it's better to use classes):
@@ -134,10 +134,11 @@ MILI instances have a couple advanced properties:
 - `MILI.current_parent_id`: The ID of the current parent
 - `MILI.all_elements_ids`: A list with the IDs of all created elements in memory
 - `MILI.data_from_id()`: Get an `ElementData` object from an element ID
+- `MILI.clear_memory()`: Clear all the elments in memory. Useful when changing scenes to avoid glitches.
 
 ### Packing Components
 
-You can pack components in dictionary to store them and add them later without repeating code:
+You can pack components in dictionaries to store them and add them later without repeating code:
 
 - `mili.pack_component(name, data, style)`: Return a packed dictionary
 - `MILI.packed_component(comp1, comp2, ...)`: Add a component from a packed dictionary
