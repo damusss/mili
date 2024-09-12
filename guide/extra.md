@@ -1,6 +1,6 @@
 [<- BACK](https://github.com/damusss/mili/blob/main/guide/guide.md)
 
-# MILI Errors and Typehints Guide
+## MILI Errors
 
 MILI can raise the following errors found in the `mili.error` module:
 
@@ -9,7 +9,9 @@ MILI can raise the following errors found in the `mili.error` module:
 - `MILIIncompatibleStylesError`: Raised when incompatible styles are both defined for an element
 - `MILIStatusError`: Raised when an action is invalidated from another action (i.e. if you don't call `MILI.start`)
 
-In the `mili.typing` module you can find my type aliases useful for typehints:
+## MILI Typehints
+
+In the `mili.typing` module you can find many type aliases useful for typehints:
 
 - `NumberOrPercentage`: Used to represent an int, float, or a percentage string
 - `RectLike`, `ColorLike`: Represents valid rectangles and colors supported by pygame

@@ -22,7 +22,7 @@ The following are two essential functions in the game loop:
 - `MILI.start(style)`: Must be called at the start of the game loop. Acts like the parent of all elements, so it supports styling and components. If `is_global` is True the `ImageCache` preallocated index will be reset. You only want one MILI instance to start as global.
 - `MILI.update_draw`: Update the interaction and draws all elements. Elements are sorted using their z index which automatically increases when new elements are created.
 
-Boilerplate example code for MILI (it's better to use classes):
+Boilerplate example code for MILI (it's a better practice to use classes):
 
 ```py
 import mili

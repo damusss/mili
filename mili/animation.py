@@ -19,7 +19,7 @@ __all__ = (
     "EaseBounce",
     "Animator",
     "ABAnimation",
-    "update_all"
+    "update_all",
 )
 
 
@@ -245,7 +245,7 @@ class ABAnimation:
             self.animator.end_value = self.a
 
     def stop(self) -> typing.Self:
-        self.anim.stop()
+        self.animator.stop()
         return self
 
     def update(self) -> typing.Self:

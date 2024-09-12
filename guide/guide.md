@@ -2,6 +2,8 @@
 
 MILI is a barebone immediate mode user interface library. This means that UI elements are created during the game loop and feedback is immediate (it actually has one frame of delay).
 
+The library version can be accessed using `VERSION` or `VERSION_STR`.
+
 The core features of MILI can be found in the MILI object along with the data classes:
 
 ## [MILI Class](https://github.com/damusss/mili/blob/main/guide/mili.md)

@@ -205,3 +205,33 @@ for i in range(30):
 
         sound.play(interaction)
 ```
+
+## `CustomWindowBorders`
+
+An object utility that implements window resizing and dragging for a borderless window. Every non-private attribute can be changed at any moment.
+
+After constructing the object, the `update()` method must be called every frame. Callbacks, flags, and attributes are modified in this method, meaning any logic relying on them should be added after. It is advised to call the `update` method before drawing the ui, to stop interactions while the window is resizing or being moved.
+
+When the user hovers over the allowed sides or corners or titlebar, it will be able to resize the window or move it. Optionally the cursor will be changed. The `update` method will return a `bool` indicating if the cursor has been changed by the utility.
+
+### Construction Parameters
+
+- `window`: The `pygame.Window` object that will be modified.
+- `border_size`, `corner_size`: The size in pixels of the resize areas for the sides and corners.
+- `titlebar_height`: The height of the custom titlebar that the user will be able to drag. If this value is set to 0, the window won't be able to be dragged.
+- `change_cursor`: Wether to actually change the cursor on hover.
+- `minimum_ratio`, `ratio_axis`: While the window's `minimum_size` will be considered by default, this setting forces the window ratio on the specified axis not to get too small to preserve UI inside the window. A value of `None` signals no restrictions.
+- `uniform_resize_key`: A key that when pressed will resize the window in both directions by the same amount. A value of `None` disables this functionality.
+- `allowed_directions`: A list of strings or the string `"all"` specifiying what directions allow resizing.
+- `on_(move|resize)`: Callback called while the window is being moved/resized.
+- `on_start_(move|resize)`: Callback called the first frame the window is moved/resized.
+- `on_end_(move|resize)`: Callback called the last frame the window is moved/resized.
+
+### Utility Attributes
+
+- `dragging`: Wether the window is being dragged.
+- `resizing`: Wether the window is being resized.
+- `relative`: The current frame's relative value (for example the relative size compared to the last frame). The same attribute is used for moving and resizing.
+- `cumulative_relative`: The relative value from the moment the action started (for example the relative size compared to the moment the user started resizing). The same attribute is used for moving and resizing.
+
+The `relative` and `cumulative_relative` flags are always up-to-date when the callbacks are called.

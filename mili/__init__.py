@@ -9,6 +9,7 @@ from .utility import (
     Slider,
     GenericApp,
     InteractionSound,
+    CustomWindowBorders,
     percentage,
     indent,
     fit_image,
@@ -19,6 +20,12 @@ from . import style
 from . import typing
 from . import data
 from . import animation
+
+from collections import namedtuple
+
+VERSION = namedtuple("MILIVersionInfo", "major minor micro")(0, 9, 5)
+VERSION_STR = "0.9.5"
+del namedtuple
 
 __all__ = (
     "MILI",
@@ -32,6 +39,7 @@ __all__ = (
     "Slider",
     "GenericApp",
     "InteractionSound",
+    "CustomWindowBorders",
     "percentage",
     "indent",
     "fit_image",
@@ -47,4 +55,6 @@ __all__ = (
     "typing",
     "data",
     "animation",
+    "VERSION",
+    "VERSION_STR",
 )
