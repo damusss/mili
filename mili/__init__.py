@@ -23,8 +23,8 @@ from . import animation
 
 from collections import namedtuple
 
-VERSION = namedtuple("MILIVersionInfo", "major minor micro")(0, 9, 5)
-VERSION_STR = "0.9.5"
+VERSION = namedtuple("MILIVersionInfo", "major minor micro")(0, 9, 6)
+VERSION_STR = "0.9.6"
 del namedtuple
 
 __all__ = (

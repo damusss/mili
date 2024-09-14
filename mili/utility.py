@@ -491,11 +491,19 @@ class Slider:
     def value(self, v: typing.Sequence[float]):
         if self._area_data is None:
             return
+        v = (pygame.math.clamp(v[0], 0, 1), pygame.math.clamp(v[1], 0, 1))
         if not self.strict_borders:
             if not self.lock_x:
                 self.handle_dragger.position.x = v[0] * self._area_data.rect.w
             if not self.lock_y:
                 self.handle_dragger.position.y = v[1] * self._area_data.rect.h
+            self.handle_rect = pygame.Rect(
+                (
+                    self.handle_dragger.position.x - self.handle_size[0] / 2,
+                    self.handle_dragger.position.y - self.handle_size[1] / 2,
+                ),
+                self.handle_size,
+            )
             return
         hx, hy = self.handle_size[0] / 2, self.handle_size[1] / 2
         if not self.lock_x:
@@ -506,6 +514,13 @@ class Slider:
             self.handle_dragger.position.y = (
                 v[1] * (self._area_data.rect.h - hy * 2) + hy
             )
+        self.handle_rect = pygame.Rect(
+            (
+                self.handle_dragger.position.x - self.handle_size[0] / 2,
+                self.handle_dragger.position.y - self.handle_size[1] / 2,
+            ),
+            self.handle_size,
+        )
 
     @property
     def valuex(self) -> float:

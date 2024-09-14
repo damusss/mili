@@ -128,13 +128,14 @@ To reduce boilerplate code, for every component there is a shortcut that creates
 
 ### Advanced Properties
 
-MILI instances have a couple advanced properties:
+MILI instances have a couple advanced properties and methods:
 
 - `MILI.stack_id`: The ID of the main parent element
 - `MILI.current_parent_id`: The ID of the current parent
 - `MILI.all_elements_ids`: A list with the IDs of all created elements in memory
 - `MILI.data_from_id()`: Get an `ElementData` object from an element ID
 - `MILI.clear_memory()`: Clear all the elments in memory. Useful when changing scenes to avoid glitches.
+- `MILI.id_checkpoint()`: Manually set the internal ID. Useful to avoid new elements to inherit the memory of the previous element and be visually unpleasent for a few frames.
 
 ### Packing Components
 

@@ -304,3 +304,9 @@ class MILI:
 
     def clear_memory(self):
         self._ctx._memory = {}
+
+    def id_checkpoint(self, id_: int):
+        if id_ < 1:
+            id_ = 1
+        if self._ctx._id < id_:
+            self._ctx._id = id_
