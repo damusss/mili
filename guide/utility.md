@@ -198,12 +198,49 @@ sound = mili.InteractionSound(hover=hover, press=press)
 
 # ui loop
 for i in range(30):
-    if interaction:=mili.element(rect, style):
-        mili.rect({"color": (50,) * 3})
-        mili.text(f"button {i}")
-        mili.rect({"color": (80,) * 3, "outline": 1})
+    if interaction:=self.mili.element(rect, style):
+        self.mili.rect({"color": (50,) * 3})
+        self.mili.text(f"button {i}")
+        self.mili.rect({"color": (80,) * 3, "outline": 1})
 
         sound.play(interaction)
+```
+
+## `InteractionCursor`
+
+This utility static class makes the process of changing cursor based on interaction easier. This class is not supposed to be instantiated, as every method is static. The class exports the following static methods:
+
+- `setup()`: Change the default cursors with custom values.
+- `update()`: Should be called for every element that should change cursor based on interaction. The disabled flag will select the disabled cursor appropriately. For special elements each cursor can be overridden using keyword arguments that match the class variable names.
+- `apply()`: Must be called at the end of the UI loop, after all the update calls have been made. This method is responsible for changing the cursor. It will return the cursor that has been applied or `None` if the cursor was left unchanged.
+
+The following cursors can be customized, each having less priority than the previous one. A value of `None` will signal the specified cursor is disabled.
+
+- `disabled_cursor`: Set when an element with the disabled flag is hovered or pressed.
+- `press_cursor`: Set when an element is pressed. If the cursor is a valid pygame cursor only the left mouse button will have an effect. To change this behaviour this cursor can be set to a dictionary where each button key corresponds to a cursor value.
+- `hover_cursor`: Set when an element is hovered, but not pressed.
+- `idle_cursor`: Default cursor when no element is hovered or pressed.
+
+Example usage:
+
+```py
+mili.InteractionCursor.setup(
+    hover_cursor=pygame.SYSTEM_CURSOR_IBEAM,
+    press_cursor={
+        pygame.BUTTON_LEFT: pygame.SYSTEM_CURSOR_HAND,
+        pygame.BUTTON_RIGHT: pygame.SYSTEM_CURSOR_CROSSHAIR,
+    }
+)
+
+# ui loop
+for i in range(30):
+    if interaction:=self.mili.element(rect, style):
+        self.mili.rect({"color": (50,) * 3})
+        self.mili.text(f"button {i}")
+        self.mili.rect({"color": (80,) * 3, "outline": 1})
+        mili.InteractionCursor.update(interaction, disabled=i%2==0)
+
+mili.InteractionCursor.apply()
 ```
 
 ## `CustomWindowBorders`
@@ -213,6 +250,8 @@ An object utility that implements window resizing and dragging for a borderless 
 After constructing the object, the `update()` method must be called every frame. Callbacks, flags, and attributes are modified in this method, meaning any logic relying on them should be added after. It is advised to call the `update` method before drawing the ui, to stop interactions while the window is resizing or being moved.
 
 When the user hovers over the allowed sides or corners or titlebar, it will be able to resize the window or move it. Optionally the cursor will be changed. The `update` method will return a `bool` indicating if the cursor has been changed by the utility.
+
+While the window is moving or resizing it is strongly advice to cap the fps at 60 or 120 or similar, otherwise it might glitch.
 
 ### Construction Parameters
 

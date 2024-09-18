@@ -31,7 +31,7 @@ type AnimValueLike = float | pygame.Color | typing.Sequence[float]
 type EasingLike = typing.Callable[[float], float]
 
 
-class ElementStyleLike(typing.TypedDict):
+class _ElementStyleLike(typing.TypedDict):
     resizex: bool | dict[typing.Literal["min", "max"], NumberOrPercentage]
     resizey: bool | dict[typing.Literal["min", "max"], NumberOrPercentage]
     fillx: bool | NumberOrPercentage
@@ -64,7 +64,10 @@ class ElementStyleLike(typing.TypedDict):
     grid_spacey: NumberOrPercentage
 
 
-class RectStyleLike(typing.TypedDict):
+type ElementStyleLike = _ElementStyleLike | dict[str, typing.Any]
+
+
+class _RectStyleLike(typing.TypedDict):
     padx: NumberOrPercentage
     pady: NumberOrPercentage
     outline: NumberOrPercentage
@@ -73,7 +76,10 @@ class RectStyleLike(typing.TypedDict):
     draw_above: bool
 
 
-class CircleStyleLike(typing.TypedDict):
+type RectStyleLike = _RectStyleLike | dict[str, typing.Any]
+
+
+class _CircleStyleLike(typing.TypedDict):
     padx: NumberOrPercentage
     pady: NumberOrPercentage
     outline: NumberOrPercentage
@@ -82,20 +88,29 @@ class CircleStyleLike(typing.TypedDict):
     draw_above: bool
 
 
-class LineStyleLike(typing.TypedDict):
+type CircleStyleLike = _CircleStyleLike | dict[str, typing.Any]
+
+
+class _LineStyleLike(typing.TypedDict):
     size: NumberOrPercentage
     color: ColorLike
     antialias: bool
     draw_above: bool
 
 
-class PolygonStyleLike(typing.TypedDict):
+type LineStyleLike = _LineStyleLike | dict[str, typing.Any]
+
+
+class _PolygonStyleLike(typing.TypedDict):
     outline: NumberOrPercentage
     color: ColorLike
     draw_above: bool
 
 
-class TextStyleLike(typing.TypedDict):
+type PolygonStyleLike = _PolygonStyleLike | dict[str, typing.Any]
+
+
+class _TextStyleLike(typing.TypedDict):
     name: str | None
     size: int
     sysfont: bool
@@ -131,7 +146,10 @@ class TextStyleLike(typing.TypedDict):
     slow_grow: bool
 
 
-class ImageStyleLike(typing.TypedDict):
+type TextStyleLike = _TextStyleLike | dict[str, typing.Any]
+
+
+class _ImageStyleLike(typing.TypedDict):
     cache: _data.ImageCache | None
     padx: NumberOrPercentage
     pady: NumberOrPercentage
@@ -146,6 +164,9 @@ class ImageStyleLike(typing.TypedDict):
     draw_above: bool
 
 
+type ImageStyleLike = _ImageStyleLike | dict[str, typing.Any]
+
+
 type AnyStyleLike = (
     ElementStyleLike
     | RectStyleLike
@@ -154,7 +175,6 @@ type AnyStyleLike = (
     | PolygonStyleLike
     | TextStyleLike
     | ImageStyleLike
-    | dict[str]
 )
 
 
@@ -163,7 +183,7 @@ class ComponentProtocol(typing.Protocol):
         self,
         ctx: "_core._ctx",
         data: typing.Any,
-        style: dict[str],
+        style: dict[str, typing.Any],
         element: dict[str, typing.Any],
         absolute_rect: pygame.Rect,
     ): ...
@@ -172,6 +192,6 @@ class ComponentProtocol(typing.Protocol):
         self,
         ctx: "_core._ctx",
         data: typing.Any,
-        style: dict[str],
+        style: dict[str, typing.Any],
         element: dict[str, typing.Any],
     ): ...

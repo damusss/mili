@@ -9,6 +9,7 @@ from .utility import (
     Slider,
     GenericApp,
     InteractionSound,
+    InteractionCursor,
     CustomWindowBorders,
     percentage,
     indent,
@@ -23,8 +24,8 @@ from . import animation
 
 from collections import namedtuple
 
-VERSION = namedtuple("MILIVersionInfo", "major minor micro")(0, 9, 6)
-VERSION_STR = "0.9.6"
+VERSION = namedtuple("VersionInfo", "major minor micro")(0, 9, 7)
+VERSION_STR = f"{VERSION.major}.{VERSION.minor}.{VERSION.micro}"
 del namedtuple
 
 __all__ = (
@@ -39,6 +40,7 @@ __all__ = (
     "Slider",
     "GenericApp",
     "InteractionSound",
+    "InteractionCursor",
     "CustomWindowBorders",
     "percentage",
     "indent",

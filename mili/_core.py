@@ -16,7 +16,7 @@ class _globalctx:
         ["rect", "circle", "line", "polygon", "line", "text", "image"], "builtin"
     )
     _mili_stack = []
-    _mili: "_MILI" = None
+    _mili: "_MILI|None" = None
 
     @staticmethod
     def _abs_perc(val, dim) -> float:
@@ -140,7 +140,7 @@ class _globalctx:
 
     @staticmethod
     def _element_data(
-        mili: "_MILI", el: dict[str, typing.Any], interaction: "_data.Interaction"
+        mili: "_MILI", el: dict[str, typing.Any], interaction: "_data.Interaction|None"
     ) -> "_data.ElementData":
         if el["id"] in mili._ctx._old_data:
             old_data = mili._ctx._old_data[el["id"]]
@@ -231,8 +231,8 @@ class _ctx:
         self._memory: dict[int, dict[str, typing.Any]] = {}
         self._old_data: dict[int, dict[str, typing.Any]] = {}
         self._element: dict[str, typing.Any] = self._parent
-        self._canva: pygame.Surface = None
-        self._canva_rect: pygame.Rect = None
+        self._canva: pygame.Surface | None = None
+        self._canva_rect: pygame.Rect | None = None
         self._abs_hovered: list[dict[str, typing.Any]] = []
         self._started = False
         self._started_pressing_element = None
@@ -251,7 +251,7 @@ class _ctx:
         }
 
     def _get_element(
-        self, rect: _typing.RectLike, arg_style
+        self, rect: _typing.RectLike | None, arg_style
     ) -> tuple[dict[str, typing.Any], "_data.Interaction"]:
         if arg_style is None:
             arg_style = {}
@@ -259,7 +259,7 @@ class _ctx:
         style.update(arg_style)
         if rect is None:
             rect = (0, 0, 0, 0)
-        rect = pygame.Rect(rect)
+        rect = pygame.Rect(rect)  # type: ignore
         parent = self._parent
         if "parent_id" in style:
             if style["parent_id"] in self._memory:
@@ -661,6 +661,8 @@ class _ctx:
             self._organize_element(el)
 
     def _start(self, style):
+        if self._canva is None:
+            return
         self._parent = {
             "rect": pygame.Rect((0, 0), self._canva.size),
             "style": style,
@@ -793,8 +795,9 @@ class _ctx:
             )
         if type == "text":
             self._text_resize(self._element["rect"], data, style)
-        if _globalctx._component_types[type] != "builtin":
-            _globalctx._component_types[type].added(self, data, style, self._element)
+        compobj = _globalctx._component_types[type]
+        if not isinstance(compobj, str):
+            compobj.added(self, data, style, self._element)
         self._element["components"].append({"type": type, "data": data, "style": style})
 
     def _get_font(self, style) -> pygame.Font:
@@ -809,6 +812,8 @@ class _ctx:
         return _globalctx._font_cache[key]
 
     def _draw_comp_rect(self, data, style, el, rect: pygame.Rect):
+        if self._canva is None:
+            return
         padx = self._style_val(style, "rect", "padx", 0)
         pady = self._style_val(style, "rect", "pady", padx)
         padx, pady = (
@@ -831,6 +836,8 @@ class _ctx:
         )
 
     def _draw_comp_circle(self, data, style, el, rect: pygame.Rect):
+        if self._canva is None:
+            return
         padx = self._style_val(style, "circle", "padx", 0)
         pady = self._style_val(style, "circle", "pady", padx)
         padx, pady = (
@@ -854,6 +861,8 @@ class _ctx:
     def _draw_comp_polygon(
         self, data: list[tuple[int, int]], style, el, rect: pygame.Rect
     ):
+        if self._canva is None:
+            return
         points = []
         for raw_p in data:
             rx, ry = raw_p
@@ -868,6 +877,8 @@ class _ctx:
     def _draw_comp_line(
         self, data: list[tuple[int, int]], style, el, rect: pygame.Rect
     ):
+        if self._canva is None:
+            return
         points = []
         for raw_p in data:
             rx, ry = raw_p
@@ -880,11 +891,20 @@ class _ctx:
             self._style_val(style, "line", "size", 1), min(rect.w, rect.h)
         )
         antialias = self._style_val(style, "line", "antialias", False)
-        (pygame.draw.aaline if antialias else pygame.draw.line)(
-            self._canva, color, points[0], points[1], max(1, int(size))
-        )
+        width = max(1, int(size))
+        if antialias and width == 1:
+            pygame.draw.aaline(
+                self._canva,
+                color,
+                points[0],
+                points[1],
+            )
+        else:
+            pygame.draw.line(self._canva, color, points[0], points[1], width)
 
     def _draw_comp_text(self, data: str, style, el, rect: pygame.Rect):
+        if self._canva is None:
+            return
         font = self._get_font(style)
         font.align = self._style_val(style, "text", "font_align", pygame.FONT_CENTER)
         font.bold = self._style_val(style, "text", "bold", False)
@@ -950,7 +970,7 @@ class _ctx:
             _globalctx._abs_perc(pady, rect.h),
         )
         font = self._get_font(style)
-        if slow_grow and not growx:
+        if slow_grow:
             font.align = self._style_val(
                 style, "text", "font_align", pygame.FONT_CENTER
             )
@@ -972,7 +992,7 @@ class _ctx:
             rect.w = sw + padx * 2
 
     def _draw_comp_image(self, data: pygame.Surface, style, el, rect: pygame.Rect):
-        if data is None:
+        if data is None or self._canva is None:
             return
         cache = style.get("cache", None)
         padx = self._style_val(style, "image", "padx", 0)
@@ -1087,6 +1107,8 @@ class _ctx:
     def _draw_update_element(
         self, element: dict[str, typing.Any], parent_pos, parent_clip=None
     ):
+        if self._canva is None:
+            return
         el_style = element["style"]
         offset = self._style_val(el_style, "element", "offset", (0, 0))
         do_clip = self._style_val(el_style, "element", "clip_draw", True)
@@ -1124,12 +1146,13 @@ class _ctx:
             if self._style_val(component["style"], comp_type, "draw_above", False):
                 render_above.append(component)
                 continue
-            if _globalctx._component_types[comp_type] == "builtin":
+            compobj = _globalctx._component_types[comp_type]
+            if isinstance(compobj, str):
                 getattr(self, f"_draw_comp_{comp_type}")(
                     component["data"], component["style"], element, absolute_rect
                 )
             else:
-                _globalctx._component_types[comp_type].draw(
+                compobj.draw(
                     self, component["data"], component["style"], element, absolute_rect
                 )
         if mid_draw:
@@ -1144,12 +1167,13 @@ class _ctx:
                 self._canva.set_clip(clip)
         for component in render_above:
             comp_type = component["type"]
-            if _globalctx._component_types[comp_type] == "builtin":
+            compobj = _globalctx._component_types[comp_type]
+            if isinstance(compobj, str):
                 getattr(self, f"_draw_comp_{comp_type}")(
                     component["data"], component["style"], element, absolute_rect
                 )
             else:
-                _globalctx._component_types[comp_type].draw(
+                compobj.draw(
                     self, component["data"], component["style"], element, absolute_rect
                 )
         if post_draw:

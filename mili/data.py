@@ -14,9 +14,9 @@ class ImageCache:
     _preallocated_index = -1
 
     def __init__(self):
-        self._cache = None
+        self._cache: dict[str, typing.Any] | None = None
 
-    def get_output(self) -> pygame.Surface:
+    def get_output(self) -> pygame.Surface | None:
         if self._cache is None:
             return None
         return self._cache.get("output", None)

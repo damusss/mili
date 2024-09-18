@@ -149,19 +149,19 @@ class Animator:
             return self
         t = self.easing((pygame.time.get_ticks() - self._start_time) / self.duration_ms)
         if self.value_type == "number":
-            self.value = pygame.math.lerp(self.start_value, self.end_value, t)
-            if abs(self.value - self.end_value) <= self.EPSILON:
+            self.value = pygame.math.lerp(self.start_value, self.end_value, t)  # type: ignore
+            if abs(self.value - self.end_value) <= self.EPSILON:  # type: ignore
                 self.value = self.end_value
                 self.stop()
                 if self.finish_callback:
                     self.finish_callback()
         elif self.value_type == "color":
-            self.value = self.start_value.lerp(self.end_value, t)
+            self.value = self.start_value.lerp(self.end_value, t)  # type: ignore
             if (
-                abs(self.value.r - self.end_value.r) <= 1
-                and abs(self.value.g - self.end_value.g) <= 1
-                and abs(self.value.b - self.end_value.b) <= 1
-                and abs(self.value.a - self.end_value.a) <= 1
+                abs(self.value.r - self.end_value.r) <= 1  # type: ignore
+                and abs(self.value.g - self.end_value.g) <= 1  # type: ignore
+                and abs(self.value.b - self.end_value.b) <= 1  # type: ignore
+                and abs(self.value.a - self.end_value.a) <= 1  # type: ignore
             ):
                 self.value = self.end_value
                 self.stop()
@@ -170,14 +170,14 @@ class Animator:
         elif self.value_type == "sequence":
             cur_sequence = []
             finished = 0
-            for sval, eval in zip(self.start_value, self.end_value):
+            for sval, eval in zip(self.start_value, self.end_value):  # type: ignore
                 cval = pygame.math.lerp(sval, eval, t)
                 if abs(cval - eval) <= self.EPSILON:
                     cval = eval
                     finished += 1
                 cur_sequence.append(cval)
             self.value = cur_sequence
-            if finished >= len(self.start_value):
+            if finished >= len(self.start_value):  # type: ignore
                 self.value = self.end_value
                 self.stop()
                 if self.finish_callback:
@@ -234,6 +234,7 @@ class ABAnimation:
             self.goto_b()
         else:
             self.goto_a()
+        return self
 
     def change_ab(
         self, a: _typing.AnimValueLike, b: _typing.AnimValueLike
@@ -243,6 +244,7 @@ class ABAnimation:
             self.animator.end_value = self.b
         else:
             self.animator.end_value = self.a
+        return self
 
     def stop(self) -> typing.Self:
         self.animator.stop()

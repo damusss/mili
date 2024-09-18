@@ -71,9 +71,9 @@ class Style:
 class StyleStatus:
     def __init__(
         self,
-        base: Style = None,
-        hover: Style = None,
-        press: Style = None,
+        base: Style | None = None,
+        hover: Style | None = None,
+        press: Style | None = None,
     ):
         self.base = base if base else Style()
         self.hover = hover if hover else Style()
@@ -91,9 +91,9 @@ class StyleStatus:
             raise _error.MILIValueError("Invalid style type")
         return conditional(
             interaction,
-            self.base.get(type),
-            self.hover.get(type),
-            self.press.get(type),
+            self.base.get(type),  # type: ignore
+            self.hover.get(type),  # type: ignore
+            self.press.get(type),  # type: ignore
             selected,
         )
 
@@ -136,8 +136,8 @@ def conditional[TK, TV](
 
 def filter[TK, TV](
     style: dict[TK, TV],
-    whitelist: list[str] | set[str] | None = None,
-    blacklist: list[str] | set[str] | None = None,
+    whitelist: list[TK] | set[TK] | None = None,
+    blacklist: list[TK] | set[TK] | None = None,
 ) -> dict[TK, TV]:
     if style is None:
         style = {}

@@ -38,7 +38,7 @@ class MILI:
         return list(self._ctx._memory.keys())
 
     @property
-    def canva(self) -> pygame.Surface:
+    def canva(self) -> pygame.Surface | None:
         return self._ctx._canva
 
     @canva.setter
@@ -72,6 +72,7 @@ class MILI:
         _core._globalctx._mili = self
         if style is None:
             style = {}
+        style = style.copy()
         style.update(blocking=False)
         self._ctx._start(style)
         mouse_pos = pygame.Vector2(pygame.mouse.get_pos())
@@ -296,11 +297,13 @@ class MILI:
                 _error.MILIStatusError(f"No component '{comp['type']}' exists")
             self._ctx._add_component(comp["type"], comp["data"], comp["style"])
 
-    def data_from_id(self, element_id: int) -> _data.ElementData:
+    def data_from_id(self, element_id: int) -> _data.ElementData | None:
         self._ctx._start_check()
         if element_id in self._ctx._memory:
             el = self._ctx._memory[element_id]
-            return _core._globalctx._element_data(el, self._ctx._get_interaction(el))
+            return _core._globalctx._element_data(
+                self, el, self._ctx._get_interaction(el)
+            )
 
     def clear_memory(self):
         self._ctx._memory = {}
