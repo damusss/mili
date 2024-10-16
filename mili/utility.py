@@ -26,18 +26,15 @@ class Selectable:
     def __init__(self, selected: bool = False):
         self.selected: bool = selected
 
-    def update[IT: _data.Interaction | _data.ElementData](
+    def update(
         self,
-        element: IT,
+        element: _data.Interaction,
         selectable_group: typing.Sequence["Selectable"] | None = None,
         can_deselect_group: bool = True,
-    ) -> IT:
+    ) -> _data.Interaction:
         if selectable_group is None:
             selectable_group = []
-        interaction = element
-        if isinstance(element, _data.ElementData):
-            interaction = element.interaction
-        if interaction.left_just_released:
+        if element.left_just_released:
             self.selected = not self.selected
             if len(selectable_group) > 0:
                 if self.selected:
@@ -79,10 +76,10 @@ class Dragger:
         self.style: _typing.ElementStyleLike = {"ignore_grid": True}
         self._before_update_pos = pygame.Vector2()
 
-    def update[IT: _data.Interaction | _data.ElementData](
+    def update(
         self,
-        element: IT,
-    ) -> IT:
+        element: _data.Interaction,
+    ) -> _data.Interaction:
         if _core._globalctx._mili is None:
             raise _error.MILIStatusError("MILI.start() not called")
         self.changed = False
@@ -178,14 +175,13 @@ class Scroll:
         self.scroll_offset: pygame.Vector2 = pygame.Vector2()
         self._element_data: _data.ElementData | None = None
 
-    def update(self, element_data: _data.ElementData) -> _data.ElementData:
-        if isinstance(element_data, _data.Interaction):
-            raise _error.MILIError(
-                "Scroll.update does not allow Interaction objects. Set get_data=True to get the correct ElementData object"
-            )
-        self._element_data = element_data
+    def update[IT: _data.Interaction | _data.ElementData](self, container: IT) -> IT:
+        if isinstance(container, _data.ElementData):
+            self._element_data = container
+        else:
+            self._element_data = container.data
         self.clamp()
-        return element_data
+        return container
 
     def scroll(self, x: float, y: float):
         self.scroll_offset.x += x
@@ -308,11 +304,11 @@ class Scrollbar:
             else self._scroll._element_data.grid.overflowx
         ) > 0
 
-    def update(self, element_data: _data.ElementData) -> _data.ElementData:
-        if isinstance(element_data, _data.Interaction):
-            raise _error.MILIError(
-                "Scrollbar.update does not allow Interaction objects. Set get_data=True to get the correct ElementData object"
-            )
+    def update[IT: _data.Interaction | _data.ElementData](self, container: IT) -> IT:
+        if isinstance(container, _data.ElementData):
+            element_data = container
+        else:
+            element_data = container.data
         rectsize = element_data.rect.h if self.axis == "x" else element_data.rect.w
         previous = self.size
         self.size = (
@@ -342,14 +338,12 @@ class Scrollbar:
                 self.size,
             )
         self.handle_size = int(self._scroll.get_handle_size(self.size, self.axis))
-        return element_data
+        return container
 
-    def update_handle[IT: _data.ElementData | _data.Interaction](
-        self, element: IT
-    ) -> IT:
+    def update_handle(self, handle_element: _data.Interaction) -> _data.Interaction:
         changed = self.handle_dragger.changed
         self.handle_dragger.update(
-            element,
+            handle_element,
         )
         self.handle_dragger.clamp(
             clamp_x=(0, self.size - self.handle_size) if self.axis == "x" else None,
@@ -375,7 +369,7 @@ class Scrollbar:
             self.handle_rect = pygame.Rect(
                 0, self.handle_dragger.position.y, self.short_size, self.handle_size
             )
-        return element
+        return handle_element
 
     def scroll_moved(self):
         pos = self._scroll.get_rel_handle_pos_from_scroll(
@@ -401,6 +395,7 @@ class Slider:
         self.handle_size = handle_size
         self.strict_borders = strict_borders
         self._area_data: _data.ElementData | None = None
+        self._start_value: pygame.Vector2 | None = None
         self.handle_dragger: Dragger = Dragger()
         self.moved: bool = False
 
@@ -417,20 +412,27 @@ class Slider:
     ):
         return cls(axis == "y", axis == "x", handle_size, strict_borders)
 
-    def update_area(self, element_data: _data.ElementData) -> _data.ElementData:
-        if isinstance(element_data, _data.Interaction):
-            raise _error.MILIError(
-                "Slider.update_area does not allow Interaction objects. Set get_data=True to get the correct ElementData object"
-            )
-        previous = self.value
-        self._area_data = element_data
-        if self.value != previous:
-            self.value = previous
-        return element_data
-
-    def update_handle[IT: _data.ElementData | _data.Interaction](
-        self, element: IT
+    def update_area[IT: _data.Interaction | _data.ElementData](
+        self, area_element: IT
     ) -> IT:
+        previous = self.value
+        if isinstance(area_element, _data.ElementData):
+            self._area_data = area_element
+        else:
+            self._area_data = area_element.data
+        if (
+            self._area_data is not None
+            and self._start_value is not None
+            and (self._area_data.rect.w != 0 or self._area_data.rect.h != 0)
+        ):
+            self.value = self._start_value
+            self._start_value = None
+        else:
+            if self.value != previous:
+                self.value = previous
+        return area_element
+
+    def update_handle(self, handle_element: _data.Interaction) -> _data.Interaction:
         if self._area_data is None:
             raise _error.MILIStatusError(
                 "Slider.update_area must be called before Slider.update_handle"
@@ -442,25 +444,21 @@ class Slider:
         if self.lock_y:
             self.handle_dragger.position.y = self._area_data.rect.h / 2
         clamp_padx, clamp_pady = (
-            self.handle_size[0] / 2 if self.strict_borders else 0,
-            self.handle_size[1] / 2 if self.strict_borders else 0,
+            self.handle_size[0] / 2
+            if self.strict_borders and self._area_data.rect.w >= self.handle_size[0]
+            else 0,
+            self.handle_size[1] / 2
+            if self.strict_borders and self._area_data.rect.h >= self.handle_size[1]
+            else 0,
         )
         self.handle_dragger.update(
-            element,
+            handle_element,
         )
         self.handle_dragger.clamp(
             (0 + clamp_padx, self._area_data.rect.w - clamp_padx),
             (0 + clamp_pady, self._area_data.rect.h - clamp_pady),
             False,
         )
-        if self._area_data.rect.w < self.handle_size[0]:
-            self.handle_dragger.position.x = (
-                self.handle_size[0] / 2 if self.strict_borders else 0
-            )
-        if self._area_data.rect.h < self.handle_size[1]:
-            self.handle_dragger.position.y = (
-                self.handle_size[1] / 2 if self.strict_borders else 0
-            )
         self.handle_rect = pygame.Rect(
             (
                 self.handle_dragger.position.x - self.handle_size[0] / 2,
@@ -469,11 +467,13 @@ class Slider:
             self.handle_size,
         )
         self.moved = self.handle_dragger.changed
-        return element
+        return handle_element
 
     @property
     def value(self) -> pygame.Vector2:
         if self._area_data is None:
+            if self._start_value is not None:
+                return self._start_value
             return pygame.Vector2(-1, -1)
         if not self.strict_borders:
             return pygame.Vector2(
@@ -498,9 +498,10 @@ class Slider:
 
     @value.setter
     def value(self, v: typing.Sequence[float] | pygame.Vector2):
-        if self._area_data is None:
-            return
         v = (pygame.math.clamp(v[0], 0, 1), pygame.math.clamp(v[1], 0, 1))
+        if self._area_data is None:
+            self._start_value = pygame.Vector2(v)
+            return
         if not self.strict_borders:
             if not self.lock_x:
                 self.handle_dragger.position.x = v[0] * self._area_data.rect.w
@@ -563,13 +564,13 @@ class InteractionSound:
         self.release_sound = release
         self.button = button
 
-    def play[IT: _data.Interaction | _data.ElementData](
+    def play(
         self,
-        interaction: IT,
+        interaction: _data.Interaction,
         channel: pygame.Channel | None = None,
         maxtime: int = 0,
         fade_ms: int = 0,
-    ) -> IT:
+    ) -> _data.Interaction:
         if interaction.just_hovered and self.hover_sound is not None:
             if channel is not None:
                 channel.play(self.hover_sound, 0, maxtime, fade_ms)
@@ -642,15 +643,15 @@ class InteractionCursor:
         return None
 
     @classmethod
-    def update[IT: _data.Interaction | _data.ElementData](
+    def update(
         cls,
-        interaction: IT,
+        interaction: _data.Interaction,
         disabled: bool = False,
         **cursor_overrides: int
         | pygame.Cursor
         | None
         | dict[int, int | pygame.Cursor | None],
-    ) -> IT:
+    ) -> _data.Interaction:
         hovered = interaction.hovered
         pressed = interaction.press_button != -1
         if disabled and (hovered or pressed):
@@ -1005,7 +1006,7 @@ def fit_image(
     smoothscale: bool = False,
     ninepatch: int = 0,
 ) -> pygame.Surface:
-    return _core._globalctx._get_image(
+    return _core._coreutils._get_image(
         pygame.Rect(rect),  # type: ignore
         surface,
         int(padx),

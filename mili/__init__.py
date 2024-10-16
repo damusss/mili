@@ -1,6 +1,12 @@
-from .mili import MILI, register_custom_component, pack_component
+from .mili import (
+    MILI,
+    register_custom_component,
+    pack_component,
+    get_font_cache,
+    clear_font_cache,
+)
 from .data import ElementData, Interaction, ImageCache
-from .style import RESIZE, X, CENTER, PADLESS, FLOATING
+from .style import RESIZE, X, CENTER, PADLESS, FLOATING, FILL
 from .utility import (
     Selectable,
     Dragger,
@@ -24,7 +30,7 @@ from . import animation
 
 from collections import namedtuple
 
-VERSION = namedtuple("VersionInfo", "major minor micro")(0, 9, 7)
+VERSION = namedtuple("VersionInfo", "major minor micro")(1, 0, 0)
 VERSION_STR = f"{VERSION.major}.{VERSION.minor}.{VERSION.micro}"
 del namedtuple
 
@@ -47,11 +53,14 @@ __all__ = (
     "fit_image",
     "register_custom_component",
     "pack_component",
+    "get_font_cache",
+    "clear_font_cache",
     "RESIZE",
     "X",
     "CENTER",
     "PADLESS",
     "FLOATING",
+    "FILL",
     "error",
     "style",
     "typing",

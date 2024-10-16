@@ -24,6 +24,21 @@ __all__ = (
 )
 
 type NumberOrPercentage = int | float | str
+type BoundingAlignLike = typing.Literal[
+    "center",
+    "topleft",
+    "bottomleft",
+    "topright",
+    "bottomright",
+    "midleft",
+    "left",
+    "midright",
+    "right",
+    "midtop",
+    "top",
+    "midbottom",
+    "bottom",
+]
 type ColorLike = int | str | typing.Sequence[int] | pygame.Color
 type RectLike = typing.Sequence[float | typing.Sequence[float]] | pygame.Rect
 type PointsLike = typing.Sequence[typing.Sequence[NumberOrPercentage]]
@@ -55,9 +70,11 @@ class _ElementStyleLike(typing.TypedDict):
 
     axis: typing.Literal["x", "y"]
     spacing: NumberOrPercentage
+    pad: NumberOrPercentage
     padx: NumberOrPercentage
     pady: NumberOrPercentage
     anchor: typing.Literal["first", "center", "last", "max_spacing"]
+    default_align: typing.Literal["first", "center", "last"]
     grid: bool
     grid_align: typing.Literal["first", "center", "last", "max_spacing"]
     grid_spacex: NumberOrPercentage
@@ -68,11 +85,14 @@ type ElementStyleLike = _ElementStyleLike | dict[str, typing.Any]
 
 
 class _RectStyleLike(typing.TypedDict):
+    pad: NumberOrPercentage
     padx: NumberOrPercentage
     pady: NumberOrPercentage
     outline: NumberOrPercentage
-    border_radius: NumberOrPercentage
+    border_radius: NumberOrPercentage | typing.Iterable[NumberOrPercentage]
     color: ColorLike
+    aspect_ratio: float | None
+    align: BoundingAlignLike
     draw_above: bool
 
 
@@ -80,11 +100,17 @@ type RectStyleLike = _RectStyleLike | dict[str, typing.Any]
 
 
 class _CircleStyleLike(typing.TypedDict):
+    pad: NumberOrPercentage
     padx: NumberOrPercentage
     pady: NumberOrPercentage
     outline: NumberOrPercentage
     color: ColorLike
     antialias: bool
+    aspect_ratio: float | None
+    align: BoundingAlignLike
+    corners: typing.Iterable[bool]
+    dash_size: float | typing.Iterable[float]
+    dash_anchor: float | typing.Iterable[float]
     draw_above: bool
 
 
@@ -95,6 +121,8 @@ class _LineStyleLike(typing.TypedDict):
     size: NumberOrPercentage
     color: ColorLike
     antialias: bool
+    dash_size: NumberOrPercentage | typing.Iterable[NumberOrPercentage]
+    dash_offset: NumberOrPercentage
     draw_above: bool
 
 
@@ -114,21 +142,7 @@ class _TextStyleLike(typing.TypedDict):
     name: str | None
     size: int
     sysfont: bool
-    align: typing.Literal[
-        "center",
-        "topleft",
-        "bottomleft",
-        "topright",
-        "bottomright",
-        "midleft",
-        "left",
-        "midright",
-        "right",
-        "midtop",
-        "top",
-        "midbottom",
-        "bottom",
-    ]
+    align: BoundingAlignLike
     font_align: int
     bold: bool
     italic: bool
@@ -139,6 +153,7 @@ class _TextStyleLike(typing.TypedDict):
     bg_color: ColorLike
     growx: bool
     growy: bool
+    pad: NumberOrPercentage
     padx: NumberOrPercentage
     pady: NumberOrPercentage
     wraplen: NumberOrPercentage
@@ -151,6 +166,7 @@ type TextStyleLike = _TextStyleLike | dict[str, typing.Any]
 
 class _ImageStyleLike(typing.TypedDict):
     cache: _data.ImageCache | None
+    pad: NumberOrPercentage
     padx: NumberOrPercentage
     pady: NumberOrPercentage
     fill: bool

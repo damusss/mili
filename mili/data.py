@@ -36,9 +36,30 @@ class ImageCache:
 
 
 @dataclass
+class ElementGridData:
+    overflowx: float
+    overflowy: float
+    padx: float
+    pady: float
+    spacing: float
+
+
+@dataclass
+class ElementData:
+    rect: pygame.Rect
+    absolute_rect: pygame.Rect
+    z: int
+    id: int
+    style: dict[str, typing.Any]
+    children_ids: list[int]
+    components: dict[typing.Literal["type", "style", "data"], typing.Any]
+    parent_id: int
+    grid: ElementGridData
+
+
+@dataclass
 class Interaction:
     _mili: "_MILI"
-    id: int
     hovered: bool
     press_button: int
     just_pressed_button: int
@@ -47,6 +68,8 @@ class Interaction:
     unhover_pressed: bool
     just_hovered: bool
     just_unhovered: bool
+    _raw_data: dict[str, typing.Any]
+    _data: ElementData | None = None
 
     @property
     def left_pressed(self) -> bool:
@@ -60,49 +83,16 @@ class Interaction:
     def left_just_released(self) -> bool:
         return self.just_released_button == pygame.BUTTON_LEFT
 
-    def __enter__(self, *args, **kwargs):
-        return self
-
-    def __exit__(self, *args, **kwargs):
-        self._mili.end()
-
-
-class ElementGridData:
-    overflowx: float
-    overflowy: float
-    padx: float
-    pady: float
-    spacing: float
-
-    def __init__(self, **kwargs):
-        for name, value in kwargs.items():
-            setattr(self, name, value)
-
-
-class ElementData:
-    interaction: Interaction
-    rect: pygame.Rect
-    absolute_rect: pygame.Rect
-    z: int
-    id: int
-    style: dict[str, typing.Any]
-    children_ids: list[int]
-    components: dict[typing.Literal["type", "style", "data"], typing.Any]
-    parent_id: int
-    grid: ElementGridData | None
-
-    def __init__(self, mili: "_MILI", **kwargs):
-        self._mili = mili
-        for name, value in kwargs.items():
-            setattr(self, name, value)
+    @property
+    def data(self) -> ElementData:
+        if self._data is None:
+            self._data = self._mili._ctx._coreutils._element_data(
+                self._mili._ctx, self._raw_data
+            )
+        return self._data
 
     def __enter__(self, *args, **kwargs):
         return self
 
     def __exit__(self, *args, **kwargs):
         self._mili.end()
-
-    def __getattr__(self, name):
-        if hasattr(self.interaction, name):
-            return getattr(self.interaction, name)
-        raise AttributeError

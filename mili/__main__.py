@@ -8,18 +8,32 @@ def main():
     sys.stdout.flush()
 
     if len(sys.argv) <= 1:
-        print("ERROR: missing command 'guide'")
+        print("ERROR: missing command")
         return
     if len(sys.argv) > 2:
         print("ERROR: too many commands")
         return
-    if sys.argv[1] != "guide":
-        print(f"ERROR: wrong command '{sys.argv[1]}', expected 'guide'")
+
+    command = sys.argv[1]
+    if command not in ["guide", "changelog", "help"]:
+        print(
+            f"ERROR: wrong command '{sys.argv[1]}', expected one of the following: 'guide', 'changelog', 'help'"
+        )
         return
 
-    url = "https://github.com/damusss/mili/blob/main/guide/guide.md"
-    print(f"Opening guide at '{url}'")
-    webbrowser.open(url)
+    if command == "guide":
+        url = "https://github.com/damusss/mili/blob/main/guide/guide.md"
+        print(f"Opening guide at '{url}'")
+        webbrowser.open(url)
+    elif command == "changelog":
+        url = "https://github.com/damusss/mili/blob/main/CHANGELOG.md"
+        print(f"Opening changelog at '{url}'")
+        webbrowser.open(url)
+    elif command == "help":
+        print("MILI CLI")
+        print("py -m mili guide: open the MILI guide")
+        print("py -m mili changelog: open the MILI changelog")
+        print("py -m mili help: show this message")
 
 
 if __name__ == "__main__":

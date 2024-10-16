@@ -8,7 +8,7 @@ The `mili.data` submodule contains 4 classes that represent data.
 
 The interaction object is returned by all elements by default. It contains all information you can need to understand how the user is interacting with the element:
 
-- `Interaction.id`: The ID of the element.
+- `Interaction.data`: The `ElementData` object holding more detailed information about the element.
 - `Interaction.hovered`: The user pointer is over this element which is also the highest element.
 - `Interaction.absolute_hover`: The user pointer is over this element but other elements might be covering it.
 - `Interaction.just_hovered`: The hovered status becomes True this frame meaning the user has started hovering
@@ -21,21 +21,23 @@ There are also three shortcuts for the left mouse button (most common): `left_pr
 
 # `ElementData`
 
-The element data object holds a lot more information than the interaction object, but is a bit slower to compute. It keeps the relative rect, the absolute rect, the z index, the ID, the style, the components, the parent ID and the children ID. Changing any field will not effect the element.
+The element data object holds more information than the interaction and since it's slower to compute it will be evaluated lazily. It keeps the ID, the relative rect, the absolute rect, the z index, the style, the components, the parent ID and the children IDs. Changing any field will not effect the element.
 
-The `grid` attributes contains information about its parental behaviour such as the overflow, the padding, and the spacing (needed for scrolling) which are contained in the `ElementGridData` object, only accessible using the `mili.data` module (the others are exported to the `mili` package)
+The `grid` attribute contains information about its parental behaviour such as the overflow, the padding, and the spacing (needed for scrolling) which are contained in the `ElementGridData` object, only accessible using the `mili.data` module (the others are exported to the `mili` package)
 
-This object is required by some utilities. The attributes might not be super accurate and might have some delay.
+The attributes might not be super accurate and might have some delay.
 
 # `ImageCache`
 
-This object is incredibly useful to massively speed up the image component. Since MILI is immediate mode, after the surface is modified using the styles it cannot be cached. This object, passed in the cache style, provides a permanent location the result can be stored in. Using  `get_output`, it's also the only way to retrieve the processed image (might be None in the first iterations).
+This object is incredibly useful to massively speed up the image component. Since MILI is immediate mode, after the surface is modified using the styles it cannot be cached. This object, passed in the cache style, provides a permanent location the result can be stored in. Using `get_output`, it's also the only way to retrieve the processed image (might be None in the first iterations).
 
 You can also simplify the cache creation process:
+
 - `ImageCache.preallocate_caches(amount)`: Creates and stores a set amount of image caches
 - `ImageCache.get_next_cache()`: Retrieve a free cache and increase the internal index
 
 Example usage:
+
 ```py
 my_special_cache = mili.ImageCache()
 mili.ImageCache.preallocate_caches(30)
