@@ -3,6 +3,7 @@ import typing
 from mili import error
 from mili import data as _data
 from mili import typing as _typing
+from mili import _coreutils
 
 if typing.TYPE_CHECKING:
     from mili import MILI as _MILI
@@ -18,200 +19,10 @@ class _globalctx:
     _mili_stack = []
     _mili: "_MILI|None" = None
 
-    @staticmethod
-    def _abs_perc(val, dim) -> float:
-        if isinstance(val, str):
-            sign = 1
-            if val.startswith("-"):
-                val = val.replace("-", "")
-                sign = -1
-            try:
-                val = float(val)
-            except ValueError:
-                raise error.MILIValueError(f"Invalid percentage value '{val}'")
-            return ((dim * float(val)) / 100) * sign
-        return val
-
-    @staticmethod
-    def _get_first_button(buttons):
-        bid = -1
-        for i, b in enumerate(buttons):
-            if b:
-                bid = i + 1
-                break
-        return bid
-
-    @staticmethod
-    def _nine_patch(image: pygame.Surface, w, h, s, smoothscale):
-        ow, oh = image.get_size()
-        scale_func = (
-            pygame.transform.smoothscale if smoothscale else pygame.transform.scale
-        )
-        subsurf = image.subsurface
-        ohsize, hsize = ow - s * 2, w - s * 2
-        ovsize, vsize = oh - s * 2, h - s * 2
-        base = pygame.Surface((w, h), pygame.SRCALPHA)
-        base.blit(subsurf((0, 0, s, s)), (0, 0))  # topleft
-        base.blit(subsurf((ow - s, 0, s, s)), (w - s, 0))  # topright
-        base.blit(subsurf((0, oh - s, s, s)), (0, h - s))  # bottomleft
-        base.blit(subsurf((ow - s, oh - s, s, s)), (w - s, h - s))  # bottomright
-        if ohsize > 0:
-            base.blit(scale_func(subsurf((s, 0, ohsize, s)), (hsize, s)), (s, 0))  # top
-            base.blit(
-                scale_func(subsurf((s, oh - s, ohsize, s)), (hsize, s)),
-                (s, h - s),
-            )  # bottom
-        if ovsize > 0:
-            base.blit(
-                scale_func(subsurf((0, s, s, ovsize)), (s, vsize)), (0, s)
-            )  # left
-            base.blit(
-                scale_func(subsurf((ow - s, s, s, ovsize)), (s, vsize)),
-                (w - s, s),
-            )  # right
-        if ohsize > 0 and ovsize > 0:
-            base.blit(
-                scale_func(subsurf((s, s, ohsize, ovsize)), (hsize, vsize)),
-                (s, s),
-            )  # inner
-        return base
-
-    @staticmethod
-    def _get_image(
-        rect: pygame.Rect,
-        data: pygame.Surface,
-        padx,
-        pady,
-        do_fill,
-        do_stretchx,
-        do_stretchy,
-        fill_color,
-        border_radius,
-        alpha,
-        smoothscale,
-        nine_patch,
-    ) -> pygame.Surface:
-        iw, ih = data.size
-        tw, th = max(rect.w - padx * 2, 1), max(rect.h - pady * 2, 1)
-
-        if nine_patch == 0:
-            if not do_fill:
-                w = tw
-                h = int(ih * (w / iw))
-                if h > th:
-                    h = th
-                    w = int(iw * (h / ih))
-                w, h = max(w, 1), max(h, 1)
-                if w < tw and do_stretchx:
-                    w = tw
-                if h < th and do_stretchy:
-                    h = th
-                if smoothscale:
-                    image = pygame.transform.smoothscale(data, (w, h))
-                else:
-                    image = pygame.transform.scale(data, (w, h))
-            else:
-                w = tw
-                h = int(ih * (w / iw))
-                if h < th:
-                    h = th
-                    w = int(iw * (h / ih))
-                if smoothscale:
-                    image = pygame.transform.smoothscale(data, (w, h))
-                else:
-                    image = pygame.transform.scale(data, (w, h))
-                image = image.subsurface((w // 2 - tw // 2, h // 2 - th // 2, tw, th))
-        else:
-            image = _globalctx._nine_patch(data, tw, th, nine_patch, smoothscale)
-
-        w, h = image.size
-        if fill_color is not None:
-            image.fill(fill_color)
-        if border_radius > 0:
-            mask_surf = pygame.Surface((w, h), pygame.SRCALPHA)
-            mask_surf.fill(0)
-            pygame.draw.rect(
-                mask_surf, (255, 255, 255, 255), (0, 0, w, h), 0, int(border_radius)
-            )
-            image.blit(mask_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-        if alpha != 255:
-            image.set_alpha(alpha)
-        return image
-
-    @staticmethod
-    def _element_data(
-        mili: "_MILI", el: dict[str, typing.Any], interaction: "_data.Interaction|None"
-    ) -> "_data.ElementData":
-        if el["id"] in mili._ctx._old_data:
-            old_data = mili._ctx._old_data[el["id"]]
-        else:
-            old_data = {
-                "rect": pygame.Rect(),
-                "abs_rect": pygame.Rect(),
-                "children_ids": [],
-                "components": [],
-                "parent_id": 0,
-                "grid": None,
-            }
-        grid = old_data["grid"]
-        return _data.ElementData(
-            mili,
-            interaction=interaction,
-            rect=old_data["rect"].copy(),
-            absolute_rect=old_data["abs_rect"].copy(),
-            z=el["z"],
-            id=el["id"],
-            style=el["style"].copy(),
-            children_ids=list(old_data["children_ids"]),
-            parent_id=old_data["parent_id"],
-            components=old_data["components"].copy(),
-            grid=(
-                _data.ElementGridData(
-                    overflowx=-1, overflowy=-1, padx=0, pady=0, spacing=0
-                )
-                if grid is None
-                else _data.ElementGridData(
-                    overflowx=grid["overflowx"],
-                    overflowy=grid["overflowy"],
-                    padx=grid["padx"],
-                    pady=grid["pady"],
-                    spacing=grid["spacing"],
-                )
-            ),
-        )
-
-    @staticmethod
-    def _text_align(align, rect: pygame.Rect, padx, pady):
-        x, y = 0, 0
-        if align == "center":
-            x, y = rect.centerx, rect.centery
-        elif align == "topleft":
-            x, y = rect.x + padx, rect.y + pady
-        elif align == "bottomleft":
-            x, y = rect.x + padx, rect.bottom - pady
-        elif align == "bottomright":
-            x, y = rect.right - padx, rect.bottom - pady
-        elif align == "topright":
-            x, y = rect.right - padx, rect.y + pady
-        elif align == "midleft" or align == "left":
-            align = "midleft"
-            x, y = rect.x + padx, rect.centery
-        elif align == "midright" or align == "right":
-            align = "midright"
-            x, y = rect.right - padx, rect.centery
-        elif align == "midtop" or align == "top":
-            align = "midtop"
-            x, y = rect.centerx, rect.y + pady
-        elif align == "midbottom" or align == "bottom":
-            align = "midbottom"
-            x, y = rect.centerx, rect.bottom - pady
-        else:
-            raise error.MILIValueError("Invalid text alignment")
-        return {align: (x, y)}
-
 
 class _ctx:
     def __init__(self, mili: "_MILI"):
+        self._coreutils = _coreutils
         self._mili = mili
         self._parent: dict[str, typing.Any] = {
             "rect": pygame.Rect(0, 0, 1, 1),
@@ -224,6 +35,7 @@ class _ctx:
             "parent": None,
             "top": False,
             "z": 0,
+            "hovered": False,
         }
         self._stack: dict[str, typing.Any] = self._parent
         self._parents_stack = [self._stack]
@@ -238,6 +50,7 @@ class _ctx:
         self._started_pressing_element = None
         self._started_pressing_button = -1
         self._z = 0
+        self._offset = pygame.Vector2()
         self._mouse_pos = pygame.Vector2()
         self._mouse_rel = pygame.Vector2()
         self._default_styles = {
@@ -323,22 +136,42 @@ class _ctx:
         children,
     ):
         grid_align = self._style_val(style, "element", "grid_align", "first")
-        self._check_align(grid_align)
-        spacea = _globalctx._abs_perc(
+        _coreutils._check_align(grid_align)
+        spacea = _coreutils._abs_perc(
             self._style_val(style, "element", f"grid_space{a}", space),
             getattr(rect, av),
         )
-        spaceoa = _globalctx._abs_perc(
+        spaceoa = _coreutils._abs_perc(
             self._style_val(style, "element", f"grid_space{oa}", space),
             getattr(rect, oav),
         )
 
+        changed = []
         line_elements = []
         lines = []
         line_size_a = 0
         longest_line_size_a = 0
         current_pos_oa = padoa
         longest_line_size_oa = 0
+        for child in children:
+            ch_fill_a = self._style_val(child["style"], "element", f"fill{a}", False)
+            ch_fill_oa = self._style_val(child["style"], "element", f"fill{oa}", False)
+
+            if ch_fill_a is not False:
+                if ch_fill_a is True:
+                    ch_fill_a = "100"
+                fill_a_v = _coreutils._abs_perc(ch_fill_a, getattr(rect, av))
+                setattr(child["rect"], av, fill_a_v)
+
+            if ch_fill_oa is not False:
+                if ch_fill_oa is True:
+                    ch_fill_oa = "100"
+                fill_oa_v = _coreutils._abs_perc(ch_fill_oa, getattr(rect, oav))
+                setattr(child["rect"], oav, fill_oa_v)
+
+            if ch_fill_a is not False or ch_fill_oa is not False:
+                changed.append(child)
+
         for child in children:
             ch_rect = child["rect"]
             add = spacea
@@ -449,9 +282,8 @@ class _ctx:
             "spacing": space,
         }
 
-    def _check_align(self, align):
-        if align not in ["first", "last", "center", "max_spacing"]:
-            raise error.MILIValueError(f"Invalid alignment/anchoring '{align}'")
+        for el in list(changed):
+            self._organize_element(el)
 
     def _organize_element(self, element: dict[str, typing.Any]):
         style = element["style"]
@@ -463,24 +295,26 @@ class _ctx:
         oa = "x" if a == "y" else "y"
         av = "w" if a == "x" else "h"
         oav = "w" if av == "h" else "h"
-        pada = self._style_val(style, "element", f"pad{a}", 5)
-        padoa = self._style_val(style, "element", f"pad{oa}", pada)
+        pad = self._style_val(style, "text", "pad", 5)
+        pada = self._style_val(style, "element", f"pad{a}", pad)
+        padoa = self._style_val(style, "element", f"pad{oa}", pad)
         pada, padoa = (
-            _globalctx._abs_perc(pada, getattr(rect, av)),
-            _globalctx._abs_perc(padoa, getattr(rect, oav)),
+            _coreutils._abs_perc(pada, getattr(rect, av)),
+            _coreutils._abs_perc(padoa, getattr(rect, oav)),
         )
-        space = _globalctx._abs_perc(
+        space = _coreutils._abs_perc(
             self._style_val(style, "element", "spacing", 3), getattr(rect, av)
         )
         anchor = self._style_val(style, "element", "anchor", "first")
-        self._check_align(anchor)
+        def_align = self._style_val(style, "element", "default_align", "first")
+        _coreutils._check_align(anchor)
         resizeoa = self._style_val(style, "element", f"resize{oa}", False)
         resizea = self._style_val(style, "element", f"resize{a}", False)
         if isinstance(resizea, dict):
             maxv = resizea.get("max", float("inf"))
             minv = resizea.get("min", 0)
-            minresizea = _globalctx._abs_perc(minv, getattr(rect, av))
-            maxresizea = _globalctx._abs_perc(maxv, getattr(rect, av))
+            minresizea = _coreutils._abs_perc(minv, getattr(rect, av))
+            maxresizea = _coreutils._abs_perc(maxv, getattr(rect, av))
             resizea = True
         else:
             resizea = bool(resizea)
@@ -489,8 +323,8 @@ class _ctx:
         if isinstance(resizeoa, dict):
             maxv = resizeoa.get("max", float("inf"))
             minv = resizeoa.get("min", 0)
-            minresizeoa = _globalctx._abs_perc(minv, getattr(rect, oav))
-            maxresizeoa = _globalctx._abs_perc(maxv, getattr(rect, oav))
+            minresizeoa = _coreutils._abs_perc(minv, getattr(rect, oav))
+            maxresizeoa = _coreutils._abs_perc(maxv, getattr(rect, oav))
             resizeoa = True
         else:
             resizeoa = bool(resizeoa)
@@ -580,7 +414,7 @@ class _ctx:
             filloa = self._style_val(el_style, "element", f"fill{oa}", False)
             if filloa is True:
                 filloa = "100"
-            el_filloa = _globalctx._abs_perc(filloa, padded_oa)
+            el_filloa = _coreutils._abs_perc(filloa, padded_oa)
             setattr(el_rect, oav, el_filloa)
             changed.append(filloa_el)
 
@@ -591,7 +425,7 @@ class _ctx:
             filla = self._style_val(el_style, "element", f"fill{a}", False)
             if filla is True:
                 filla = "100"
-            el_filla = _globalctx._abs_perc(
+            el_filla = _coreutils._abs_perc(
                 filla,
                 available_to_filla,
             )
@@ -635,8 +469,8 @@ class _ctx:
         for el in children:
             el_rect = el["rect"]
             el_style = el["style"]
-            el_align = self._style_val(el_style, "element", "align", "first")
-            self._check_align(el_align)
+            el_align = self._style_val(el_style, "element", "align", def_align)
+            _coreutils._check_align(el_align)
             setattr(el_rect, a, current_a)
             current_a += getattr(el_rect, av)
             current_a += spacing
@@ -664,7 +498,8 @@ class _ctx:
         if self._canva is None:
             return
         self._parent = {
-            "rect": pygame.Rect((0, 0), self._canva.size),
+            "rect": self._canva.get_rect(),
+            "abs_rect": self._canva.get_rect(),
             "style": style,
             "id": 0,
             "children": [],
@@ -673,6 +508,7 @@ class _ctx:
             "parent": None,
             "top": False,
             "z": 0,
+            "hovered": False,
         }
         self._id = 1
         self._element = self._parent
@@ -681,107 +517,103 @@ class _ctx:
         self._abs_hovered = []
         self._started = True
         self._z = 0
+        mouse_pos = pygame.Vector2(pygame.mouse.get_pos()) - self._offset
+        self._mouse_rel = mouse_pos - self._mouse_pos
+        self._mouse_pos = mouse_pos
+        if 0 in self._memory:
+            self._get_old_el(self._stack)
+        self._memory[0] = self._stack
 
-        if (btn := _globalctx._get_first_button(pygame.mouse.get_just_pressed())) > -1:
+        if (btn := _coreutils._get_first_button(pygame.mouse.get_just_pressed())) > -1:
             self._started_pressing_button = btn
         if (
-            _globalctx._get_first_button(pygame.mouse.get_just_released())
+            _coreutils._get_first_button(pygame.mouse.get_just_released())
             == self._started_pressing_button
         ):
             self._started_pressing_button = -1
             self._started_pressing_element = None
 
     def _check_interaction(self, element: dict[str, typing.Any]):
-        if not self._style_val(element["style"], "element", "blocking", True):
+        blocking = self._style_val(element["style"], "element", "blocking", True)
+        if not blocking and blocking is not None:
             return
-        clipdraw = self._style_val(element["style"], "element", "clip_draw", True)
-        hover = element["abs_rect"].collidepoint(pygame.mouse.get_pos())
+        parent = element["parent"]
+        clipdraw = (
+            True
+            if parent is None
+            else self._style_val(parent["style"], "element", "clip_draw", True)
+        )
+        hover = element["abs_rect"].collidepoint(self._mouse_pos)
         parent_hover = True
-        if element["parent"] is not None:
-            parent_hover = element["parent"]["abs_rect"].collidepoint(
-                pygame.mouse.get_pos()
-            )
-            if clipdraw:
-                parent_hover = True
+        if parent is not None and clipdraw:
+            parent_hover = parent["abs_rect"].collidepoint(self._mouse_pos)
         if hover and parent_hover:
             self._abs_hovered.append(element)
 
-    def _get_interaction(self, element: dict[str, typing.Any]) -> "_data.Interaction":
-        if element["id"] not in self._memory:
-            return _data.Interaction(
-                self._mili, -1, False, -1, -1, -1, False, False, False, False
-            )
+    def _get_old_el(self, element):
         old_el = self._memory[element["id"]]
         self._old_data[element["id"]] = {
             "rect": old_el["rect"],
             "abs_rect": old_el["abs_rect"],
             "components": old_el["components"],
             "children_ids": [ch["id"] for ch in old_el["children"]],
-            "parent_id": old_el["parent"]["id"] if old_el["parent"] else 0,
+            "parent_id": old_el["parent"]["id"] if old_el["parent"] else -1,
             "grid": old_el["grid"] if "grid" in old_el else None,
         }
-        absolute_hover = old_el["abs_rect"].collidepoint(pygame.mouse.get_pos())
+        return old_el
+
+    def _get_interaction(self, element: dict[str, typing.Any]) -> "_data.Interaction":
+        if element["id"] not in self._memory:
+            return _coreutils._partial_interaction(self._mili, element, False)
+        old_el = self._get_old_el(element)
+        absolute_hover = old_el["abs_rect"].collidepoint(self._mouse_pos)
         if old_el["top"]:
+            if self._style_val(element["style"], "element", "blocking", True) is None:
+                return _coreutils._partial_interaction(
+                    self._mili, element, absolute_hover
+                )
             if (
                 self._started_pressing_button > -1
                 and self._started_pressing_element is None
             ):
                 self._started_pressing_element = element["id"]
-                return self._total_interaction(
-                    element, absolute_hover, absolute_hover, False, old_el
+                return _coreutils._total_interaction(
+                    self._mili,
+                    element,
+                    absolute_hover,
+                    absolute_hover,
+                    False,
+                    old_el,
                 )
             if (
                 self._started_pressing_button > -1
                 and element["id"] != self._started_pressing_element
             ):
-                return self._partial_interaction(element, absolute_hover)
-            return self._total_interaction(
-                element, absolute_hover, absolute_hover, False, old_el
+                return _coreutils._partial_interaction(
+                    self._mili, element, absolute_hover
+                )
+            return _coreutils._total_interaction(
+                self._mili,
+                element,
+                absolute_hover,
+                absolute_hover,
+                False,
+                old_el,
             )
         else:
             if (
                 self._started_pressing_button > -1
                 and element["id"] == self._started_pressing_element
             ):
-                return self._total_interaction(
-                    element, absolute_hover, False, True, old_el
+                return _coreutils._total_interaction(
+                    self._mili,
+                    element,
+                    absolute_hover,
+                    False,
+                    True,
+                    old_el,
                 )
-            return self._partial_interaction(element, absolute_hover)
-
-    def _partial_interaction(self, element, absolute_hover):
-        element["hovered"] = False
-        return _data.Interaction(
-            self._mili,
-            element["id"],
-            False,
-            -1,
-            -1,
-            -1,
-            absolute_hover,
-            False,
-            False,
-            False,
-        )
-
-    def _total_interaction(self, element, absolute_hover, hovered, unhovered, old_el):
-        i = _data.Interaction(
-            self._mili,
-            element["id"],
-            absolute_hover and hovered,
-            _globalctx._get_first_button(pygame.mouse.get_pressed(5)),
-            _globalctx._get_first_button(pygame.mouse.get_just_pressed()),
-            _globalctx._get_first_button(pygame.mouse.get_just_released()),
-            absolute_hover,
-            unhovered,
-            False,
-            False,
-        )
-        if i.hovered and not old_el["hovered"]:
-            i.just_hovered = True
-        if not i.hovered and old_el["hovered"]:
-            i.just_unhovered = True
-        element["hovered"] = i.hovered
-        return i
+            return _coreutils._partial_interaction(self._mili, element, absolute_hover)
 
     def _add_component(self, type, data, arg_style):
         self._start_check()
@@ -814,49 +646,94 @@ class _ctx:
     def _draw_comp_rect(self, data, style, el, rect: pygame.Rect):
         if self._canva is None:
             return
-        padx = self._style_val(style, "rect", "padx", 0)
-        pady = self._style_val(style, "rect", "pady", padx)
+        pad = self._style_val(style, "rect", "pad", 0)
+        padx = self._style_val(style, "rect", "padx", pad)
+        pady = self._style_val(style, "rect", "pady", pad)
         padx, pady = (
-            _globalctx._abs_perc(padx, rect.w),
-            _globalctx._abs_perc(pady, rect.h),
+            int(_coreutils._abs_perc(padx, rect.w)),
+            int(_coreutils._abs_perc(pady, rect.h)),
         )
-        outline = _globalctx._abs_perc(
-            self._style_val(style, "rect", "outline", 0), min(rect.w, rect.h)
+        outline = int(
+            _coreutils._abs_perc(
+                self._style_val(style, "rect", "outline", 0), min(rect.w, rect.h)
+            )
         )
-        border_radius = _globalctx._abs_perc(
-            self._style_val(style, "rect", "border_radius", 7), min(rect.w, rect.h)
-        )
+        br_style = self._style_val(style, "rect", "border_radius", 7)
+        if isinstance(br_style, (int, float, str)):
+            border_radius = int(_coreutils._abs_perc(br_style, min(rect.w, rect.h)))
+        else:
+            border_radius = [
+                int(_coreutils._abs_perc(br, min(rect.w, rect.h))) for br in br_style
+            ]
         color = self._style_val(style, "rect", "color", "black")
-        pygame.draw.rect(
+        aspect_ratio = self._style_val(style, "rect", "aspect_ratio", None)
+        if aspect_ratio is None:
+            draw_rect = rect.inflate(-padx * 2, -pady * 2)
+        else:
+            align = self._style_val(style, "rect", "align", "center")
+            availx, availy = rect.w - padx * 2, rect.h - pady * 2
+            rx, ry = availx, availy
+            rx = availy * aspect_ratio
+            if rx > availx:
+                ry = availx * (1 / aspect_ratio)
+                rx = availx
+            draw_rect = pygame.Rect((0, 0), (rx, ry)).move_to(
+                **_coreutils._align_rect(align, rect, padx, pady)
+            )
+        dash_size = self._style_val(style, "line", "dash_size", None)
+        dash_offset = self._style_val(style, "line", "dash_offset", 0)
+        _coreutils._draw_rect(
             self._canva,
             color,
-            rect.inflate(-padx, -pady),
-            int(outline),
-            int(border_radius),
+            draw_rect,
+            outline,
+            border_radius,
+            dash_size,
+            dash_offset,
         )
 
     def _draw_comp_circle(self, data, style, el, rect: pygame.Rect):
         if self._canva is None:
             return
-        padx = self._style_val(style, "circle", "padx", 0)
-        pady = self._style_val(style, "circle", "pady", padx)
+        pad = self._style_val(style, "circle", "pad", 0)
+        padx = self._style_val(style, "circle", "padx", pad)
+        pady = self._style_val(style, "circle", "pady", pad)
         padx, pady = (
-            _globalctx._abs_perc(padx, rect.w),
-            _globalctx._abs_perc(pady, rect.h),
+            int(_coreutils._abs_perc(padx, rect.w)),
+            int(_coreutils._abs_perc(pady, rect.h)),
         )
-        outline = _globalctx._abs_perc(
-            self._style_val(style, "circle", "outline", 0), min(rect.w, rect.h)
+        outline = int(
+            _coreutils._abs_perc(
+                self._style_val(style, "circle", "outline", 0), min(rect.w, rect.h)
+            )
         )
         color = self._style_val(style, "circle", "color", "black")
         antialias = self._style_val(style, "circle", "antialias", False)
-        if padx == pady:
-            (pygame.draw.aacircle if antialias else pygame.draw.circle)(
-                self._canva, color, rect.center, rect.w / 2 - padx, int(outline)
+        circle_rect = rect.inflate(-padx * 2, -pady * 2)
+        aspect_ratio = self._style_val(style, "circle", "aspect_ratio", None)
+        corners = self._style_val(style, "circle", "corners", None)
+        if aspect_ratio is not None:
+            align = self._style_val(style, "circle", "align", "center")
+            rx, ry = circle_rect.w, circle_rect.h
+            rx = circle_rect.h * aspect_ratio
+            if rx > circle_rect.w:
+                ry = circle_rect.w * (1 / aspect_ratio)
+                rx = circle_rect.w
+            circle_rect = pygame.Rect((0, 0), (rx, ry)).move_to(
+                **_coreutils._align_rect(align, rect, padx, pady)
             )
-        else:
-            pygame.draw.ellipse(
-                self._canva, color, rect.inflate(-padx, -pady), int(outline)
-            )
+        dash_size = self._style_val(style, "line", "dash_size", None)
+        dash_anchor = self._style_val(style, "line", "dash_anchor", 25)
+        _coreutils._draw_circle(
+            self._canva,
+            circle_rect,
+            antialias,
+            color,
+            outline,
+            corners,
+            dash_size,
+            dash_anchor,
+        )
 
     def _draw_comp_polygon(
         self, data: list[tuple[int, int]], style, el, rect: pygame.Rect
@@ -866,13 +743,15 @@ class _ctx:
         points = []
         for raw_p in data:
             rx, ry = raw_p
-            rx, ry = _globalctx._abs_perc(rx, rect.w), _globalctx._abs_perc(ry, rect.h)
+            rx, ry = _coreutils._abs_perc(rx, rect.w), _coreutils._abs_perc(ry, rect.h)
             points.append((rect.centerx + rx, rect.centery + ry))
         color = self._style_val(style, "polygon", "color", "black")
-        outline = _globalctx._abs_perc(
-            self._style_val(style, "polygon", "outline", 0), min(rect.w, rect.h)
+        outline = int(
+            _coreutils._abs_perc(
+                self._style_val(style, "polygon", "outline", 0), min(rect.w, rect.h)
+            )
         )
-        pygame.draw.polygon(self._canva, color, points, int(outline))
+        pygame.draw.polygon(self._canva, color, points, outline)
 
     def _draw_comp_line(
         self, data: list[tuple[int, int]], style, el, rect: pygame.Rect
@@ -882,25 +761,21 @@ class _ctx:
         points = []
         for raw_p in data:
             rx, ry = raw_p
-            rx, ry = _globalctx._abs_perc(rx, rect.w), _globalctx._abs_perc(ry, rect.h)
+            rx, ry = _coreutils._abs_perc(rx, rect.w), _coreutils._abs_perc(ry, rect.h)
             points.append((rect.centerx + int(rx), rect.centery + int(ry)))
         if len(points) != 2:
             raise error.MILIValueError("Wrong number of points")
         color = self._style_val(style, "line", "color", "black")
-        size = _globalctx._abs_perc(
+        size = _coreutils._abs_perc(
             self._style_val(style, "line", "size", 1), min(rect.w, rect.h)
         )
         antialias = self._style_val(style, "line", "antialias", False)
+        dash_size = self._style_val(style, "line", "dash_size", None)
+        dash_offset = self._style_val(style, "line", "dash_offset", 0)
         width = max(1, int(size))
-        if antialias and width == 1:
-            pygame.draw.aaline(
-                self._canva,
-                color,
-                points[0],
-                points[1],
-            )
-        else:
-            pygame.draw.line(self._canva, color, points[0], points[1], width)
+        _coreutils._draw_line(
+            self._canva, antialias, width, color, points, dash_size, dash_offset
+        )
 
     def _draw_comp_text(self, data: str, style, el, rect: pygame.Rect):
         if self._canva is None:
@@ -921,11 +796,14 @@ class _ctx:
         )
         padx = self._style_val(style, "text", "padx", 5)
         pady = self._style_val(style, "text", "pady", 3)
+        pad = self._style_val(style, "text", "pad", None)
+        if pad is not None:
+            padx = pady = pad
         padx, pady = (
-            _globalctx._abs_perc(padx, rect.w),
-            _globalctx._abs_perc(pady, rect.h),
+            _coreutils._abs_perc(padx, rect.w),
+            _coreutils._abs_perc(pady, rect.h),
         )
-        wraplen = _globalctx._abs_perc(
+        wraplen = _coreutils._abs_perc(
             self._style_val(style, "text", "wraplen", 0), rect.w - padx * 2
         )
 
@@ -936,7 +814,7 @@ class _ctx:
         if growx and sw > rect.w + padx * 2:
             rect.w = sw + padx * 2
 
-        txtrect = surf.get_rect(**_globalctx._text_align(align, rect, padx, pady))
+        txtrect = surf.get_rect(**_coreutils._align_rect(align, rect, padx, pady))
         self._canva.blit(surf, txtrect)
 
     def _text_size(self, data: str, style):
@@ -947,7 +825,7 @@ class _ctx:
         font.underline = self._style_val(style, "text", "underline", False)
         font.strikethrough = self._style_val(style, "text", "strikethrough", False)
         if self._style_val(style, "text", "slow_grow", False):
-            wraplen = _globalctx._abs_perc(
+            wraplen = _coreutils._abs_perc(
                 self._style_val(style, "text", "wraplen", 0), 0
             )
             return font.render(
@@ -965,9 +843,12 @@ class _ctx:
         slow_grow = self._style_val(style, "text", "slow_grow", False)
         padx = self._style_val(style, "text", "padx", 5)
         pady = self._style_val(style, "text", "pady", 3)
+        pad = self._style_val(style, "text", "pad", None)
+        if pad is not None:
+            padx = pady = pad
         padx, pady = (
-            _globalctx._abs_perc(padx, rect.w),
-            _globalctx._abs_perc(pady, rect.h),
+            _coreutils._abs_perc(padx, rect.w),
+            _coreutils._abs_perc(pady, rect.h),
         )
         font = self._get_font(style)
         if slow_grow:
@@ -978,7 +859,7 @@ class _ctx:
             font.italic = self._style_val(style, "text", "italic", False)
             font.underline = self._style_val(style, "text", "underline", False)
             font.strikethrough = self._style_val(style, "text", "strikethrough", False)
-            wraplen = _globalctx._abs_perc(
+            wraplen = _coreutils._abs_perc(
                 self._style_val(style, "text", "wraplen", 0), rect.w - padx * 2
             )
             sw, sh = font.render(
@@ -995,22 +876,23 @@ class _ctx:
         if data is None or self._canva is None:
             return
         cache = style.get("cache", None)
-        padx = self._style_val(style, "image", "padx", 0)
-        pady = self._style_val(style, "image", "pady", padx)
+        pad = self._style_val(style, "image", "pad", 0)
+        padx = self._style_val(style, "image", "padx", pad)
+        pady = self._style_val(style, "image", "pady", pad)
         padx, pady = (
-            _globalctx._abs_perc(padx, rect.w),
-            _globalctx._abs_perc(pady, rect.h),
+            _coreutils._abs_perc(padx, rect.w),
+            _coreutils._abs_perc(pady, rect.h),
         )
         do_fill = self._style_val(style, "image", "fill", False)
         do_stretchx = self._style_val(style, "image", "stretchx", False)
         do_stretchy = self._style_val(style, "image", "stretchy", False)
         fill_color = self._style_val(style, "image", "fill_color", None)
         smoothscale = self._style_val(style, "image", "smoothscale", False)
-        border_radius = _globalctx._abs_perc(
+        border_radius = _coreutils._abs_perc(
             self._style_val(style, "image", "border_radius", 0), min(rect.w, rect.h)
         )
         alpha = self._style_val(style, "image", "alpha", 255)
-        nine_patch = _globalctx._abs_perc(
+        nine_patch = _coreutils._abs_perc(
             self._style_val(style, "image", "ninepatch_size", 0), min(rect.w, rect.h)
         )
         nine_patch = pygame.math.clamp(nine_patch, 0, min(rect.w, rect.h) / 2)
@@ -1020,7 +902,7 @@ class _ctx:
             )
 
         if not cache:
-            output = _globalctx._get_image(
+            output = _coreutils._get_image(
                 rect,
                 data,
                 padx,
@@ -1050,7 +932,7 @@ class _ctx:
                 "nine_patch": nine_patch,
             }
             if cache._cache is None:
-                output = _globalctx._get_image(
+                output = _coreutils._get_image(
                     rect,
                     data,
                     padx,
@@ -1082,7 +964,7 @@ class _ctx:
                     or alpha != _cache["alpha"]
                     or nine_patch != _cache["nine_patch"]
                 ):
-                    output = _globalctx._get_image(
+                    output = _coreutils._get_image(
                         rect,
                         data,
                         padx,
@@ -1137,7 +1019,7 @@ class _ctx:
         self._canva.set_clip(clip)
         if pre_draw:
             if el_data is None:
-                el_data = _globalctx._element_data(self._mili, element, None)
+                el_data = _coreutils._element_data(self, element)
             pre_draw(self._canva, el_data, clip)
             self._canva.set_clip(clip)
         render_above = []
@@ -1157,7 +1039,7 @@ class _ctx:
                 )
         if mid_draw:
             if el_data is None:
-                el_data = _globalctx._element_data(self._mili, element, None)
+                el_data = _coreutils._element_data(self, element)
             mid_draw(self._canva, el_data, clip)
             self._canva.set_clip(clip)
         if len(element["children"]) > 0:
@@ -1178,7 +1060,7 @@ class _ctx:
                 )
         if post_draw:
             if el_data is None:
-                el_data = _globalctx._element_data(self._mili, element, None)
+                el_data = _coreutils._element_data(self, element)
             post_draw(self._canva, el_data, clip)
             self._canva.set_clip(clip)
 

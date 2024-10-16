@@ -18,12 +18,19 @@ def pack_component(name: str, data: typing.Any, style: _typing.AnyStyleLike):
     return {"type": name, "data": data, "style": style}
 
 
+def get_font_cache():
+    return _core._globalctx._font_cache.copy()
+
+
+def clear_font_cache():
+    _core._globalctx._font_cache = {}
+
+
 class MILI:
     def __init__(self, canva: pygame.Surface | None = None):
         self._ctx = _core._ctx(self)
-        self.always_get_data: bool = False
         if canva is not None:
-            self.set_canva(canva)
+            self.canva = canva
 
     @property
     def stack_id(self) -> int:
@@ -43,7 +50,16 @@ class MILI:
 
     @canva.setter
     def canva(self, v: pygame.Surface):
-        self.set_canva(v)
+        self._ctx._canva = v
+        self._ctx._canva_rect = v.get_rect()
+
+    @property
+    def canva_offset(self) -> pygame.Vector2:
+        return self._ctx._offset
+
+    @canva_offset.setter
+    def canva_offset(self, v: typing.Sequence[float]):
+        self._ctx._offset = pygame.Vector2(v)
 
     def default_style(self, type: str, style: _typing.AnyStyleLike):
         if type not in _core._globalctx._component_types:
@@ -75,16 +91,9 @@ class MILI:
         style = style.copy()
         style.update(blocking=False)
         self._ctx._start(style)
-        mouse_pos = pygame.Vector2(pygame.mouse.get_pos())
-        self._ctx._mouse_rel = mouse_pos - self._ctx._mouse_pos
-        self._ctx._mouse_pos = mouse_pos
         if is_global:
             _data.ImageCache._preallocated_index = -1
         return True
-
-    def set_canva(self, surface: pygame.Surface):
-        self._ctx._canva = surface
-        self._ctx._canva_rect = surface.get_rect()
 
     def update_draw(self):
         self._ctx._organize_element(self._ctx._stack)
@@ -104,12 +113,9 @@ class MILI:
         self,
         rect: _typing.RectLike | None,
         style: _typing.ElementStyleLike | None = None,
-        get_data: bool = False,
-    ) -> _data.Interaction | _data.ElementData:
+    ) -> _data.Interaction:
         self._ctx._start_check()
-        el, interaction = self._ctx._get_element(rect, style)
-        if get_data or self.always_get_data:
-            return _core._globalctx._element_data(self, el, interaction)
+        _, interaction = self._ctx._get_element(rect, style)
         return interaction
 
     def begin(
@@ -117,14 +123,11 @@ class MILI:
         rect: _typing.RectLike | None,
         style: _typing.ElementStyleLike | None = None,
         header: str = "",
-        get_data: bool = False,
-    ) -> _data.Interaction | _data.ElementData:
+    ) -> _data.Interaction:
         self._ctx._start_check()
         el, interaction = self._ctx._get_element(rect, style)
         self._ctx._parent = el
         self._ctx._parents_stack.append(el)
-        if get_data or self.always_get_data:
-            return _core._globalctx._element_data(self, el, interaction)
         return interaction
 
     def end(self, header: str = ""):
@@ -147,9 +150,8 @@ class MILI:
         rect_style: _typing.RectStyleLike | None = None,
         element_rect: _typing.RectLike | None = None,
         element_style: _typing.ElementStyleLike | None = None,
-        get_data: bool = False,
-    ) -> _data.Interaction | _data.ElementData:
-        data = self.element(element_rect, element_style, get_data)
+    ) -> _data.Interaction:
+        data = self.element(element_rect, element_style)
         self.rect(rect_style)
         return data
 
@@ -161,9 +163,8 @@ class MILI:
         circle_style: _typing.CircleStyleLike | None = None,
         element_rect: _typing.RectLike | None = None,
         element_style: _typing.ElementStyleLike | None = None,
-        get_data: bool = False,
-    ) -> _data.Interaction | _data.ElementData:
-        data = self.element(element_rect, element_style, get_data)
+    ) -> _data.Interaction:
+        data = self.element(element_rect, element_style)
         self.circle(circle_style)
         return data
 
@@ -178,9 +179,8 @@ class MILI:
         polygon_style: _typing.PolygonStyleLike | None = None,
         element_rect: _typing.RectLike | None = None,
         element_style: _typing.ElementStyleLike | None = None,
-        get_data: bool = False,
-    ) -> _data.Interaction | _data.ElementData:
-        data = self.element(element_rect, element_style, get_data)
+    ) -> _data.Interaction:
+        data = self.element(element_rect, element_style)
         self.polygon(points, polygon_style)
         return data
 
@@ -197,9 +197,8 @@ class MILI:
         line_style: _typing.LineStyleLike | None = None,
         element_rect: _typing.RectLike | None = None,
         element_style: _typing.ElementStyleLike | None = None,
-        get_data: bool = False,
-    ) -> _data.Interaction | _data.ElementData:
-        data = self.element(element_rect, element_style, get_data)
+    ) -> _data.Interaction:
+        data = self.element(element_rect, element_style)
         self.line(start_end, line_style)
         return data
 
@@ -212,9 +211,8 @@ class MILI:
         text_style: _typing.TextStyleLike | None = None,
         element_rect: _typing.RectLike | None = None,
         element_style: _typing.ElementStyleLike | None = None,
-        get_data: bool = False,
-    ) -> _data.Interaction | _data.ElementData:
-        data = self.element(element_rect, element_style, get_data)
+    ) -> _data.Interaction:
+        data = self.element(element_rect, element_style)
         self.text(text, text_style)
         return data
 
@@ -241,37 +239,9 @@ class MILI:
         image_style: _typing.ImageStyleLike | None = None,
         element_rect: _typing.RectLike | None = None,
         element_style: _typing.ElementStyleLike | None = None,
-        get_data: bool = False,
-    ) -> _data.Interaction | _data.ElementData:
-        data = self.element(element_rect, element_style, get_data)
+    ) -> _data.Interaction:
+        data = self.element(element_rect, element_style)
         self.image(surface, image_style)
-        return data
-
-    def basic_element(
-        self,
-        rect: _typing.RectLike | None = None,
-        style: _typing.ElementStyleLike | None = None,
-        comp_data=None,
-        comp_style: _typing.AnyStyleLike | None = None,
-        bg_style: _typing.RectStyleLike | None = None,
-        outline_style: _typing.RectStyleLike | None = None,
-        component="text",
-        get_data: bool = False,
-    ) -> _data.Interaction | _data.ElementData:
-        if component not in _core._globalctx._component_types.keys():
-            raise _error.MILIValueError("Invalid component name")
-        if not outline_style:
-            outline_style = {}
-        if "outline" not in outline_style:
-            outline_style["outline"] = 1
-        data = self.element(rect, style, get_data)
-        self.rect(bg_style)
-        comp = getattr(self, component)
-        try:
-            comp(comp_data, comp_style)
-        except TypeError:
-            comp(comp_style)
-        self.rect(outline_style)
         return data
 
     def custom_component(
@@ -300,10 +270,11 @@ class MILI:
     def data_from_id(self, element_id: int) -> _data.ElementData | None:
         self._ctx._start_check()
         if element_id in self._ctx._memory:
-            el = self._ctx._memory[element_id]
-            return _core._globalctx._element_data(
-                self, el, self._ctx._get_interaction(el)
+            return _core._coreutils._element_data(
+                self._ctx, self._ctx._memory[element_id]
             )
+        elif element_id == 0:
+            return _core._coreutils._element_data(self._ctx, self._ctx._stack)
 
     def clear_memory(self):
         self._ctx._memory = {}

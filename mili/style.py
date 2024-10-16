@@ -107,14 +107,12 @@ class StyleStatus:
 
 
 def conditional[TK, TV](
-    interaction: _data.Interaction | _data.ElementData,
+    interaction: _data.Interaction,
     base: dict[TK, TV] | None = None,
     hover: dict[TK, TV] | None = None,
     press: dict[TK, TV] | None = None,
     selected=False,
 ) -> dict[TK, TV]:
-    if isinstance(interaction, _data.ElementData):
-        interaction = interaction.interaction
     if hover is None:
         hover = {}
     if press is None:
@@ -160,12 +158,14 @@ def same[TV](value: TV, *names: str) -> dict[str, TV]:
 
 
 RESIZE = {"resizex": True, "resizey": True}
+FILL = {"fillx": True, "filly": True}
 PADLESS = {"padx": 0, "pady": 0}
 X = {"axis": "x"}
 CENTER = {
     "grid_align": "center",
     "anchor": "center",
     "align": "center",
+    "default_align": "center",
     "font_align": pygame.FONT_CENTER,
 }
 FLOATING = {"ignore_grid": True, "parent_id": 0}

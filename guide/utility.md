@@ -42,7 +42,7 @@ Since the update function returns the element as output, the flag stating if the
 
 ## `Selectable`
 
-An object that checks an element interaction and sets the `selected` flag appropriately, working like a checkbox. You can then modify the styles if the object is selected. Similarly to the dragger object, you need to call `update` passing the target element's interaction object (or element data object) to it.
+An object that checks an element interaction and sets the `selected` flag appropriately, working like a checkbox. You can then modify the styles if the object is selected. Similarly to the dragger object, you need to call `update` passing the target element's interaction object to it.
 
 You can also provide a list of `Selectable` instances to the update method, and they will be organized in a way where only one object in the list is allowed to be selected at any time. If the `can_deselect_group` flag is True, the user will be able to deselect all selectables.
 
@@ -82,7 +82,7 @@ if __name__ == "__main__":
 
 ## `Scroll`
 
-This is an object that keeps a scroll offset and automatically clamps it. To update the clamp area, you need to call the `update` method passing the container's element data as argument (interaction objects are not allowed). The grid data overflow is used internally to clap the scroll.
+This is an object that keeps a scroll offset and automatically clamps it. To update the clamp area, you need to call the `update` method passing the container's interaction or element data. The grid data overflow is used internally to clap the scroll.
 
 To see the scroll, you need to use the `get_offset` method, and passing the result to the children's offset style. You can update or set the scroll offset with the `scroll` and `set_scroll` methods (automatically clamped).
 
@@ -94,7 +94,7 @@ Example scroll usage:
 scroll = mili.Scroll()
 
 # game loop
-with my_mili.begin((0, 0, 500, 500), get_data=True) as container:
+with my_mili.begin((0, 0, 500, 500)) as container:
     scroll.update(container)
 
     for i in range(50):
@@ -118,7 +118,7 @@ Note that this utility cannot create the scrollbar nor the handle elements, you 
 
 To update the scroll you need to use the associated `Scroll` object and call `Scrollbar.scroll_moved` immediately after.
 
-To update the scrollbar, you need to call `Scrollbar.update` passing the target container's element data (the same one you pass to `Scroll.update`, also required) and you then need to call `Scrollbar.update_handle` passing the handle's interaction or element data.
+To update the scrollbar, you need to call `Scrollbar.update` passing the target container's interaction or element data (the same one you pass to `Scroll.update`, also required) and you then need to call `Scrollbar.update_handle` passing the handle's interaction.
 
 The `needed` property signals you if the container needs to be scrolled or if the children fit inside.
 
@@ -129,7 +129,7 @@ scroll = mili.Scroll() # scroll is independent
 scrollbar = mili.Scrollbar(scroll, 12)
 
 # game loop
-with my_mili.begin((0, 0, 500, 500), get_data=True) as container:
+with my_mili.begin((0, 0, 500, 500)) as container:
     scroll.update(container)
     scrollbar.update(container)
 
@@ -158,13 +158,13 @@ An object that simplifies the implementation of 1D or 2D sliders. The axis locks
 The `strict_borders` flag/attribute specifies wether the handle can exceed the area borders by half its size or if it should be perfectly contained. Changing the slider axis locking dynamically is allowed without undefined behaviour.
 
 The `area_style` and `handle_style` are shortcuts with the required styles for a correct slider appearance and functionality. The `handle_rect` attribute should be passed as-is to the handle element.
-For the handle rect position to be accurate, the handle **must** be a children of the area without grid sorting. The slider won't make the elements for you, but it will manage them. The `Slider.update_area` and `Slider.update_handle` must be called sequentially with the appropriate element datas:
+For the handle rect position to be accurate, the handle **must** be a children of the area without grid sorting. The slider won't make the elements for you, but it will manage them. The `Slider.update_area` and `Slider.update_handle` must be called sequentially with the appropriate interaction objects:
 
 ```py
 slider = mili.Slider(False, False, (30, 30), True)
 
 # ui loop
-with self.mili.begin((0, 0, 300, 100), mili.CENTER|slider.area_style, get_data=True) as area:
+with self.mili.begin((0, 0, 300, 100), mili.CENTER|slider.area_style) as area:
     slider.update_area(area)
 
     self.mili.rect({"color": (40,)*3})
@@ -186,7 +186,7 @@ Since the update function returns the input as output, wether the handle moved i
 
 This utility class allows you to play sounds when elements are interacted. You have to create an instance of it for every sounds collection. Not to complicate the implementation, an instance will only play click sounds for a selected mouse button, you need multiple instances for multiple mouse buttons. Every sound is optional.
 
-You can pass the sound objects to the constructor or change the attributes at runtime. To hear the sounds you need to call `InteractionSound.play()` passing the interaction or the element data as the main argument (the same object is returned for stacked calls). An optional channel and play settings can be specified to customize it more. The function will check the interaction and play the correct sounds.
+You can pass the sound objects to the constructor or change the attributes at runtime. To hear the sounds you need to call `InteractionSound.play()` passing the interaction as the main argument (the same object is returned for stacked calls). An optional channel and play settings can be specified to customize it more. The function will check the interaction and play the correct sounds.
 
 Example usage:
 

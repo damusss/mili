@@ -7,10 +7,7 @@ The MILI class is the UI manager.
 Each instance is independent and will manage its own elements.
 Each instance has an internal context instance.
 
-A MILI instance must be associated with a surface to draw on. You can retrieve it or change it:
-
-- `MILI.set_canva(Surface)`
-- `MILI.canva: Surface` (property)
+A MILI instance must be associated with a surface to draw on. You can retrieve it or change it with the `MILI.canva: Surface` property. If the canva isn't the screen and is not rendered at the topleft, you can seet the `MILI.canva_offset` property to the render position relative to the window so that the mouse clicks are registered correctly.
 
 MILI has a few methods related to styling:
 
@@ -52,12 +49,12 @@ while True:
 
 In MILI there are no prefabs such as buttons or labels. The skeleton is composed of elements. All elements can be interacted and they can have children, but they do not have intrinsic graphics - they are just hitboxes. You have the following methods to create elements:
 
-- `MILI.element(rect, style, get_data=True/False)`: Create an element with no children
-- `MILI.begin(rect, style, get_data=True/False)`: Create an element and set it as the current parent
+- `MILI.element(rect, style)`: Create an element with no children
+- `MILI.begin(rect, style)`: Create an element and set it as the current parent
 - `MILI.end()`: Signal that the current parent has ended
 
 Elements created after the begin call will be assigned to that parent. The end call will set the parent to the previous one.
-You can avoid calling end using the context manager on the return value of begin.
+You can avoid calling end using the context manager on the returned `Interaction` object.
 
 Example of an element structure:
 
@@ -82,8 +79,6 @@ with my_mili.begin(rect, style) as main_container:
 
 Parent elements organize their children by default, behaviour which is higly customizable using styles.
 
-Elements and parents return an `Interaction` object by default. If the `get_data` argument is set to True, an `ElementData` object is returned instead (all fields from the interaction are also available in this object).
-
 ## Components
 
 Since elements have no graphics, to give the user visual feedback you need to use components. There are six built in components, each with its method:
@@ -94,6 +89,8 @@ Since elements have no graphics, to give the user visual feedback you need to us
 - `MILI.polygon(points, style)`
 - `MILI.text(text, style)`
 - `MILI.image(surface, style)`
+
+To have both a filled version and the outline version of a shape you must concatenate two calls, specifying the `"outline"` (size) style for the second.
 
 Components are attached to the most recent element. They are contained within the hitbox of the element (customizable with styles).
 You should change the style of components based on interaction for visual feeback.
@@ -122,11 +119,16 @@ with my_mili.begin(None, {"fillx": "50", "filly": "80"}) as container:
 
 To reduce boilerplate code, for every component there is a shortcut that creates an element with a single component of said type, for example `MILI.text_element` will create an element with a text component.
 
-`MILI.basic_element` does the same but adds a background and an outline automatically.
+For text specifically there are also the utilities `MILI.text_size` and `MILI.text_font` that compute and return the size and font a text element would use if it was rendered.
 
 ## Advanced Usage
 
 ### Advanced Properties
+
+You can manage the font cache with the provided functions. A font instance will be automatically created for each combination of path/name and size:
+
+- `mili.get_font_cache()`
+- `mili.clear_font_cache()`
 
 MILI instances have a couple advanced properties and methods:
 
