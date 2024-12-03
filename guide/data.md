@@ -8,14 +8,14 @@ The `mili.data` submodule contains 4 classes that represent data.
 
 The interaction object is returned by all elements by default. It contains all information you can need to understand how the user is interacting with the element:
 
-- `Interaction.data`: The `ElementData` object holding more detailed information about the element.
-- `Interaction.hovered`: The user pointer is over this element which is also the highest element.
-- `Interaction.absolute_hover`: The user pointer is over this element but other elements might be covering it.
-- `Interaction.just_hovered`: The hovered status becomes True this frame meaning the user has started hovering
-- `Interaction.just_unhovered`: The hovered status becomes False this frame meaning the user pointer left the element
-- `Interaction.press_button`: The button the user is clicking on this element. If the pointer leaves the element while being held, this will keep being set until the pointer releases. -1 means no button is pressed.
-- `Interaction.just_pressed_button`: Same as `press_button` but is only set the first frame it happens.
-- `Interaction.just_released_button`: Same as `press_button` but is only set the last frame it happens. Corresponds to the "click" event.
+-   `Interaction.data`: The `ElementData` object holding more detailed information about the element.
+-   `Interaction.hovered`: The user pointer is over this element which is also the highest element.
+-   `Interaction.absolute_hover`: The user pointer is over this element but other elements might be covering it.
+-   `Interaction.just_hovered`: The hovered status becomes True this frame meaning the user has started hovering
+-   `Interaction.just_unhovered`: The hovered status becomes False this frame meaning the user pointer left the element
+-   `Interaction.press_button`: The button the user is clicking on this element. If the pointer leaves the element while being held, this will keep being set until the pointer releases. -1 means no button is pressed.
+-   `Interaction.just_pressed_button`: Same as `press_button` but is only set the first frame it happens.
+-   `Interaction.just_released_button`: Same as `press_button` but is only set the last frame it happens. Corresponds to the "click" event.
 
 There are also three shortcuts for the left mouse button (most common): `left_pressed`, `left_just_pressed`, `left_just_released`
 
@@ -33,8 +33,8 @@ This object is incredibly useful to massively speed up the image component. Sinc
 
 You can also simplify the cache creation process:
 
-- `ImageCache.preallocate_caches(amount)`: Creates and stores a set amount of image caches
-- `ImageCache.get_next_cache()`: Retrieve a free cache and increase the internal index
+-   `ImageCache.preallocate_caches(amount)`: Creates and stores a set amount of image caches
+-   `ImageCache.get_next_cache()`: Retrieve a free cache and increase the internal index
 
 Example usage:
 
@@ -47,4 +47,27 @@ def ui():
 
     for i in range(30):
         my_mili.image_element(surface, {"cache": mili.ImageCache.get_next_cache()}, rect)
+```
+
+# `ImageLayerCache`
+
+This object is an highly specialized optimization tool for image rendering. It finds a purpose whenever the UI application has to render a large number of images that are on the same UI Z layer (for example, a grid of cards, a list of icons, etc). Normally every frame a draw call is performed for every one of those images, and the repetitiveness of the operation can impact performance. This object will cache images and their position and draw them to an intermediate surface (refreshed whenever something changes) which is then drawn on the canva. The object also supports a size and an offset. To use the object you must create and store an instance of it, and assign the instance to the `layer_cache` style of the image components you want to apply the layer to. The same image components must also be provided a valid `ImageCache` object (otherwise an exception is raised). As stated before the images sharing an image layer will be drawn at the same z index. By default every image layer cache is automatically drawn after every element. If you wish to draw it between elements (avoiding overlappings) you must pass the `ImageLayerCache` instance to the `image_layer_cache` style of the **element** (not image) after which the layer should be rendered.
+
+Example usage:
+
+```py
+mili.ImageCache.preallocate_caches(...)
+layer_cache = mili.ImageLayerCache(my_mili, window.size)
+
+# UI loop
+
+for image in ...:
+    my_mili.element(...)
+    my_mili.image(surface, {"cache": mili.ImageCache.get_next_cache(), "layer_cache": layer_cache}) # this image will be cached and rendered by the layer among the other images
+
+my_mili.element(..., {"image_layer_cache": layer_cache}) # the layer will render all of the images after this element and before the next elements
+
+my_mili.element(...)
+my_mili.element(...)
+...
 ```

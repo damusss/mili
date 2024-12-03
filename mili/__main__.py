@@ -15,7 +15,18 @@ def main():
         return
 
     command = sys.argv[1]
-    if command not in ["guide", "changelog", "help"]:
+    help_cmds = ["help", "-h", "--help", "-help", "--h"]
+    version_cmds = ["version", "ver", "-v", "--ver", "-version", "--version", "-ver"]
+
+    if (
+        command
+        not in [
+            "guide",
+            "changelog",
+        ]
+        + help_cmds
+        + version_cmds
+    ):
         print(
             f"ERROR: wrong command '{sys.argv[1]}', expected one of the following: 'guide', 'changelog', 'help'"
         )
@@ -29,11 +40,16 @@ def main():
         url = "https://github.com/damusss/mili/blob/main/CHANGELOG.md"
         print(f"Opening changelog at '{url}'")
         webbrowser.open(url)
-    elif command == "help":
+    elif command in version_cmds:
+        import mili
+
+        print(f"MILI {mili.VERSION_STR}")
+    elif command in help_cmds:
         print("MILI CLI")
         print("py -m mili guide: open the MILI guide")
         print("py -m mili changelog: open the MILI changelog")
-        print("py -m mili help: show this message")
+        print("py -m mili version/-v: print the installed MILI version")
+        print("py -m mili help/-h: show this message")
 
 
 if __name__ == "__main__":

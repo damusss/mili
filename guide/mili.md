@@ -11,13 +11,13 @@ A MILI instance must be associated with a surface to draw on. You can retrieve i
 
 MILI has a few methods related to styling:
 
-- `MILI.default_style`/`MILI.default_styles`: Set the default styles for the style resolution
-- `MILI.reset_style`: Reset the default styles
+-   `MILI.default_style`/`MILI.default_styles`: Set the default styles for the style resolution
+-   `MILI.reset_style`: Reset the default styles
 
 The following are two essential functions in the game loop:
 
-- `MILI.start(style)`: Must be called at the start of the game loop. Acts like the parent of all elements, so it supports styling and components. If `is_global` is True the `ImageCache` preallocated index will be reset. You only want one MILI instance to start as global.
-- `MILI.update_draw`: Update the interaction and draws all elements. Elements are sorted using their z index which automatically increases when new elements are created.
+-   `MILI.start(style)`: Must be called at the start of the game loop. Acts like the parent of all elements, so it supports styling and components. If `is_global` is True the `ImageCache` preallocated index will be reset. You only want one MILI instance to start as global.
+-   `MILI.update_draw`: Update the interaction and draws all elements. Elements are sorted using their z index which automatically increases when new elements are created.
 
 Boilerplate example code for MILI (it's a better practice to use classes):
 
@@ -49,9 +49,9 @@ while True:
 
 In MILI there are no prefabs such as buttons or labels. The skeleton is composed of elements. All elements can be interacted and they can have children, but they do not have intrinsic graphics - they are just hitboxes. You have the following methods to create elements:
 
-- `MILI.element(rect, style)`: Create an element with no children
-- `MILI.begin(rect, style)`: Create an element and set it as the current parent
-- `MILI.end()`: Signal that the current parent has ended
+-   `MILI.element(rect, style)`: Create an element with no children
+-   `MILI.begin(rect, style)`: Create an element and set it as the current parent
+-   `MILI.end()`: Signal that the current parent has ended
 
 Elements created after the begin call will be assigned to that parent. The end call will set the parent to the previous one.
 You can avoid calling end using the context manager on the returned `Interaction` object.
@@ -79,16 +79,43 @@ with my_mili.begin(rect, style) as main_container:
 
 Parent elements organize their children by default, behaviour which is higly customizable using styles.
 
+## Update ID System
+
+Since, as you saw, the element structure is not remembered by the UI manager and is immediate mode, most utilities have an update method that processes an element every frame to work. To avoid calling all this methods, every object of this kind allows you to provide an update ID to their constructor. Then, in your UI loop, when you create the elements, if you add the `update_id` style to an element MILI is going to automatically call the update methods that were registered with the same ID.
+
+Note that you can use a list of strings to associate multiple update IDs with the same element.
+
+For example:
+
+```py
+# normal approach:
+dragger = mili.Dragger()
+sound_player = mili.InteractionSound(sound)
+
+# UI loop
+el = my_mili.element(rect, style)
+dragger.update(el)
+sound_player.play(el)
+
+# update ID system approach:
+dragger = mili.Dragger(update_id="element1")
+sound_player = mili.InteractionSound(sound, update_id="element1")
+
+# UI loop
+my_mili.element(rect, {"update_id": "element1"})
+# automatically call dragger.update and sound_player.play
+```
+
 ## Components
 
 Since elements have no graphics, to give the user visual feedback you need to use components. There are six built in components, each with its method:
 
-- `MILI.rect(style)`
-- `MILI.circle(style)`
-- `MILI.line([start, end], style)`
-- `MILI.polygon(points, style)`
-- `MILI.text(text, style)`
-- `MILI.image(surface, style)`
+-   `MILI.rect(style)`
+-   `MILI.circle(style)`
+-   `MILI.line([start, end], style)`
+-   `MILI.polygon(points, style)`
+-   `MILI.text(text, style)`
+-   `MILI.image(surface, style)`
 
 To have both a filled version and the outline version of a shape you must concatenate two calls, specifying the `"outline"` (size) style for the second.
 
@@ -127,24 +154,24 @@ For text specifically there are also the utilities `MILI.text_size` and `MILI.te
 
 You can manage the font cache with the provided functions. A font instance will be automatically created for each combination of path/name and size:
 
-- `mili.get_font_cache()`
-- `mili.clear_font_cache()`
+-   `mili.get_font_cache()`
+-   `mili.clear_font_cache()`
 
 MILI instances have a couple advanced properties and methods:
 
-- `MILI.stack_id`: The ID of the main parent element
-- `MILI.current_parent_id`: The ID of the current parent
-- `MILI.all_elements_ids`: A list with the IDs of all created elements in memory
-- `MILI.data_from_id()`: Get an `ElementData` object from an element ID
-- `MILI.clear_memory()`: Clear all the elments in memory. Useful when changing scenes to avoid glitches.
-- `MILI.id_checkpoint()`: Manually set the internal ID. Useful to avoid new elements to inherit the memory of the previous element and be visually unpleasent for a few frames.
+-   `MILI.stack_id`: The ID of the main parent element
+-   `MILI.current_parent_id`: The ID of the current parent
+-   `MILI.all_elements_ids`: A list with the IDs of all created elements in memory
+-   `MILI.data_from_id()`: Get an `ElementData` object from an element ID
+-   `MILI.clear_memory()`: Clear all the elments in memory. Useful when changing scenes to avoid glitches.
+-   `MILI.id_checkpoint()`: Manually set the internal ID. Useful to avoid new elements to inherit the memory of the previous element and be visually unpleasent for a few frames.
 
 ### Packing Components
 
 You can pack components in dictionaries to store them and add them later without repeating code:
 
-- `mili.pack_component(name, data, style)`: Return a packed dictionary
-- `MILI.packed_component(comp1, comp2, ...)`: Add a component from a packed dictionary
+-   `mili.pack_component(name, data, style)`: Return a packed dictionary
+-   `MILI.packed_component(comp1, comp2, ...)`: Add a component from a packed dictionary
 
 ### Custom Components
 
@@ -153,8 +180,8 @@ If the builtin components are not enough, You can create your custom components.
 To do so, you need to create an object that supports the `mili.typing.ComponentProtocol`. The `added` function will be called when your component is added to an element while the `draw` function will be called to draw your component.
 You can then use the following functions:
 
-- `mili.register_custom_component(name, component_object)`: Register your component so it can be added to elements
-- `MILI.custom_component(name, data, style)`: Add your custom component to an element (builtins are allowed in this call)
+-   `mili.register_custom_component(name, component_object)`: Register your component so it can be added to elements
+-   `MILI.custom_component(name, data, style)`: Add your custom component to an element (builtins are allowed in this call)
 
 Interacting with the context object might be challenging as it's undocumented and not annotated.
 

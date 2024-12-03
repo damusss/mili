@@ -18,6 +18,15 @@ class _globalctx:
     )
     _mili_stack = []
     _mili: "_MILI|None" = None
+    _update_ids: dict[str, list[typing.Callable]] = {}
+
+    @classmethod
+    def _register_update_id(cls, uid, method):
+        if uid is None:
+            return
+        if uid not in cls._update_ids:
+            cls._update_ids[uid] = []
+        cls._update_ids[uid].append(method)
 
 
 class _ctx:
@@ -42,6 +51,7 @@ class _ctx:
         self._id = 1
         self._memory: dict[int, dict[str, typing.Any]] = {}
         self._old_data: dict[int, dict[str, typing.Any]] = {}
+        self._interaction_cache: dict[int, _data.Interaction] = {}
         self._element: dict[str, typing.Any] = self._parent
         self._canva: pygame.Surface | None = None
         self._canva_rect: pygame.Rect | None = None
@@ -53,6 +63,16 @@ class _ctx:
         self._offset = pygame.Vector2()
         self._mouse_pos = pygame.Vector2()
         self._mouse_rel = pygame.Vector2()
+        self._global_mouse = False
+        self._gmouse_pressed = [False] * 5
+        self._gmouse_just_pressed = [False] * 5
+        self._gmouse_just_released = [False] * 5
+        self._get_just_pressed_func: typing.Callable = pygame.mouse.get_just_pressed
+        self._get_just_released_func: typing.Callable = pygame.mouse.get_just_released
+        self._image_layer_caches: list[_data.ImageLayerCache] = []
+        self._dummy_interaction = _data.Interaction(
+            mili, False, -1, -1, -1, False, False, False, False, {}
+        )
         self._default_styles = {
             "element": {},
             "rect": {},
@@ -64,7 +84,7 @@ class _ctx:
         }
 
     def _get_element(
-        self, rect: _typing.RectLike | None, arg_style
+        self, rect: pygame.typing.RectLike | None, arg_style
     ) -> tuple[dict[str, typing.Any], "_data.Interaction"]:
         if arg_style is None:
             arg_style = {}
@@ -72,7 +92,7 @@ class _ctx:
         style.update(arg_style)
         if rect is None:
             rect = (0, 0, 0, 0)
-        rect = pygame.Rect(rect)  # type: ignore
+        rect = pygame.Rect(rect)
         parent = self._parent
         if "parent_id" in style:
             if style["parent_id"] in self._memory:
@@ -494,7 +514,7 @@ class _ctx:
         for el in list(changed):
             self._organize_element(el)
 
-    def _start(self, style):
+    def _start(self, style, winpos):
         if self._canva is None:
             return
         self._parent = {
@@ -517,21 +537,53 @@ class _ctx:
         self._abs_hovered = []
         self._started = True
         self._z = 0
-        mouse_pos = pygame.Vector2(pygame.mouse.get_pos()) - self._offset
+        mouse_pos = (
+            pygame.Vector2(pygame.mouse.get_pos(self._global_mouse)) - self._offset
+        )
+        if self._global_mouse:
+            if winpos:
+                mouse_pos -= winpos
+            else:
+                raise error.MILIStatusError(
+                    "The window position must be provided when using the global mouse state"
+                )
         self._mouse_rel = mouse_pos - self._mouse_pos
         self._mouse_pos = mouse_pos
         if 0 in self._memory:
             self._get_old_el(self._stack)
         self._memory[0] = self._stack
 
-        if (btn := _coreutils._get_first_button(pygame.mouse.get_just_pressed())) > -1:
+        if self._global_mouse:
+            global_pressed = pygame.mouse.get_pressed(5, True)
+            for i, (old, new) in enumerate(zip(self._gmouse_pressed, global_pressed)):
+                if old == new:
+                    self._gmouse_just_pressed[i] = False
+                    self._gmouse_just_released[i] = False
+                elif old and not new:
+                    self._gmouse_just_released[i] = True
+                    self._gmouse_just_pressed[i] = False
+                elif new and not old:
+                    self._gmouse_just_pressed[i] = True
+                    self._gmouse_just_released[i] = False
+            self._gmouse_pressed = global_pressed
+
+        if (btn := _coreutils._get_first_button(self._get_just_pressed_func())) > -1:
             self._started_pressing_button = btn
         if (
-            _coreutils._get_first_button(pygame.mouse.get_just_released())
+            _coreutils._get_first_button(self._get_just_released_func())
             == self._started_pressing_button
         ):
             self._started_pressing_button = -1
             self._started_pressing_element = None
+        for layer_cache in self._image_layer_caches:
+            layer_cache._caches_activity = {}
+            layer_cache._rendered = False
+
+    def _get_just_pressed(self):
+        return self._gmouse_just_pressed
+
+    def _get_just_released(self):
+        return self._gmouse_just_released
 
     def _check_interaction(self, element: dict[str, typing.Any]):
         blocking = self._style_val(element["style"], "element", "blocking", True)
@@ -564,21 +616,21 @@ class _ctx:
 
     def _get_interaction(self, element: dict[str, typing.Any]) -> "_data.Interaction":
         if element["id"] not in self._memory:
-            return _coreutils._partial_interaction(self._mili, element, False)
+            return _coreutils._partial_interaction(self, element, False)
         old_el = self._get_old_el(element)
         absolute_hover = old_el["abs_rect"].collidepoint(self._mouse_pos)
         if old_el["top"]:
             if self._style_val(element["style"], "element", "blocking", True) is None:
-                return _coreutils._partial_interaction(
-                    self._mili, element, absolute_hover
-                )
+                self._dummy_interaction._raw_data = element
+                self._dummy_interaction._data = None
+                return self._dummy_interaction
             if (
                 self._started_pressing_button > -1
                 and self._started_pressing_element is None
             ):
                 self._started_pressing_element = element["id"]
                 return _coreutils._total_interaction(
-                    self._mili,
+                    self,
                     element,
                     absolute_hover,
                     absolute_hover,
@@ -589,11 +641,9 @@ class _ctx:
                 self._started_pressing_button > -1
                 and element["id"] != self._started_pressing_element
             ):
-                return _coreutils._partial_interaction(
-                    self._mili, element, absolute_hover
-                )
+                return _coreutils._partial_interaction(self, element, absolute_hover)
             return _coreutils._total_interaction(
-                self._mili,
+                self,
                 element,
                 absolute_hover,
                 absolute_hover,
@@ -606,14 +656,14 @@ class _ctx:
                 and element["id"] == self._started_pressing_element
             ):
                 return _coreutils._total_interaction(
-                    self._mili,
+                    self,
                     element,
                     absolute_hover,
                     False,
                     True,
                     old_el,
                 )
-            return _coreutils._partial_interaction(self._mili, element, absolute_hover)
+            return _coreutils._partial_interaction(self, element, absolute_hover)
 
     def _add_component(self, type, data, arg_style):
         self._start_check()
@@ -875,63 +925,43 @@ class _ctx:
     def _draw_comp_image(self, data: pygame.Surface, style, el, rect: pygame.Rect):
         if data is None or self._canva is None:
             return
-        cache = style.get("cache", None)
-        pad = self._style_val(style, "image", "pad", 0)
-        padx = self._style_val(style, "image", "padx", pad)
-        pady = self._style_val(style, "image", "pady", pad)
-        padx, pady = (
-            _coreutils._abs_perc(padx, rect.w),
-            _coreutils._abs_perc(pady, rect.h),
-        )
-        do_fill = self._style_val(style, "image", "fill", False)
-        do_stretchx = self._style_val(style, "image", "stretchx", False)
-        do_stretchy = self._style_val(style, "image", "stretchy", False)
-        fill_color = self._style_val(style, "image", "fill_color", None)
-        smoothscale = self._style_val(style, "image", "smoothscale", False)
-        border_radius = _coreutils._abs_perc(
-            self._style_val(style, "image", "border_radius", 0), min(rect.w, rect.h)
-        )
-        alpha = self._style_val(style, "image", "alpha", 255)
-        nine_patch = _coreutils._abs_perc(
-            self._style_val(style, "image", "ninepatch_size", 0), min(rect.w, rect.h)
-        )
-        nine_patch = pygame.math.clamp(nine_patch, 0, min(rect.w, rect.h) / 2)
-        if nine_patch != 0 and (do_fill or do_stretchx or do_stretchy):
-            raise error.MILIIncompatibleStylesError(
-                "9-patch image mode is incompatible with fill, stretchx, and stretchy styles"
-            )
-
-        if not cache:
-            output = _coreutils._get_image(
-                rect,
-                data,
-                padx,
-                pady,
-                do_fill,
-                do_stretchx,
-                do_stretchy,
-                fill_color,
-                border_radius,
-                alpha,
-                smoothscale,
-                nine_patch,
-            )
+        ready = self._style_val(style, "image", "ready", False)
+        if ready:
+            output = data
         else:
-            new_cache = {
-                "data": data,
-                "padx": padx,
-                "pady": pady,
-                "fill": do_fill,
-                "stretchx": do_stretchx,
-                "stretchy": do_stretchy,
-                "fill_color": fill_color,
-                "border_radius": border_radius,
-                "alpha": alpha,
-                "size": rect.size,
-                "smoothscale": smoothscale,
-                "nine_patch": nine_patch,
-            }
-            if cache._cache is None:
+            cache = style.get("cache", None)
+            layer_cache = style.get("layer_cache", None)
+            pad = self._style_val(style, "image", "pad", 0)
+            padx = self._style_val(style, "image", "padx", pad)
+            pady = self._style_val(style, "image", "pady", pad)
+            padx, pady = (
+                _coreutils._abs_perc(padx, rect.w),
+                _coreutils._abs_perc(pady, rect.h),
+            )
+            do_fill = self._style_val(style, "image", "fill", False)
+            do_stretchx = self._style_val(style, "image", "stretchx", False)
+            do_stretchy = self._style_val(style, "image", "stretchy", False)
+            fill_color = self._style_val(style, "image", "fill_color", None)
+            smoothscale = self._style_val(style, "image", "smoothscale", False)
+            border_radius = _coreutils._abs_perc(
+                self._style_val(style, "image", "border_radius", 0), min(rect.w, rect.h)
+            )
+            alpha = self._style_val(style, "image", "alpha", 255)
+            nine_patch = _coreutils._abs_perc(
+                self._style_val(style, "image", "ninepatch_size", 0),
+                min(rect.w, rect.h),
+            )
+            nine_patch = pygame.math.clamp(nine_patch, 0, min(rect.w, rect.h) / 2)
+            if nine_patch != 0 and (do_fill or do_stretchx or do_stretchy):
+                raise error.MILIIncompatibleStylesError(
+                    "9-patch image mode is incompatible with fill, stretchx, and stretchy styles"
+                )
+            if layer_cache is not None and cache is None:
+                raise error.MILIIncompatibleStylesError(
+                    "An ImageCache object must be provided to use the layer_cache style"
+                )
+
+            if not cache:
                 output = _coreutils._get_image(
                     rect,
                     data,
@@ -946,24 +976,25 @@ class _ctx:
                     smoothscale,
                     nine_patch,
                 )
-                new_cache["output"] = output
-                cache._cache = new_cache
+                if layer_cache:
+                    layer_cache._dirty = True
             else:
-                _cache = cache._cache
-                if (
-                    data is not _cache["data"]
-                    or smoothscale != _cache["smoothscale"]
-                    or rect.size != _cache["size"]
-                    or padx != _cache["padx"]
-                    or pady != _cache["pady"]
-                    or do_fill != _cache["fill"]
-                    or do_stretchx != _cache["stretchx"]
-                    or do_stretchy != _cache["stretchy"]
-                    or fill_color != _cache["fill_color"]
-                    or border_radius != _cache["border_radius"]
-                    or alpha != _cache["alpha"]
-                    or nine_patch != _cache["nine_patch"]
-                ):
+                new_cache = {
+                    "data": data,
+                    "padx": padx,
+                    "pady": pady,
+                    "fill": do_fill,
+                    "stretchx": do_stretchx,
+                    "stretchy": do_stretchy,
+                    "fill_color": fill_color,
+                    "border_radius": border_radius,
+                    "alpha": alpha,
+                    "size": rect.size,
+                    "smoothscale": smoothscale,
+                    "nine_patch": nine_patch,
+                    "pos": None,
+                }
+                if cache._cache is None:
                     output = _coreutils._get_image(
                         rect,
                         data,
@@ -980,11 +1011,57 @@ class _ctx:
                     )
                     new_cache["output"] = output
                     cache._cache = new_cache
+                    if layer_cache:
+                        layer_cache._dirty = True
                 else:
-                    output = _cache["output"]
-
+                    _cache = cache._cache
+                    if (
+                        data is not _cache["data"]
+                        or smoothscale != _cache["smoothscale"]
+                        or rect.size != _cache["size"]
+                        or padx != _cache["padx"]
+                        or pady != _cache["pady"]
+                        or do_fill != _cache["fill"]
+                        or do_stretchx != _cache["stretchx"]
+                        or do_stretchy != _cache["stretchy"]
+                        or fill_color != _cache["fill_color"]
+                        or border_radius != _cache["border_radius"]
+                        or alpha != _cache["alpha"]
+                        or nine_patch != _cache["nine_patch"]
+                    ):
+                        output = _coreutils._get_image(
+                            rect,
+                            data,
+                            padx,
+                            pady,
+                            do_fill,
+                            do_stretchx,
+                            do_stretchy,
+                            fill_color,
+                            border_radius,
+                            alpha,
+                            smoothscale,
+                            nine_patch,
+                        )
+                        new_cache["output"] = output
+                        cache._cache = new_cache
+                        if layer_cache:
+                            layer_cache._dirty = True
+                    else:
+                        output = _cache["output"]
         image_rect = output.get_rect(center=rect.center)
-        self._canva.blit(output, image_rect)
+        if ready or not layer_cache:
+            self._canva.blit(output, image_rect)
+        else:
+            prev = cache._cache["pos"]
+            new = pygame.Vector2(image_rect.topleft)
+            if new != prev:
+                layer_cache._dirty = True
+            cache._cache["pos"] = new
+            if cache not in layer_cache._caches_set:
+                layer_cache._caches_set.add(cache)
+                layer_cache._caches.append(cache)
+            layer_cache._caches_activity[cache] = True
 
     def _draw_update_element(
         self, element: dict[str, typing.Any], parent_pos, parent_clip=None
@@ -1014,6 +1091,7 @@ class _ctx:
             self._style_val(el_style, "element", name, None)
             for name in ["pre_draw_func", "mid_draw_func", "post_draw_func"]
         ]
+        layer_cache = el_style.get("image_layer_cache", None)
         el_data = None
 
         self._canva.set_clip(clip)
@@ -1062,6 +1140,10 @@ class _ctx:
             if el_data is None:
                 el_data = _coreutils._element_data(self, element)
             post_draw(self._canva, el_data, clip)
+            self._canva.set_clip(clip)
+        if layer_cache is not None:
+            self._canva.set_clip(self._canva_rect)
+            _coreutils._render_layer_cache(layer_cache, self._canva)
             self._canva.set_clip(clip)
 
     def _start_check(self):

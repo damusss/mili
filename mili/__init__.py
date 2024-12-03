@@ -5,7 +5,7 @@ from .mili import (
     get_font_cache,
     clear_font_cache,
 )
-from .data import ElementData, Interaction, ImageCache
+from .data import ElementData, Interaction, ImageCache, ImageLayerCache
 from .style import RESIZE, X, CENTER, PADLESS, FLOATING, FILL
 from .utility import (
     Selectable,
@@ -27,10 +27,11 @@ from . import style
 from . import typing
 from . import data
 from . import animation
+from . import icon
 
 from collections import namedtuple
 
-VERSION = namedtuple("VersionInfo", "major minor micro")(1, 0, 0)
+VERSION = namedtuple("VersionInfo", "major minor micro")(1, 0, 1)
 VERSION_STR = f"{VERSION.major}.{VERSION.minor}.{VERSION.micro}"
 del namedtuple
 
@@ -39,6 +40,7 @@ __all__ = (
     "ElementData",
     "Interaction",
     "ImageCache",
+    "ImageLayerCache",
     "Selectable",
     "Dragger",
     "Scroll",
@@ -66,6 +68,7 @@ __all__ = (
     "typing",
     "data",
     "animation",
+    "icon",
     "VERSION",
     "VERSION_STR",
 )

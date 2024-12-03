@@ -23,8 +23,9 @@ __all__ = (
 
 
 class Selectable:
-    def __init__(self, selected: bool = False):
+    def __init__(self, selected: bool = False, update_id: str | None = None):
         self.selected: bool = selected
+        _core._globalctx._register_update_id(update_id, self.update)
 
     def update(
         self,
@@ -63,6 +64,7 @@ class Dragger:
         position: typing.Sequence[float] | None = None,
         lock_x: bool = False,
         lock_y: bool = False,
+        update_id: str | None = None,
     ):
         if position is None:
             position = (0, 0)
@@ -75,6 +77,7 @@ class Dragger:
         self.clamp_y: tuple[float, float] | None = None
         self.style: _typing.ElementStyleLike = {"ignore_grid": True}
         self._before_update_pos = pygame.Vector2()
+        _core._globalctx._register_update_id(update_id, self.update)
 
     def update(
         self,
@@ -125,8 +128,9 @@ class GenericApp:
         self,
         window: pygame.Window,
         target_framerate: int = 60,
-        clear_color: _typing.ColorLike = 0,
+        clear_color: pygame.typing.ColorLike = 0,
         start_style: _typing.ElementStyleLike | None = None,
+        use_global_mouse: bool = False,
     ):
         if not pygame.get_init():
             raise _error.MILIStatusError(
@@ -135,8 +139,8 @@ class GenericApp:
         self.window = window
         self.clock = pygame.Clock()
         self.target_framerate: int = target_framerate
-        self.mili = _MILI(self.window.get_surface())
-        self.clear_color: _typing.ColorLike = clear_color
+        self.mili = _MILI(self.window.get_surface(), use_global_mouse)
+        self.clear_color: pygame.typing.ColorLike = clear_color
         self.start_style: _typing.ElementStyleLike | None = start_style
         self.delta_time: float = 0
 
@@ -153,9 +157,11 @@ class GenericApp:
 
     def on_quit(self): ...
 
+    def post_draw(self): ...
+
     def run(self):
         while True:
-            self.mili.start(self.start_style)
+            self.mili.start(self.start_style, window_position=self.window.position)
             for event in pygame.event.get():
                 if event.type == pygame.WINDOWCLOSE and event.window == self.window:
                     self.quit()
@@ -166,14 +172,16 @@ class GenericApp:
             self.update()
             self.ui()
             self.mili.update_draw()
+            self.post_draw()
             self.window.flip()
             self.delta_time = self.clock.tick(self.target_framerate) / 1000
 
 
 class Scroll:
-    def __init__(self):
+    def __init__(self, update_id: str | None = None):
         self.scroll_offset: pygame.Vector2 = pygame.Vector2()
         self._element_data: _data.ElementData | None = None
+        _core._globalctx._register_update_id(update_id, self.update)
 
     def update[IT: _data.Interaction | _data.ElementData](self, container: IT) -> IT:
         if isinstance(container, _data.ElementData):
@@ -268,6 +276,8 @@ class Scrollbar:
         padding: int = 3,
         size_reduce: int = 0,
         axis: typing.Literal["x", "y"] = "y",
+        update_id: str | None = None,
+        handle_update_id: str | None = None,
     ):
         self._scroll = scroll
         self.axis: typing.Literal["x", "y"] = axis
@@ -285,6 +295,9 @@ class Scrollbar:
 
         self.bar_style: _typing.ElementStyleLike = {"ignore_grid": True, "z": 999}
         self.handle_style: _typing.ElementStyleLike = {"ignore_grid": True, "z": 9999}
+
+        _core._globalctx._register_update_id(update_id, self.update)
+        _core._globalctx._register_update_id(handle_update_id, self.update_handle)
 
     def change_axis(self, axis: typing.Literal["x", "y"]):
         self.axis = axis
@@ -389,6 +402,8 @@ class Slider:
         lock_y: bool,
         handle_size: typing.Sequence[float],
         strict_borders: bool = False,
+        area_update_id: str | None = None,
+        handle_update_id: str | None = None,
     ):
         self.lock_x = lock_x
         self.lock_y = lock_y
@@ -402,6 +417,9 @@ class Slider:
         self.area_style: _typing.ElementStyleLike = {"clip_draw": False}
         self.handle_style: _typing.ElementStyleLike = {"ignore_grid": True}
         self.handle_rect: pygame.Rect = pygame.Rect()
+
+        _core._globalctx._register_update_id(area_update_id, self.update_area)
+        _core._globalctx._register_update_id(handle_update_id, self.update_handle)
 
     @classmethod
     def from_axis(
@@ -557,12 +575,14 @@ class InteractionSound:
         press: pygame.mixer.Sound | None = None,
         release: pygame.mixer.Sound | None = None,
         button: int = pygame.BUTTON_LEFT,
+        update_id: str | None = None,
     ):
         self.hover_sound = hover
         self.unhover_sound = unhover
         self.press_sound = press
         self.release_sound = release
         self.button = button
+        _core._globalctx._register_update_id(update_id, self.play)
 
     def play(
         self,
@@ -619,12 +639,14 @@ class InteractionCursor:
         | None
         | dict[int, int | pygame.Cursor | None] = pygame.SYSTEM_CURSOR_HAND,
         disabled_cursor: int | pygame.Cursor | None = pygame.SYSTEM_CURSOR_NO,
+        update_id: str | None = None,
     ):
         cls._cursor_stolen = None
         cls.idle_cursor = idle_cursor
         cls.hover_cursor = hover_cursor
         cls.press_cursor = press_cursor
         cls.disabled_cursor = disabled_cursor
+        _core._globalctx._register_update_id(update_id, cls.update)
 
     @classmethod
     def apply(
@@ -741,6 +763,7 @@ class CustomWindowBorders:
         self.relative: pygame.Vector2 = pygame.Vector2()
         self.cumulative_relative: pygame.Vector2 = pygame.Vector2()
 
+        self._left_pressed = False
         self._press_rel = pygame.Vector2()
         self._press_global = pygame.Vector2()
         self._start_val = pygame.Vector2()
@@ -775,9 +798,14 @@ class CustomWindowBorders:
         ]
 
     def update(self) -> bool:
-        just = pygame.mouse.get_just_pressed()[0]
+        if not self.window.focused:
+            return False
+
         mpos = pygame.Vector2(pygame.mouse.get_pos())
-        pressed = pygame.mouse.get_pressed()[0]
+        gmpos = pygame.Vector2(pygame.mouse.get_pos(True))
+        pressed = pygame.mouse.get_pressed(5, True)[0]
+        just = pressed and not self._left_pressed
+        self._left_pressed = pressed
         modified_cursor = False
 
         tbar_rect = pygame.Rect(0, 0, self.window.size[0], self.titlebar_height)
@@ -813,7 +841,7 @@ class CustomWindowBorders:
                 ) and handle._rect.collidepoint(mpos):
                     self.resizing = True
                     self._resize_handle = handle
-                    self._press_global = mpos + self.window.position
+                    self._press_global = gmpos
                     self._press_rel = mpos
                     self._resize_winpos = self.window.position
                     self._resize_winsize = self.window.size
@@ -825,7 +853,7 @@ class CustomWindowBorders:
 
         if pressed:
             if self.resizing and self._resize_handle:
-                self._resize_handle._update(mpos)
+                self._resize_handle._update(gmpos)
         else:
             if self.resizing:
                 self.cumulative_relative = self.window.size - self._start_val
@@ -841,7 +869,7 @@ class CustomWindowBorders:
 
         if just and tbar_rect.collidepoint(mpos):
             self._press_rel = mpos
-            self._press_global = mpos + self.window.position
+            self._press_global = gmpos
             self._start_val = pygame.Vector2(self.window.position)
             self.dragging = True
             callback = self._callbacks["move"]["start"]
@@ -851,10 +879,7 @@ class CustomWindowBorders:
         if pressed:
             if not just and self.dragging:
                 previous = pygame.Vector2(self.window.position)
-                new = previous + pygame.mouse.get_pos()
-                self.window.position = (
-                    self._press_global + (new - self._press_global) - self._press_rel
-                )
+                self.window.position = self._start_val + (gmpos - self._press_global)
                 self.relative = self.window.position - previous
                 self.cumulative_relative = self.window.position - self._start_val
                 callback = self._callbacks["move"]["during"]
@@ -915,13 +940,11 @@ class CustomWindowBorders:
                 rect = rect.move_to(bottomright=self._parent.window.size)
             self._rect = rect
 
-        def _update(self, mpos):
+        def _update(self, gmpos):
             if self._parent._resize_winsize is None:
                 return
             previous = pygame.Vector2(self._parent.window.size)
-            rel: pygame.Vector2 = (
-                self._parent.window.position + mpos - self._parent._press_global
-            )
+            rel: pygame.Vector2 = gmpos - self._parent._press_global
             posrel = pygame.Vector2()
             if self._axis_lock == "y":
                 rel.x = 0
@@ -993,14 +1016,14 @@ def indent(*args, **kwargs): ...
 
 
 def fit_image(
-    rect: _typing.RectLike,
+    rect: pygame.typing.RectLike,
     surface: pygame.Surface,
     padx: int = 0,
     pady: int = 0,
     do_fill: bool = False,
     do_stretchx: bool = False,
     do_stretchy: bool = False,
-    fill_color: _typing.ColorLike | None = None,
+    fill_color: pygame.typing.ColorLike | None = None,
     border_radius: int = 0,
     alpha: int = 255,
     smoothscale: bool = False,

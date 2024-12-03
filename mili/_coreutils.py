@@ -10,6 +10,31 @@ if typing.TYPE_CHECKING:
 __all__ = ()
 
 
+def _render_layer_cache(self: _data.ImageLayerCache, canva: pygame.Surface | None):
+    if canva is None:
+        return
+    remove = []
+    if self._dirty:
+        self._surface.fill(0)
+        for cache in self._caches:
+            if not self._caches_activity.get(cache, False):
+                remove.append(cache)
+                continue
+            self._surface.blit(
+                cache._cache["output"], cache._cache["pos"] - self._offset
+            )
+        self._dirty = False
+    else:
+        for cache in self._caches:
+            if not self._caches_activity.get(cache, False):
+                remove.append(cache)
+    for cache in remove:
+        self._caches.remove(cache)
+        self._caches_set.remove(cache)
+    canva.blit(self._surface, self._offset)
+    self._rendered = True
+
+
 def _abs_perc(val, dim) -> float:
     if isinstance(val, str):
         val = val.strip()
@@ -199,35 +224,80 @@ def _check_align(align):
         raise error.MILIValueError(f"Invalid alignment/anchoring '{align}'")
 
 
-def _partial_interaction(mili, element, absolute_hover):
+def _partial_interaction(ctx, element, absolute_hover):
     element["hovered"] = False
-    return _data.Interaction(
-        mili,
-        False,
-        -1,
-        -1,
-        -1,
-        absolute_hover,
-        False,
-        False,
-        False,
-        element,
-    )
+    if (eid := element["id"]) in ctx._interaction_cache:
+        i = ctx._interaction_cache[eid]
+        (
+            i.hovered,
+            i.press_button,
+            i.just_pressed_button,
+            i.just_released_button,
+            i.absolute_hover,
+            i.unhover_pressed,
+            i.just_hovered,
+            i.just_unhovered,
+            i._raw_data,
+            i._data,
+        ) = (False, -1, -1, -1, absolute_hover, False, False, False, element, None)
+        return i
 
-
-def _total_interaction(mili, element, absolute_hover, hovered, unhovered, old_el):
     i = _data.Interaction(
-        mili,
-        absolute_hover and hovered,
-        _get_first_button(pygame.mouse.get_pressed(5)),
-        _get_first_button(pygame.mouse.get_just_pressed()),
-        _get_first_button(pygame.mouse.get_just_released()),
+        ctx._mili,
+        False,
+        -1,
+        -1,
+        -1,
         absolute_hover,
-        unhovered,
+        False,
         False,
         False,
         element,
     )
+    ctx._interaction_cache[eid] = i
+    return i
+
+
+def _total_interaction(ctx, element, absolute_hover, hovered, unhovered, old_el):
+    if (eid := element["id"]) in ctx._interaction_cache:
+        i = ctx._interaction_cache[eid]
+        (
+            i.hovered,
+            i.press_button,
+            i.just_pressed_button,
+            i.just_released_button,
+            i.absolute_hover,
+            i.unhover_pressed,
+            i.just_hovered,
+            i.just_unhovered,
+            i._raw_data,
+            i._data,
+        ) = (
+            absolute_hover and hovered,
+            _get_first_button(pygame.mouse.get_pressed(5, ctx._global_mouse)),
+            _get_first_button(ctx._get_just_pressed_func()),
+            _get_first_button(ctx._get_just_released_func()),
+            absolute_hover,
+            unhovered,
+            False,
+            False,
+            element,
+            None,
+        )
+    else:
+        i = _data.Interaction(
+            ctx._mili,
+            absolute_hover and hovered,
+            _get_first_button(pygame.mouse.get_pressed(5, ctx._global_mouse)),
+            _get_first_button(ctx._get_just_pressed_func()),
+            _get_first_button(ctx._get_just_released_func()),
+            absolute_hover,
+            unhovered,
+            False,
+            False,
+            element,
+        )
+        ctx._interaction_cache[eid] = i
     if i.hovered and not old_el["hovered"]:
         i.just_hovered = True
     if not i.hovered and old_el["hovered"]:

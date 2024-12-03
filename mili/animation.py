@@ -3,6 +3,8 @@ import pygame
 import math
 from mili import typing as _typing
 from mili import error as _error
+from mili import data as _data
+import mili._core as _core
 
 _animators: list["Animator"] = []
 
@@ -19,6 +21,8 @@ __all__ = (
     "EaseBounce",
     "Animator",
     "ABAnimation",
+    "StepsAnimation",
+    "StatusAnimation",
     "update_all",
 )
 
@@ -105,7 +109,7 @@ class Animator:
         value_type: typing.Literal["number", "color", "sequence"],
         duration_ms: int,
         easing: _typing.EasingLike | None = None,
-        finish_callback: typing.Callable[[], typing.Any] | None = None,
+        finish_callback: typing.Callable[[], float] | None = None,
     ):
         if easing is None:
             easing = EaseLinear()
@@ -156,7 +160,10 @@ class Animator:
                 if self.finish_callback:
                     self.finish_callback()
         elif self.value_type == "color":
-            self.value = self.start_value.lerp(self.end_value, t)  # type: ignore
+            self.value = self.start_value.lerp(  # type: ignore
+                self.end_value,  # type: ignore
+                pygame.math.clamp(t, 0, 1),
+            )
             if (
                 abs(self.value.r - self.end_value.r) <= 1  # type: ignore
                 and abs(self.value.g - self.end_value.g) <= 1  # type: ignore
@@ -187,7 +194,31 @@ class Animator:
         return self
 
 
-class ABAnimation:
+class _AnimatorWrapper:
+    animator: Animator
+
+    def stop(self) -> typing.Self:
+        self.animator.stop()
+        return self
+
+    def update(self) -> typing.Self:
+        self.animator.update()
+        return self
+
+    @property
+    def value(self) -> _typing.AnimValueLike:
+        return self.animator.value
+
+    @value.setter
+    def value(self, value):
+        self.animator.value = value
+
+    @property
+    def active(self) -> bool:
+        return self.animator.active
+
+
+class ABAnimation(_AnimatorWrapper):
     def __init__(
         self,
         a: _typing.AnimValueLike,
@@ -246,22 +277,107 @@ class ABAnimation:
             self.animator.end_value = self.a
         return self
 
-    def stop(self) -> typing.Self:
-        self.animator.stop()
+
+class StepsAnimation(_AnimatorWrapper):
+    def __init__(
+        self,
+        steps: typing.Sequence[_typing.AnimValueLike],
+        value_type: typing.Literal["number", "color", "sequence"],
+        duration_ms: int,
+        easing: _typing.EasingLike | None = None,
+        reach_callback: typing.Callable[[], typing.Any] | None = None,
+    ):
+        if len(steps) <= 2:
+            raise _error.MILIValueError("At least 2 animation steps are required")
+        self.steps = steps
+        self.step = -1
+        self.animator = Animator(
+            self.steps[0],
+            self.steps[1],
+            value_type,
+            duration_ms,
+            easing,
+            reach_callback,
+        )
+
+    def goto(self, step: int) -> typing.Self:
+        if step < 0 or step >= len(self.steps):
+            raise _error.MILIValueError("Step out of bounds")
+        self.step = step
+        self.animator.change_values(self.animator.value, self.steps[step])
+        self.animator.start()
         return self
 
-    def update(self) -> typing.Self:
-        self.animator.update()
-        return self
+
+class StatusAnimation(_AnimatorWrapper):
+    def __init__(
+        self,
+        base_value: _typing.AnimValueLike,
+        hover_value: _typing.AnimValueLike | None,
+        press_value: _typing.AnimValueLike | None,
+        value_type: typing.Literal["number", "color"],
+        duration_ms: int,
+        easing: _typing.EasingLike | None = None,
+        reach_callback: typing.Callable[[], typing.Any] | None = None,
+        style_name: str = "",
+        press_button: int = pygame.BUTTON_LEFT,
+        update_id: str | None = None,
+    ):
+        self.base_value = base_value
+        self.hover_value = hover_value
+        self.press_value = press_value
+        self.press_button = press_button
+        self.style_name = style_name
+        self._last_value = self.base_value
+        self.animator = Animator(
+            base_value,
+            base_value,
+            value_type,
+            duration_ms,
+            easing,
+            reach_callback,
+        )
+        _core._globalctx._register_update_id(update_id, self.status_update)
+
+    def status_update(
+        self, element: _data.Interaction, selected: bool = False
+    ) -> _data.Interaction:
+        if element.hovered:
+            if self.press_value is not None and (
+                element.press_button == self.press_button or selected
+            ):
+                if self._last_value != self.press_value:
+                    self.animator.start_value = self._last_value
+                    self._last_value = self.press_value
+                    self.animator.end_value = self.press_value
+                    self.animator.start()
+            elif self.hover_value is not None:
+                if self._last_value != self.hover_value:
+                    self.animator.start_value = self._last_value
+                    self._last_value = self.hover_value
+                    self.animator.end_value = self.hover_value
+                    self.animator.start()
+            elif self._last_value != self.base_value:
+                self.animator.start_value = self._last_value
+                self._last_value = self.base_value
+                self.animator.end_value = self.base_value
+                self.animator.start()
+        else:
+            if (
+                selected or element.press_button == self.press_button
+            ) and self.press_value is not None:
+                if self._last_value != self.press_value:
+                    self.animator.start_value = self._last_value
+                    self._last_value = self.press_value
+                    self.animator.end_value = self.press_value
+                    self.animator.start()
+            elif self._last_value != self.base_value:
+                self.animator.start_value = self._last_value
+                self._last_value = self.base_value
+                self.animator.end_value = self.base_value
+                self.animator.start()
+        return element
 
     @property
-    def value(self) -> _typing.AnimValueLike:
-        return self.animator.value
-
-    @value.setter
-    def value(self, value):
-        self.animator.value = value
-
-    @property
-    def active(self) -> bool:
-        return self.animator.active
+    def style(self):
+        return {self.style_name: self.value}

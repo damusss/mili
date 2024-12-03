@@ -6,7 +6,7 @@ from dataclasses import dataclass
 if typing.TYPE_CHECKING:
     from mili import MILI as _MILI
 
-__all__ = ("ImageCache", "Interaction", "ElementData")
+__all__ = ("ImageCache", "ImageLayerCache", "Interaction", "ElementData")
 
 
 class ImageCache:
@@ -33,6 +33,44 @@ class ImageCache:
                 "Too few image caches preallocated, failed to retrieve the next one"
             )
         return cls._preallocated_caches[cls._preallocated_index]
+
+
+class ImageLayerCache:
+    def __init__(
+        self,
+        mili: "_MILI",
+        size: typing.Sequence[float],
+        offset: typing.Sequence[float] = (0, 0),
+    ):
+        self.size = size
+        self._offset = pygame.Vector2(offset)
+        self._mili = mili
+        self._caches = []
+        self._caches_set = set()
+        self._caches_activity = {}
+        self._rendered = False
+        self._mili._ctx._image_layer_caches.append(self)
+
+    @property
+    def offset(self) -> pygame.Vector2:
+        return self._offset
+
+    @offset.setter
+    def offset(self, v: typing.Sequence[float]):
+        self._offset = pygame.Vector2(v)
+        self._dirty = True
+
+    @property
+    def size(self) -> pygame.Vector2:
+        return pygame.Vector2(self.size)
+
+    @size.setter
+    def size(self, v: typing.Sequence[float]):
+        self._surface = pygame.Surface(v, pygame.SRCALPHA)
+        self._dirty = True
+
+    def destroy(self):
+        self._mili._ctx._image_layer_caches.remove(self)
 
 
 @dataclass

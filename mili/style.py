@@ -112,6 +112,7 @@ def conditional[TK, TV](
     hover: dict[TK, TV] | None = None,
     press: dict[TK, TV] | None = None,
     selected=False,
+    press_button: int = pygame.BUTTON_LEFT,
 ) -> dict[TK, TV]:
     if hover is None:
         hover = {}
@@ -122,12 +123,12 @@ def conditional[TK, TV](
     new_base = {}
     new_base.update(base)
     if interaction.hovered:
-        if interaction.left_pressed or selected:
+        if selected or interaction.press_button == press_button:
             new_base.update(press)
         else:
             new_base.update(hover)
     else:
-        if selected:
+        if selected or interaction.press_button == press_button:
             new_base.update(press)
     return new_base
 

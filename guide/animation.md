@@ -17,3 +17,11 @@ An easing is a function that changes how the value changes over time. An easing-
 # `ABAnimation`
 
 The `ABAnimation` object is a wrapper for the `Animator` object to easily control an animation from value A to value B. You can use the `goto_a`, `goto_b` and `flip_direction` methods to manage the animation flow. Some methods and properties are added as a shortcut to the animator instance. Note that `update_all` will also update this objects.
+
+# `StepsAnimation`
+
+The `StepsAnimation` object is a wrapper for the `Animator` object similar to the `ABAnimation` object but more generic, allowing the animation to seemingly transition between any number of steps. Use the `goto` method to start the animation towards a value. Some methods and properties are added as a shortcut to the animator instance. Note that `update_all` will also update this objects.
+
+# `StatusAnimation`
+
+The `StatusAnimation` object is a wrapper for the `Animator` object similar to the `StepsAnimation` object where the steps are the values of the three possible element statuses. It is useful to automatically trasition to a different value when the element is hovered or pressed. To update the status you need to call the `status_update` method or use the **update ID system**. Some methods and properties are added as a shortcut to the animator instance. Note that `update_all` will also update this objects.

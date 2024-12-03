@@ -42,7 +42,7 @@ The following styles apply to the current element.
 | ------------------- | ------------------- | ------------------- | ------------------- |
 | resizex, resizey | `True/False/dict[min, max: number/percentage]` | _control if the element should resize to be the right size to exactly fit all children inside. Optionally the value can be a dictionary specifying the maximum and minimum sizes_ (**children with fillx or filly won't have any space. incompatible with fillx and filly**) | `False` |
 | fillx, filly | `True/False/number/percentage` | _control if the element should resize to fill all the space possible in the parent or the space defined by the percentage (`True` is 100% and `False` is disabled). The actual space occupied is scaled based on the amount of elements with fillx and filly_ (**incompatible with resizex and resizey. elements without fillx and filly have priority. ineffective if the parent is a grid**) | `False` |
-| blocking | `True/False/None` | _control wether the element can be interacted by the mouse pointer. if set to the sentinel None, the element will be blocking but no interaction will be calculated_ | `True` |
+| blocking | `True/False/None` | _control wether the element can be interacted by the mouse pointer. if set to the sentinel None, the element will be blocking but no interaction will be calculated (if blocking is False or None only one interaction object is shared between all elements, so the data will only be reliable immediately after the element is created)_ | `True` |
 | ignore_grid | `True/False` | _control wether this element should not be moved or resized by the parent layout_ | `False` |
 | align | `first/last/center` | _control how this element is aligned in the opposite axis of the parent, similar to anchor_ (**ineffective if the parent is a grid**) | `first` |
 | z | `integer` | _manually set the z layer that controls interaction and rendering priority. normally the value automatically increases_ | auto |
@@ -52,6 +52,8 @@ The following styles apply to the current element.
 | pre_draw_func | `(Surface, ElementData, Rect) -> None / None` | _a function that takes the canvas, the element data and the clip rect to be called before the components are drawn_ | `None` |
 | mid_draw_func | `(Surface, ElementData, Rect) -> None / None` | _a function that takes the canvas, the element data and the clip rect to be called after the components are drawn and before the children are drawn_ | `None` |
 | post_draw_func | `(Surface, ElementData, Rect) -> None / None` | _a function that takes the canvas, the element data and the clip rect to be called after the children are drawn_ | `None` |
+| update_id | `string/list[string]` | _the update ID(s) that will be used to automatically update utilities associated with it_ | `None` |
+| image_layer_cache | `ImageLayerCache/None` | _draws the provided `ImageLayerCache` when this element is done rendering, instead of doing it on top of everything_ (**cannot be set as a default style**) | `None` |
 
 ### Children Style
 
@@ -150,6 +152,7 @@ By default the surface keeps its aspect ratio while fitting in the element area.
 | Name | Type/Value | Description | Default |
 | ------------------- | ------------------- | ------------------- | ------------------- |
 | cache | `ImageCache/None` | _provides an `ImageCache` to massively speed up image rendering_ (**the cache can't be set as a default style**) | `None` |
+| layer_cache | `ImageLayerCache/None` | _provides an `ImageLayerCache` to speed up special cases of concurrent image rendering_ (**cannot be set as a default style. requires a valid `ImageCache` object aswell**) | `None` |
 | pad | `number/percentage` | _control the space between the image and the element borders in both directions_ | `0` |
 | padx, pady | `number/percentage` | _control the space between the image and the element borders_ | same as `pad` |
 | fill | `True/False` | _control whether the image should be cropped/scaled to match the aspect ratio of the element while keeping its own aspect ratio_ | `False` |
@@ -160,6 +163,7 @@ By default the surface keeps its aspect ratio while fitting in the element area.
 | alpha | `integer 0-255` | _control the surface alpha_ | `255` |
 | ninepatch_size | `number/percentage` | _if > 0, the surface will be scaled to fit the element but the 4 corners of the specified size will be preserved_ (**incompatible with fill, stretchx, and stretchy**) | `0` |
 | draw_above | `True/False` | _control wether the image is drawn above the children_ | `False` |
+| ready | `True/False` | _if true, mili will assume the image was already modified and scaled to be inside the element by the user so no operations and useless checks will be performed. useful when combining mili.fit\_image and multithreading_ | `False` |
 
 ## Line Style
 
