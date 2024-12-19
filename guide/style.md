@@ -67,8 +67,8 @@ The following styles only apply to the children of this element.
 | anchor | `first/center/last/max_spacing` | _control how children are aligned along the element axis_ | `first` |
 | default_align | `first/center/last` | _control the default opposite axis alignment of every children_ | `first` |
 | grid | `True/False` | _control wether the children should be organized in both directions_ (**children alignment is ignored. fillx and filly values for children are calculated based on the parent size alone**) | `False` |
-| grid*align | `first/center/last/max_spacing` | \_control how children are aligned along the rows of the element axis, while the anchor controls the alignement of the rows themselves* (**only effective if the element is a grid**) | `first` |
-| grid*spacex, grid_spacey | `number/percentage` | \_control the space between children along the row and between the rows depending on the axis separately* (**only effective if the element is a grid**) | same as `spacing` |
+| grid_align | `first/center/last/max_spacing` | _control how children are aligned along the rows of the element axis, while the anchor controls the alignement of the rows themselves_ (**only effective if the element is a grid**) | `first` |
+| grid_spacex, grid_spacey | `number/percentage` | _control the space between children along the row and between the rows depending on the axis separately_ (**only effective if the element is a grid**) | same as `spacing` |
 
 ### Anchoring
 
@@ -80,6 +80,13 @@ The following styles only apply to the children of this element.
   ` |---------C1-C2-C3-C4|`
 - max_spacing<br>
   ` |C1----C2----C3----C4|`
+
+## Common Component Styles
+
+| Name | Type/Value | Description | Default |
+| ------------------- | ------------------- | ------------------- | ------------------- |
+| draw_above | `True/False` | _control wether the component is drawn above the children_ | `False` |
+| element_id | `int` | _select the element this component should be attached to instead of the most recently created element_ (**cannot be set as a default style**) | `None` |
 
 ## Rect Style
 
@@ -96,7 +103,7 @@ The following styles modify the appearance of the rect component (draws using `p
 | align | `bounding alignment` | _control how the rect is aligned inside the element when the aspect ratio is specified_ | `center` |
 | dash_size | `number/percentage/[number/percentage x2]/None` | _enables the dashed style. a single value or an iterable for fill and space segment sizes can be provided. the percentage will be relative to the rect permiter._ (**border radius will be ignored. outline must be > 0**) | `None` |
 | dash_offset | `number/percentage` | _when the style is dashed, controls the offset after which to draw the first segment. the percentage will be relative to the rect perimeter_ | `0` |
-| draw_above | `True/False` | _control wether the rect is drawn above the children_ | `False` |
+
 
 ## Circle Style
 

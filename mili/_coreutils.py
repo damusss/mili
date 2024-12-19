@@ -11,7 +11,7 @@ __all__ = ()
 
 
 def _render_layer_cache(self: _data.ImageLayerCache, canva: pygame.Surface | None):
-    if canva is None:
+    if canva is None or not self.active or self._rendered:
         return
     remove = []
     if self._dirty:
@@ -176,17 +176,7 @@ def _element_data(ctx: "_ctx", el: dict[str, typing.Any]) -> "_data.ElementData"
         children_ids=list(old_data["children_ids"]),
         parent_id=old_data["parent_id"],
         components=old_data["components"].copy(),
-        grid=(
-            _data.ElementGridData(overflowx=-1, overflowy=-1, padx=0, pady=0, spacing=0)
-            if grid is None
-            else _data.ElementGridData(
-                overflowx=grid["overflowx"],
-                overflowy=grid["overflowy"],
-                padx=grid["padx"],
-                pady=grid["pady"],
-                spacing=grid["spacing"],
-            )
-        ),
+        _grid=grid,
     )
 
 

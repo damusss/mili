@@ -81,7 +81,7 @@ Parent elements organize their children by default, behaviour which is higly cus
 
 ## Update ID System
 
-Since, as you saw, the element structure is not remembered by the UI manager and is immediate mode, most utilities have an update method that processes an element every frame to work. To avoid calling all this methods, every object of this kind allows you to provide an update ID to their constructor. Then, in your UI loop, when you create the elements, if you add the `update_id` style to an element MILI is going to automatically call the update methods that were registered with the same ID.
+Since, as you saw, the element structure is not remembered by the UI manager and is immediate mode, most utilities have an update method that processes an element every frame to work. To avoid calling all this methods, every object of this kind allows you to provide an update ID to their constructor. Then, in your UI loop, when you create the elements, if you add the `update_id` style to an element MILI is going to automatically and immediately call the update methods that were registered with the same ID.
 
 Note that you can use a list of strings to associate multiple update IDs with the same element.
 
@@ -119,7 +119,7 @@ Since elements have no graphics, to give the user visual feedback you need to us
 
 To have both a filled version and the outline version of a shape you must concatenate two calls, specifying the `"outline"` (size) style for the second.
 
-Components are attached to the most recent element. They are contained within the hitbox of the element (customizable with styles).
+Components are attached to the most recent element (unless overridden by a style). They are contained within the hitbox of the element (customizable with styles).
 You should change the style of components based on interaction for visual feeback.
 
 Example usage of components:
@@ -165,6 +165,15 @@ MILI instances have a couple advanced properties and methods:
 -   `MILI.data_from_id()`: Get an `ElementData` object from an element ID
 -   `MILI.clear_memory()`: Clear all the elments in memory. Useful when changing scenes to avoid glitches.
 -   `MILI.id_checkpoint()`: Manually set the internal ID. Useful to avoid new elements to inherit the memory of the previous element and be visually unpleasent for a few frames.
+
+-   `MILI.add_element_style(style, element_id)`:
+
+    This method allows you to add some styles to an element after it has been created, for example, if conditions on the interactions are met. Due to design constraints, the following style won't have an effect when using this function:
+
+    -   `parent_id`
+    -   `ignore_grid`
+
+    Changing the z layer will have an effect, but the children won't get updated, so they might be outdated and flicker unless they get updated too.
 
 ### Packing Components
 

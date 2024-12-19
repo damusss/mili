@@ -126,8 +126,7 @@ class MILI:
         self._ctx._started = False
         self._ctx._draw_update_element(self._ctx._stack, (0, 0))
         for layer_cache in self._ctx._image_layer_caches:
-            if not layer_cache._rendered:
-                _core._coreutils._render_layer_cache(layer_cache, self._ctx._canva)
+            _core._coreutils._render_layer_cache(layer_cache, self._ctx._canva)
         abs_hovered = sorted(self._ctx._abs_hovered, key=lambda e: e["z"], reverse=True)
         if len(abs_hovered) > 0:
             abs_hovered[0]["top"] = True
@@ -174,6 +173,28 @@ class MILI:
                 for meth in methods:
                     meth(interaction)
         return interaction
+
+    def add_element_style(
+        self, style: _typing.ElementStyleLike | None, element_id: int | None = None
+    ):
+        self._ctx._start_check()
+        if style is None:
+            return
+        if element_id is None:
+            if not self._ctx._element:
+                raise _error.MILIStatusError(
+                    "Cannot add style to previous element if no element was created"
+                )
+            element = self._ctx._element
+        else:
+            element = self._ctx._memory.get(element_id, None)
+            if element is None:
+                raise _error.MILIValueError(
+                    f"Cannot add style to inexistent element with ID {element_id}"
+                )
+        element["style"].update(style)
+        if "z" in style:
+            element["z"] = style["z"]
 
     def end(self, header: str = ""):
         self._ctx._start_check()

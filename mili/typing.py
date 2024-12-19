@@ -82,7 +82,12 @@ class _ElementStyleLike(typing.TypedDict):
 type ElementStyleLike = _ElementStyleLike | dict[str, typing.Any]
 
 
-class _RectStyleLike(typing.TypedDict):
+class _ComponentStyleLike(typing.TypedDict):
+    draw_above: bool
+    element_id: int
+
+
+class _RectStyleLike(_ComponentStyleLike):
     pad: NumberOrPercentage
     padx: NumberOrPercentage
     pady: NumberOrPercentage
@@ -91,13 +96,12 @@ class _RectStyleLike(typing.TypedDict):
     color: pygame.typing.ColorLike
     aspect_ratio: float | None
     align: BoundingAlignLike
-    draw_above: bool
 
 
 type RectStyleLike = _RectStyleLike | dict[str, typing.Any]
 
 
-class _CircleStyleLike(typing.TypedDict):
+class _CircleStyleLike(_ComponentStyleLike):
     pad: NumberOrPercentage
     padx: NumberOrPercentage
     pady: NumberOrPercentage
@@ -109,34 +113,31 @@ class _CircleStyleLike(typing.TypedDict):
     corners: typing.Iterable[bool]
     dash_size: float | typing.Iterable[float]
     dash_anchor: float | typing.Iterable[float]
-    draw_above: bool
 
 
 type CircleStyleLike = _CircleStyleLike | dict[str, typing.Any]
 
 
-class _LineStyleLike(typing.TypedDict):
+class _LineStyleLike(_ComponentStyleLike):
     size: NumberOrPercentage
     color: pygame.typing.ColorLike
     antialias: bool
     dash_size: NumberOrPercentage | typing.Iterable[NumberOrPercentage]
     dash_offset: NumberOrPercentage
-    draw_above: bool
 
 
 type LineStyleLike = _LineStyleLike | dict[str, typing.Any]
 
 
-class _PolygonStyleLike(typing.TypedDict):
+class _PolygonStyleLike(_ComponentStyleLike):
     outline: NumberOrPercentage
     color: pygame.typing.ColorLike
-    draw_above: bool
 
 
 type PolygonStyleLike = _PolygonStyleLike | dict[str, typing.Any]
 
 
-class _TextStyleLike(typing.TypedDict):
+class _TextStyleLike(_ComponentStyleLike):
     name: str | None
     size: int
     sysfont: bool
@@ -155,14 +156,13 @@ class _TextStyleLike(typing.TypedDict):
     padx: NumberOrPercentage
     pady: NumberOrPercentage
     wraplen: NumberOrPercentage
-    draw_above: bool
     slow_grow: bool
 
 
 type TextStyleLike = _TextStyleLike | dict[str, typing.Any]
 
 
-class _ImageStyleLike(typing.TypedDict):
+class _ImageStyleLike(_ComponentStyleLike):
     cache: _data.ImageCache | None
     layer_cache: _data.ImageLayerCache | None
     pad: NumberOrPercentage
@@ -176,7 +176,6 @@ class _ImageStyleLike(typing.TypedDict):
     border_radius: NumberOrPercentage
     alpha: int
     ninepatch_size: NumberOrPercentage
-    draw_above: bool
     ready: bool
 
 

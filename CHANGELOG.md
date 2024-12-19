@@ -1,3 +1,18 @@
+# 1.0.2
+
+### Fixes
+
+-   Using urllib instead of requests, guarded an extra error case in `mili.icon`.
+-   Fixed the style guide formatting.
+
+### Enhancements
+
+-   Added lazy access to `Interaction.data.grid` to save performance.
+
+### New API
+
+-   Added `spacex` and `spacey` attributes to `Interaction.data.grid` in case they are different for grid containers.
+
 # 1.0.1
 
 Now requires `pygame-ce 2.5.2` or newer.

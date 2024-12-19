@@ -258,7 +258,7 @@ class _ctx:
         if anchor == "max_spacing":
             if len(lines) > 1:
                 spacing = max(
-                    0,
+                    spaceoa,
                     ((padded_oa - sum([line[1] for line in lines])) / (len(lines) - 1)),
                 )
             else:
@@ -300,6 +300,8 @@ class _ctx:
             f"pad{a}": pada,
             f"pad{oa}": padoa,
             "spacing": space,
+            f"space{a}": spacea,
+            f"space{oa}": spaceoa,
         }
 
         for el in list(changed):
@@ -509,6 +511,8 @@ class _ctx:
             f"pad{a}": pada,
             f"pad{oa}": padoa,
             "spacing": space,
+            "spacex": space,
+            "spacey": space,
         }
 
         for el in list(changed):
@@ -671,16 +675,23 @@ class _ctx:
             arg_style = {}
         style = self._default_styles[type].copy()
         style.update(arg_style)
+        element = self._element
+        if (eid := style.get("element_id", None)) is not None:
+            element = self._memory.get(eid, None)
+            if element is None:
+                raise error.MILIStatusError(
+                    f"Cannot add component to inexistent element with ID {eid}"
+                )
         if not self._element:
             raise error.MILIStatusError(
-                "Cannot add component if no element was created"
+                "Cannot add component to previous element if no element was created"
             )
         if type == "text":
-            self._text_resize(self._element["rect"], data, style)
+            self._text_resize(element["rect"], data, style)
         compobj = _globalctx._component_types[type]
         if not isinstance(compobj, str):
-            compobj.added(self, data, style, self._element)
-        self._element["components"].append({"type": type, "data": data, "style": style})
+            compobj.added(self, data, style, element)
+        element["components"].append({"type": type, "data": data, "style": style})
 
     def _get_font(self, style) -> pygame.Font:
         path = self._style_val(style, "text", "name", None)

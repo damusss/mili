@@ -3,7 +3,8 @@ import os
 import io
 import threading
 import typing
-import requests
+import urllib.request
+import urllib.error
 from concurrent.futures import ThreadPoolExecutor
 
 __all__ = ("get", "get_google", "preload", "preload_google", "setup")
@@ -26,24 +27,40 @@ def _get_svg_async(name):
     path = os.path.join(_settings["path"], f"gmi_{name}.svg")
     size = (_settings["google_size"], _settings["google_size"])
     if os.path.exists(path):
-        image = pygame.image.load_sized_svg(path, size)
-        _gmi_svgs[name] = image
-    else:
-        response = requests.get(
-            f"https://fonts.gstatic.com/s/i/materialicons/{name}/v6/24px.svg"
-        )
-        if response.status_code != 200:
-            if response.status_code == 404:
-                _gmi_svgs[name] = 404
-            else:
-                del _gmi_svgs[name]
+        try:
+            image = pygame.image.load_sized_svg(path, size)
+            _gmi_svgs[name] = image
             return
-        buffer = io.BytesIO(response.content)
-        image = pygame.image.load_sized_svg(buffer, size)
-        _gmi_svgs[name] = image
-        if _settings["google_cache"]:
-            with open(path, "w") as file:
-                file.write(response.text)
+        except pygame.error:
+            ...
+    try:
+        with urllib.request.urlopen(
+            f"https://fonts.gstatic.com/s/i/materialicons/{name}/v6/24px.svg"
+        ) as response:
+            if response.status != 200:
+                if response.status == 404:
+                    _gmi_svgs[name] = 404
+                else:
+                    del _gmi_svgs[name]
+                return
+            content = response.read()
+            buffer = io.BytesIO(content)
+            image = pygame.image.load_sized_svg(buffer, size)
+            _gmi_svgs[name] = image
+            if _settings["google_cache"]:
+                with open(path, "wb") as file:
+                    file.write(content)
+            return
+
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            _gmi_svgs[name] = 404
+        else:
+            del _gmi_svgs[name]
+        return
+    except urllib.error.URLError:
+        del _gmi_svgs[name]
+        return
 
 
 def _get_file_async(name):
@@ -72,7 +89,7 @@ def _colorize_file(icon_name, color, key):
     if icon == "loading":
         return _temp_surf
     elif icon == "error":
-        raise IOError(f"Icon {icon_name} wasn't found/could not be loaded")
+        raise IOError(f"File icon {icon_name} wasn't found/could not be loaded")
     ret: pygame.Surface = icon.copy()
     ret.fill(
         color,
@@ -168,4 +185,4 @@ def preload(*icon_names, do_async: bool = True):
         for icon in icon_names:
             _get_file_async(icon)
             if _fileicons[icon] == "error":
-                raise IOError(f"Icon {icon} wasn't found/could not be loaded")
+                raise IOError(f"File icon {icon} wasn't found/could not be loaded")

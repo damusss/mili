@@ -43,6 +43,7 @@ class ImageLayerCache:
         offset: typing.Sequence[float] = (0, 0),
     ):
         self.size = size
+        self.active = True
         self._offset = pygame.Vector2(offset)
         self._mili = mili
         self._caches = []
@@ -62,7 +63,7 @@ class ImageLayerCache:
 
     @property
     def size(self) -> pygame.Vector2:
-        return pygame.Vector2(self.size)
+        return pygame.Vector2(self._surface.size)
 
     @size.setter
     def size(self, v: typing.Sequence[float]):
@@ -80,6 +81,8 @@ class ElementGridData:
     padx: float
     pady: float
     spacing: float
+    spacex: float
+    spacey: float
 
 
 @dataclass
@@ -92,7 +95,17 @@ class ElementData:
     children_ids: list[int]
     components: dict[typing.Literal["type", "style", "data"], typing.Any]
     parent_id: int
-    grid: ElementGridData
+    _grid: dict | None | ElementGridData
+
+    @property
+    def grid(self) -> ElementGridData:
+        if isinstance(self._grid, ElementGridData):
+            return self._grid
+        if self._grid is None:
+            self._grid = ElementGridData(0, 0, 0, 0, 0, 0, 0)
+            return self._grid
+        self._grid = ElementGridData(**self._grid)
+        return self._grid
 
 
 @dataclass
