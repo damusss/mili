@@ -42,6 +42,8 @@ class ImageLayerCache:
         size: typing.Sequence[float],
         offset: typing.Sequence[float] = (0, 0),
     ):
+        self._offset = pygame.Vector2(0, 0)
+        self._surface = pygame.Surface((0, 0))
         self.size = size
         self.active = True
         self._offset = pygame.Vector2(offset)
@@ -50,6 +52,7 @@ class ImageLayerCache:
         self._caches_set = set()
         self._caches_activity = {}
         self._rendered = False
+        self._erase_rect = None
         self._mili._ctx._image_layer_caches.append(self)
 
     @property
@@ -58,6 +61,8 @@ class ImageLayerCache:
 
     @offset.setter
     def offset(self, v: typing.Sequence[float]):
+        if v == self._offset:
+            return
         self._offset = pygame.Vector2(v)
         self._dirty = True
 
@@ -67,6 +72,8 @@ class ImageLayerCache:
 
     @size.setter
     def size(self, v: typing.Sequence[float]):
+        if v == self._surface.size:
+            return
         self._surface = pygame.Surface(v, pygame.SRCALPHA)
         self._dirty = True
 

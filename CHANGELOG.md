@@ -8,6 +8,7 @@
 ### Enhancements
 
 -   Added lazy access to `Interaction.data.grid` to save performance.
+-   Partially enhanced the image layer cache system
 
 ### New API
 

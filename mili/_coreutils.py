@@ -23,6 +23,10 @@ def _render_layer_cache(self: _data.ImageLayerCache, canva: pygame.Surface | Non
             self._surface.blit(
                 cache._cache["output"], cache._cache["pos"] - self._offset
             )
+        if self._erase_rect is not None:
+            r = self._erase_rect.copy()
+            r.topleft -= self._offset
+            self._surface.fill((0, 0, 0, 0), r)
         self._dirty = False
     else:
         for cache in self._caches:
