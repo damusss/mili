@@ -138,6 +138,7 @@ type PolygonStyleLike = _PolygonStyleLike | dict[str, typing.Any]
 
 
 class _TextStyleLike(_ComponentStyleLike):
+    cache: _data.TextCache | None
     name: str | None
     size: int
     sysfont: bool

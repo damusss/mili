@@ -119,6 +119,7 @@ class MILI:
         self._ctx._start(style, window_position)
         if is_global:
             _data.ImageCache._preallocated_index = -1
+            _data.TextCache._preallocated_index = -1
         return True
 
     def update_draw(self):

@@ -132,6 +132,7 @@ For every combination of font name and size a font object is created and cached.
 
 | Name | Type/Value | Description | Default |
 | ------------------- | ------------------- | ------------------- | ------------------- |
+| cache | `mili.TextCache/None/"auto"` | _provides a text cache to speed up text rendering. Setting it to auto will automatically call `mili.TextCache.get_next_cache()` (**can be only set as a default style if it is set to auto**)_ | `None` |
 | name | `string/None` | _control the font name or path_ (**system fonts only work with the sysfont style `True`**) | `None` |
 | size | `integer` | _control the font size_ | `20` |
 | align | `bounding alignment` | _control how the drawn text is aligned inside the element_ | `center` |
@@ -158,7 +159,7 @@ By default the surface keeps its aspect ratio while fitting in the element area.
 
 | Name | Type/Value | Description | Default |
 | ------------------- | ------------------- | ------------------- | ------------------- |
-| cache | `ImageCache/None` | _provides an `ImageCache` to massively speed up image rendering_ (**the cache can't be set as a default style**) | `None` |
+| cache | `ImageCache/None/"auto"` | _provides an `ImageCache` to massively speed up image rendering. Setting it to auto will automatically call `mili.ImageCache.get_next_cache()`_ ((**can be only set as a default style if it is set to auto**)) | `None` |
 | layer_cache | `ImageLayerCache/None` | _provides an `ImageLayerCache` to speed up special cases of concurrent image rendering_ (**cannot be set as a default style. requires a valid `ImageCache` object aswell**) | `None` |
 | pad | `number/percentage` | _control the space between the image and the element borders in both directions_ | `0` |
 | padx, pady | `number/percentage` | _control the space between the image and the element borders_ | same as `pad` |

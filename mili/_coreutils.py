@@ -96,6 +96,27 @@ def _nine_patch(image: pygame.Surface, w, h, s, smoothscale):
     return base
 
 
+def _render_text(
+    data,
+    font: pygame.Font,
+    fontalign,
+    antialias,
+    color,
+    bg_color,
+    bold,
+    italic,
+    underline,
+    strikethrough,
+    wraplen,
+):
+    font.align = fontalign
+    font.bold = bold
+    font.italic = italic
+    font.underline = underline
+    font.strikethrough = strikethrough
+    return font.render(str(data), antialias, color, bg_color, max(0, int(wraplen)))
+
+
 def _get_image(
     rect: pygame.Rect,
     data: pygame.Surface,

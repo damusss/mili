@@ -675,6 +675,13 @@ class _ctx:
             arg_style = {}
         style = self._default_styles[type].copy()
         style.update(arg_style)
+        if type in ["text", "image"]:
+            if "cache" in style and style["cache"] == "auto":
+                style["cache"] = (
+                    _data.ImageCache.get_next_cache()
+                    if type == "image"
+                    else _data.TextCache.get_next_cache()
+                )
         element = self._element
         if (eid := style.get("element_id", None)) is not None:
             element = self._memory.get(eid, None)
@@ -842,11 +849,12 @@ class _ctx:
         if self._canva is None:
             return
         font = self._get_font(style)
-        font.align = self._style_val(style, "text", "font_align", pygame.FONT_CENTER)
-        font.bold = self._style_val(style, "text", "bold", False)
-        font.italic = self._style_val(style, "text", "italic", False)
-        font.underline = self._style_val(style, "text", "underline", False)
-        font.strikethrough = self._style_val(style, "text", "strikethrough", False)
+        cache = style.get("cache", None)
+        fontalign = self._style_val(style, "text", "font_align", pygame.FONT_CENTER)
+        bold = self._style_val(style, "text", "bold", False)
+        italic = self._style_val(style, "text", "italic", False)
+        underline = self._style_val(style, "text", "underline", False)
+        strikethrough = self._style_val(style, "text", "strikethrough", False)
         antialias = self._style_val(style, "text", "antialias", True)
         color = self._style_val(style, "text", "color", "white")
         bg_color = self._style_val(style, "text", "bg_color", None)
@@ -867,8 +875,101 @@ class _ctx:
         wraplen = _coreutils._abs_perc(
             self._style_val(style, "text", "wraplen", 0), rect.w - padx * 2
         )
-
-        surf = font.render(str(data), antialias, color, bg_color, max(0, int(wraplen)))
+        if cache is None:
+            surf = _coreutils._render_text(
+                data,
+                font,
+                fontalign,
+                antialias,
+                color,
+                bg_color,
+                bold,
+                italic,
+                underline,
+                strikethrough,
+                wraplen,
+            )
+        else:
+            if cache._cache is None:
+                new_cache = {
+                    "font": font,
+                    "fontalign": fontalign,
+                    "bold": bold,
+                    "italic": italic,
+                    "underline": underline,
+                    "strike": strikethrough,
+                    "antialias": antialias,
+                    "color": color,
+                    "bg_color": bg_color,
+                    "padx": padx,
+                    "pady": pady,
+                    "wraplen": wraplen,
+                    "data": data,
+                }
+                surf = _coreutils._render_text(
+                    data,
+                    font,
+                    fontalign,
+                    antialias,
+                    color,
+                    bg_color,
+                    bold,
+                    italic,
+                    underline,
+                    strikethrough,
+                    wraplen,
+                )
+                new_cache["output"] = surf
+                cache._cache = new_cache
+            else:
+                _cache = cache._cache
+                if (
+                    font != _cache["font"]
+                    or data != _cache["data"]
+                    or fontalign != _cache["fontalign"]
+                    or bold != _cache["bold"]
+                    or italic != _cache["italic"]
+                    or underline != _cache["underline"]
+                    or strikethrough != _cache["strike"]
+                    or antialias != _cache["antialias"]
+                    or color != _cache["color"]
+                    or bg_color != _cache["bg_color"]
+                    or padx != _cache["padx"]
+                    or pady != _cache["pady"]
+                    or wraplen != _cache["wraplen"]
+                ):
+                    new_cache = {
+                        "font": font,
+                        "data": data,
+                        "fontalign": fontalign,
+                        "bold": bold,
+                        "italic": italic,
+                        "underline": underline,
+                        "strike": strikethrough,
+                        "antialias": antialias,
+                        "color": color,
+                        "bg_color": bg_color,
+                        "padx": padx,
+                        "pady": pady,
+                        "wraplen": wraplen,
+                    }
+                    surf = _coreutils._render_text(
+                        data,
+                        font,
+                        fontalign,
+                        antialias,
+                        color,
+                        bg_color,
+                        bold,
+                        italic,
+                        underline,
+                        strikethrough,
+                        wraplen,
+                    )
+                    new_cache["output"] = surf
+                    cache._cache = new_cache
+                else:
+                    surf = _cache["output"]
         sw, sh = surf.size
         if growy and sh > rect.h + pady * 2:
             rect.h = sh + pady * 2
@@ -881,10 +982,6 @@ class _ctx:
     def _text_size(self, data: str, style):
         font = self._get_font(style)
         font.align = self._style_val(style, "text", "font_align", pygame.FONT_CENTER)
-        font.bold = self._style_val(style, "text", "bold", False)
-        font.italic = self._style_val(style, "text", "italic", False)
-        font.underline = self._style_val(style, "text", "underline", False)
-        font.strikethrough = self._style_val(style, "text", "strikethrough", False)
         if self._style_val(style, "text", "slow_grow", False):
             wraplen = _coreutils._abs_perc(
                 self._style_val(style, "text", "wraplen", 0), 0
@@ -913,19 +1010,34 @@ class _ctx:
         )
         font = self._get_font(style)
         if slow_grow:
-            font.align = self._style_val(
-                style, "text", "font_align", pygame.FONT_CENTER
-            )
-            font.bold = self._style_val(style, "text", "bold", False)
-            font.italic = self._style_val(style, "text", "italic", False)
-            font.underline = self._style_val(style, "text", "underline", False)
-            font.strikethrough = self._style_val(style, "text", "strikethrough", False)
+            fontalign = self._style_val(style, "text", "font_align", pygame.FONT_CENTER)
             wraplen = _coreutils._abs_perc(
                 self._style_val(style, "text", "wraplen", 0), rect.w - padx * 2
             )
-            sw, sh = font.render(
-                data, True, "white", None, max(0, int(wraplen))
-            ).get_size()
+            cache = style.get("cache", None)
+            if cache is not None and cache._cache is not None:
+                _cache = cache._cache
+                if (
+                    font == _cache["font"]
+                    and data == _cache["data"]
+                    and fontalign == _cache["fontalign"]
+                    and padx == _cache["padx"]
+                    and pady == _cache["pady"]
+                    and wraplen == _cache["wraplen"]
+                ):
+                    sw, sh = cache._cache["output"].get_size()
+                else:
+                    font.align = fontalign
+
+                    sw, sh = font.render(
+                        data, True, "white", None, max(0, int(wraplen))
+                    ).get_size()
+            else:
+                font.align = fontalign
+
+                sw, sh = font.render(
+                    data, True, "white", None, max(0, int(wraplen))
+                ).get_size()
         else:
             sw, sh = font.size(str(data))
         if growy and sh > rect.h + pady * 2:
@@ -990,22 +1102,22 @@ class _ctx:
                 if layer_cache:
                     layer_cache._dirty = True
             else:
-                new_cache = {
-                    "data": data,
-                    "padx": padx,
-                    "pady": pady,
-                    "fill": do_fill,
-                    "stretchx": do_stretchx,
-                    "stretchy": do_stretchy,
-                    "fill_color": fill_color,
-                    "border_radius": border_radius,
-                    "alpha": alpha,
-                    "size": rect.size,
-                    "smoothscale": smoothscale,
-                    "nine_patch": nine_patch,
-                    "pos": None,
-                }
                 if cache._cache is None:
+                    new_cache = {
+                        "data": data,
+                        "padx": padx,
+                        "pady": pady,
+                        "fill": do_fill,
+                        "stretchx": do_stretchx,
+                        "stretchy": do_stretchy,
+                        "fill_color": fill_color,
+                        "border_radius": border_radius,
+                        "alpha": alpha,
+                        "size": rect.size,
+                        "smoothscale": smoothscale,
+                        "nine_patch": nine_patch,
+                        "pos": None,
+                    }
                     output = _coreutils._get_image(
                         rect,
                         data,
@@ -1040,6 +1152,21 @@ class _ctx:
                         or alpha != _cache["alpha"]
                         or nine_patch != _cache["nine_patch"]
                     ):
+                        new_cache = {
+                            "data": data,
+                            "padx": padx,
+                            "pady": pady,
+                            "fill": do_fill,
+                            "stretchx": do_stretchx,
+                            "stretchy": do_stretchy,
+                            "fill_color": fill_color,
+                            "border_radius": border_radius,
+                            "alpha": alpha,
+                            "size": rect.size,
+                            "smoothscale": smoothscale,
+                            "nine_patch": nine_patch,
+                            "pos": None,
+                        }
                         output = _coreutils._get_image(
                             rect,
                             data,
@@ -1085,6 +1212,7 @@ class _ctx:
         absolute_rect = element["rect"].move(
             (parent_pos[0] + offset[0], parent_pos[1] + offset[1])
         )
+        element["abs_rect"] = absolute_rect
         if absolute_rect.w <= 0 or absolute_rect.h <= 0:
             return
         if parent_clip is None:
@@ -1095,7 +1223,6 @@ class _ctx:
             clip = absolute_rect.clip(parent_clip)
         else:
             clip = parent_clip
-        element["abs_rect"] = absolute_rect
         self._check_interaction(element)
 
         pre_draw, mid_draw, post_draw = [

@@ -1,12 +1,11 @@
 import pygame
 import typing
-from mili import error as _error
 from dataclasses import dataclass
 
 if typing.TYPE_CHECKING:
     from mili import MILI as _MILI
 
-__all__ = ("ImageCache", "ImageLayerCache", "Interaction", "ElementData")
+__all__ = ("ImageCache", "TextCache", "ImageLayerCache", "Interaction", "ElementData")
 
 
 class ImageCache:
@@ -22,16 +21,10 @@ class ImageCache:
         return self._cache.get("output", None)
 
     @classmethod
-    def preallocate_caches(cls, amount: int):
-        cls._preallocated_caches = [ImageCache() for _ in range(amount)]
-
-    @classmethod
     def get_next_cache(cls):
         cls._preallocated_index += 1
         if cls._preallocated_index > len(cls._preallocated_caches) - 1:
-            raise _error.MILIStatusError(
-                "Too few image caches preallocated, failed to retrieve the next one"
-            )
+            cls._preallocated_caches.append(ImageCache())
         return cls._preallocated_caches[cls._preallocated_index]
 
 
@@ -79,6 +72,26 @@ class ImageLayerCache:
 
     def destroy(self):
         self._mili._ctx._image_layer_caches.remove(self)
+
+
+class TextCache:
+    _preallocated_caches = []
+    _preallocated_index = -1
+
+    def __init__(self):
+        self._cache: dict[str, typing.Any] | None = None
+
+    def get_output(self) -> pygame.Surface | None:
+        if self._cache is None:
+            return None
+        return self._cache["output"]
+
+    @classmethod
+    def get_next_cache(cls):
+        cls._preallocated_index += 1
+        if cls._preallocated_index > len(cls._preallocated_caches) - 1:
+            cls._preallocated_caches.append(TextCache())
+        return cls._preallocated_caches[cls._preallocated_index]
 
 
 @dataclass
