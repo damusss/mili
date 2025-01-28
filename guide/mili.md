@@ -163,7 +163,7 @@ MILI instances have a couple advanced properties and methods:
 -   `MILI.current_parent_id`: The ID of the current parent
 -   `MILI.all_elements_ids`: A list with the IDs of all created elements in memory
 -   `MILI.data_from_id()`: Get an `ElementData` object from an element ID
--   `MILI.clear_memory()`: Clear all the elments in memory. Useful when changing scenes to avoid glitches.
+-   `MILI.clear_memory()`: Clear all the elments in memory. Useful when changing scenes or massively updating them to avoid specific glitches.
 -   `MILI.id_checkpoint()`: Manually set the internal ID. Useful to avoid new elements to inherit the memory of the previous element and be visually unpleasent for a few frames.
 
 -   `MILI.add_element_style(style, element_id)`:
@@ -172,6 +172,8 @@ MILI instances have a couple advanced properties and methods:
 
     -   `parent_id`
     -   `ignore_grid`
+    -   `fillx`
+    -   `filly`
 
     Changing the z layer will have an effect, but the children won't get updated, so they might be outdated and flicker unless they get updated too.
 
@@ -194,4 +196,4 @@ You can then use the following functions:
 
 Interacting with the context object might be challenging as it's undocumented and not annotated.
 
-If you are extending MILI, consider subclassing the MILI class adding a shortcut for your component.
+If you are extending mili, consider subclassing the MILI class adding a shortcut for your component.

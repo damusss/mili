@@ -1,18 +1,33 @@
+# 1.0.4
+
+### Fixes
+
+-   Fixed `MILI.clear_memory()` so it actually clears all that needs to be cleared.
+-   Added the missing component stubs in `mili.typing`.
+
+### Enhancements
+
+-   Added a bunch of micro and medium optimizations to massively speed up the UI.
+
+### New API
+
+-   Added the `erase_rects` property to the `mili.ImageLayerCache` object.
+
 # 1.0.3
 
 ### Fixes
 
-- Fixed the absolute rect of an element being empty when it was outside of the parent hitbox.
+-   Fixed the absolute rect of an element being empty when it was outside of the parent hitbox.
 
 ### New API
 
-- Added `mili.TextCache` similarly to `mili.ImageCache`.
-- Added the `cache` style of the text component, accepting a `mili.TextCache` object.
-- Added the `"auto"` option to the cache style of the text and image components.
+-   Added `mili.TextCache` similarly to `mili.ImageCache`.
+-   Added the `cache` style of the text component, accepting a `mili.TextCache` object.
+-   Added the `"auto"` option to the cache style of the text and image components.
 
 ### API-Breaking
 
-- Removed `mili.ImageCache.preallocate_caches`. Now the preallocated caches list will get bigger if more caches are required, so it's automatic.
+-   Removed `mili.ImageCache.preallocate_caches`. Now the preallocated caches list will get bigger if more caches are required, so it's automatic.
 
 # 1.0.2
 

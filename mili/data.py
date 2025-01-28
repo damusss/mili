@@ -40,13 +40,40 @@ class ImageLayerCache:
         self.size = size
         self.active = True
         self._offset = pygame.Vector2(offset)
+        self._erase_rects: tuple[pygame.Rect, ...] | None = None
         self._mili = mili
         self._caches = []
         self._caches_set = set()
         self._caches_activity = {}
         self._rendered = False
-        self._erase_rect = None
         self._mili._ctx._image_layer_caches.append(self)
+
+    @property
+    def erase_rects(self) -> tuple[pygame.Rect, ...] | None:
+        return self._erase_rects
+
+    @erase_rects.setter
+    def erase_rects(self, v):
+        if v is None:
+            if v != self._erase_rects:
+                self._dirty = True
+            self._erase_rects = v
+            return
+        v = tuple(v)
+        if self._erase_rects is None:
+            self._erase_rects = v
+            self._dirty = True
+            return
+        if len(v) != len(self._erase_rects):
+            self._erase_rects = v
+            self._dirty = True
+            return
+        for i in range(len(v) - 1):
+            a, b = v[i], self._erase_rects[i]
+            if a != b:
+                self._dirty = True
+                break
+        self._erase_rects = v
 
     @property
     def offset(self) -> pygame.Vector2:

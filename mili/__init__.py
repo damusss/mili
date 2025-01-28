@@ -31,7 +31,7 @@ from . import icon
 
 from collections import namedtuple
 
-VERSION = namedtuple("VersionInfo", "major minor micro")(1, 0, 3)
+VERSION = namedtuple("VersionInfo", "major minor micro")(1, 0, 4)
 VERSION_STR = f"{VERSION.major}.{VERSION.minor}.{VERSION.micro}"
 del namedtuple
 

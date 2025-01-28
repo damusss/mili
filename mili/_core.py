@@ -40,11 +40,14 @@ class _ctx:
             "id": 0,
             "children": [],
             "children_grid": [],
+            "children_fillx": [],
+            "children_filly": [],
             "components": [],
             "parent": None,
             "top": False,
             "z": 0,
             "hovered": False,
+            "is_parent": True,
         }
         self._stack: dict[str, typing.Any] = self._parent
         self._parents_stack = [self._stack]
@@ -70,6 +73,7 @@ class _ctx:
         self._get_just_pressed_func: typing.Callable = pygame.mouse.get_just_pressed
         self._get_just_released_func: typing.Callable = pygame.mouse.get_just_released
         self._image_layer_caches: list[_data.ImageLayerCache] = []
+        self._cleared = 0
         self._dummy_interaction = _data.Interaction(
             mili, False, -1, -1, -1, False, False, False, False, {}
         )
@@ -84,15 +88,18 @@ class _ctx:
         }
 
     def _get_element(
-        self, rect: pygame.typing.RectLike | None, arg_style
+        self, rect: pygame.typing.RectLike | None, arg_style, did_begin=False
     ) -> tuple[dict[str, typing.Any], "_data.Interaction"]:
         if arg_style is None:
             arg_style = {}
-        style = self._default_styles["element"].copy()
-        style.update(arg_style)
+        style = arg_style.copy()
+        old_el = self._memory.get(self._id, None)
         if rect is None:
-            rect = (0, 0, 0, 0)
-        rect = pygame.Rect(rect)
+            rect = pygame.Rect()
+            absrect = pygame.Rect()
+        else:
+            rect = pygame.Rect(rect)
+            absrect = rect.copy()
         parent = self._parent
         if "parent_id" in style:
             if style["parent_id"] in self._memory:
@@ -101,18 +108,22 @@ class _ctx:
                 parent = self._stack
         element: dict[str, typing.Any] = {
             "rect": rect,
-            "abs_rect": rect.copy(),
+            "abs_rect": absrect,
             "style": style,
             "id": self._id,
             "children": [],
             "components": [],
             "children_grid": [],
+            "children_fillx": [],
+            "children_filly": [],
             "parent": parent,
             "top": False,
             "z": 1,
             "hovered": False,
+            "is_parent": did_begin,
         }
-        interaction = self._get_interaction(element)
+
+        interaction = self._get_interaction(element, old_el)
         self._memory[self._id] = element
         if parent:
             z = self._z
@@ -123,6 +134,18 @@ class _ctx:
             parent["children"].append(element)
             if not self._style_val(style, "element", "ignore_grid", False):
                 parent["children_grid"].append(element)
+                fillx = self._style_val(style, "element", "fillx", False)
+                filly = self._style_val(style, "element", "filly", False)
+                if bool(fillx):
+                    element["fillx"] = fillx
+                    parent["children_fillx"].append(element)
+                    if old_el:
+                        rect.w = absrect.w = old_el["rect"].w
+                if bool(filly):
+                    element["filly"] = filly
+                    parent["children_filly"].append(element)
+                    if old_el:
+                        rect.h = absrect.h = old_el["rect"].h
             element["z"] = z + 1
         self._id += 1
         self._element = element
@@ -155,42 +178,41 @@ class _ctx:
         padded_a,
         children,
     ):
+        rectav = getattr(rect, av)
+        rectoav = getattr(rect, oav)
         grid_align = self._style_val(style, "element", "grid_align", "first")
         _coreutils._check_align(grid_align)
         spacea = _coreutils._abs_perc(
             self._style_val(style, "element", f"grid_space{a}", space),
-            getattr(rect, av),
+            rectav,
         )
         spaceoa = _coreutils._abs_perc(
             self._style_val(style, "element", f"grid_space{oa}", space),
-            getattr(rect, oav),
+            rectoav,
         )
 
-        changed = []
         line_elements = []
         lines = []
         line_size_a = 0
         longest_line_size_a = 0
         current_pos_oa = padoa
         longest_line_size_oa = 0
-        for child in children:
-            ch_fill_a = self._style_val(child["style"], "element", f"fill{a}", False)
-            ch_fill_oa = self._style_val(child["style"], "element", f"fill{oa}", False)
 
-            if ch_fill_a is not False:
-                if ch_fill_a is True:
-                    ch_fill_a = "100"
-                fill_a_v = _coreutils._abs_perc(ch_fill_a, getattr(rect, av))
-                setattr(child["rect"], av, fill_a_v)
+        for child in element[f"children_fill{a}"]:
+            ch_fill_a = child.get(f"fill{a}", False)
+            if ch_fill_a is True:
+                ch_fill_a = "100"
+            fill_a_v = _coreutils._abs_perc(ch_fill_a, rectav)
+            setattr(child["rect"], av, fill_a_v)
+            self._organize_element(child)
 
-            if ch_fill_oa is not False:
-                if ch_fill_oa is True:
-                    ch_fill_oa = "100"
-                fill_oa_v = _coreutils._abs_perc(ch_fill_oa, getattr(rect, oav))
-                setattr(child["rect"], oav, fill_oa_v)
-
-            if ch_fill_a is not False or ch_fill_oa is not False:
-                changed.append(child)
+        for child in element[f"children_fill{oa}"]:
+            ch_fill_oa = child.get(f"fill{oa}", False)
+            if ch_fill_oa is True:
+                ch_fill_oa = "100"
+            fill_oa_v = _coreutils._abs_perc(ch_fill_oa, rectoav)
+            setattr(child["rect"], oav, fill_oa_v)
+            self._organize_element(child)
 
         for child in children:
             ch_rect = child["rect"]
@@ -252,6 +274,9 @@ class _ctx:
                 setattr(rect, oav, current_pos_oa + padoa * 2)
                 padded_oa = current_pos_oa
 
+        rectav = getattr(rect, av)
+        rectoav = getattr(rect, oav)
+
         lines_size_oa = current_pos_oa
         current_pos_oa = padoa
         spacing = spaceoa
@@ -264,7 +289,7 @@ class _ctx:
             else:
                 anchor = "center"
         if anchor == "center":
-            current_pos_oa = getattr(rect, oav) / 2 - lines_size_oa / 2
+            current_pos_oa = rectoav / 2 - lines_size_oa / 2
         if anchor == "last":
             lines = list(reversed(lines))
             current_pos_oa = padded_oa - lines_size_oa
@@ -284,7 +309,7 @@ class _ctx:
             if grid_align == "last":
                 current_pos_a = padded_a - line_size
             if grid_align == "center":
-                current_pos_a = getattr(rect, av) / 2 - line_size / 2
+                current_pos_a = rectav / 2 - line_size / 2
             for el in elements:
                 el_rect = el["rect"]
                 setattr(el_rect, oa, current_pos_oa)
@@ -304,10 +329,9 @@ class _ctx:
             f"space{oa}": spaceoa,
         }
 
-        for el in list(changed):
-            self._organize_element(el)
-
     def _organize_element(self, element: dict[str, typing.Any]):
+        if not element["is_parent"]:
+            return
         style = element["style"]
         rect = element["rect"]
         children = element["children_grid"]
@@ -320,12 +344,14 @@ class _ctx:
         pad = self._style_val(style, "text", "pad", 5)
         pada = self._style_val(style, "element", f"pad{a}", pad)
         padoa = self._style_val(style, "element", f"pad{oa}", pad)
+        rectav = getattr(rect, av)
+        rectoav = getattr(rect, oav)
         pada, padoa = (
-            _coreutils._abs_perc(pada, getattr(rect, av)),
-            _coreutils._abs_perc(padoa, getattr(rect, oav)),
+            _coreutils._abs_perc(pada, rectav),
+            _coreutils._abs_perc(padoa, rectoav),
         )
         space = _coreutils._abs_perc(
-            self._style_val(style, "element", "spacing", 3), getattr(rect, av)
+            self._style_val(style, "element", "spacing", 3), rectav
         )
         anchor = self._style_val(style, "element", "anchor", "first")
         def_align = self._style_val(style, "element", "default_align", "first")
@@ -335,8 +361,8 @@ class _ctx:
         if isinstance(resizea, dict):
             maxv = resizea.get("max", float("inf"))
             minv = resizea.get("min", 0)
-            minresizea = _coreutils._abs_perc(minv, getattr(rect, av))
-            maxresizea = _coreutils._abs_perc(maxv, getattr(rect, av))
+            minresizea = _coreutils._abs_perc(minv, rectav)
+            maxresizea = _coreutils._abs_perc(maxv, rectav)
             resizea = True
         else:
             resizea = bool(resizea)
@@ -345,8 +371,8 @@ class _ctx:
         if isinstance(resizeoa, dict):
             maxv = resizeoa.get("max", float("inf"))
             minv = resizeoa.get("min", 0)
-            minresizeoa = _coreutils._abs_perc(minv, getattr(rect, oav))
-            maxresizeoa = _coreutils._abs_perc(maxv, getattr(rect, oav))
+            minresizeoa = _coreutils._abs_perc(minv, rectoav)
+            maxresizeoa = _coreutils._abs_perc(maxv, rectoav)
             resizeoa = True
         else:
             resizeoa = bool(resizeoa)
@@ -365,8 +391,8 @@ class _ctx:
                 f"Cannot have resize{a} True and fill{a} not False"
             )
 
-        padded_oa = getattr(rect, oav) - padoa * 2
-        padded_a = getattr(rect, av) - pada * 2
+        padded_oa = rectoav - padoa * 2
+        padded_a = rectav - pada * 2
 
         grid = self._style_val(style, "element", "grid", False)
         if grid:
@@ -394,57 +420,50 @@ class _ctx:
             )
             return
 
-        elements_with_filloa = []
-        elements_with_filla = []
+        elements_with_filloa = element[f"children_fill{oa}"]
+        elements_with_filla = element[f"children_fill{a}"]
         biggest_oa = 0
         fixed_elements_a = 0
 
         for el in children:
             el_rect = el["rect"]
-            el_style = el["style"]
-            el_filloa = self._style_val(el_style, "element", f"fill{oa}", False)
-            el_filla = self._style_val(el_style, "element", f"fill{a}", False)
+            el_filloa = el.get(f"fill{oa}", False)
+            el_filla = el.get(f"fill{a}", False)
             if bool(el_filloa) is False and getattr(el_rect, oav) > biggest_oa:
                 biggest_oa = getattr(el_rect, oav)
-            if bool(el_filloa) is True:
-                elements_with_filloa.append(el)
             fixed_elements_a += space
             if bool(el_filla) is False:
                 fixed_elements_a += getattr(el_rect, av)
-            else:
-                elements_with_filla.append(el)
         fixed_elements_a -= space
         available_to_filla = max(0, padded_a - fixed_elements_a)
 
         if resizeoa and biggest_oa > 0:
-            setattr(
-                rect, oav, min(max(biggest_oa + padoa * 2, minresizeoa), maxresizeoa)
-            )
-            padded_oa = getattr(rect, oav) - padoa * 2
+            rectoav = min(max(biggest_oa + padoa * 2, minresizeoa), maxresizeoa)
+            setattr(rect, oav, rectoav)
+            padded_oa = rectoav - padoa * 2
         if resizea and fixed_elements_a > 0:
-            setattr(
-                rect, av, min(max(fixed_elements_a + pada * 2, minresizea), maxresizea)
-            )
-            padded_a = getattr(rect, av) - pada * 2
+            rectav = min(max(fixed_elements_a + pada * 2, minresizea), maxresizea)
+            setattr(rect, av, rectav)
+            padded_a = rectav - pada * 2
             available_to_filla = 0
-
-        changed = []
 
         for filloa_el in elements_with_filloa:
             el_rect = filloa_el["rect"]
             el_style = filloa_el["style"]
-            filloa = self._style_val(el_style, "element", f"fill{oa}", False)
+            filloa = filloa_el[f"fill{oa}"]
             if filloa is True:
                 filloa = "100"
             el_filloa = _coreutils._abs_perc(filloa, padded_oa)
-            setattr(el_rect, oav, el_filloa)
-            changed.append(filloa_el)
+            prev = getattr(el_rect, oav)
+            if prev != el_filloa or self._cleared > 0:
+                setattr(el_rect, oav, el_filloa)
+                self._organize_element(filloa_el)
 
         filla_totalsize = 0
         for filla_el in elements_with_filla:
             el_rect = filla_el["rect"]
             el_style = filla_el["style"]
-            filla = self._style_val(el_style, "element", f"fill{a}", False)
+            filla = filla_el[f"fill{a}"]
             if filla is True:
                 filla = "100"
             el_filla = _coreutils._abs_perc(
@@ -467,9 +486,11 @@ class _ctx:
                 total_a = fixed_elements_a + filla_totalsize
             for filla_el in elements_with_filla:
                 el_rect = filla_el["rect"]
-                setattr(el_rect, av, filla_el["filla"] * multiplier)
-                changed.append(filla_el)
-                del filla_el["filla"]
+                val = filla_el["filla"] * multiplier
+                prev = getattr(el_rect, av)
+                if val != prev or self._cleared > 0:
+                    setattr(el_rect, av, val)
+                    self._organize_element(filla_el)
 
         current_a = pada
         spacing = space
@@ -485,9 +506,9 @@ class _ctx:
             else:
                 anchor = "center"
         if anchor == "last":
-            current_a = getattr(rect, av) - pada - total_a
+            current_a = rectav - pada - total_a
         if anchor == "center":
-            current_a = getattr(rect, av) / 2 - total_a / 2
+            current_a = rectav / 2 - total_a / 2
         for el in children:
             el_rect = el["rect"]
             el_style = el["style"]
@@ -499,11 +520,9 @@ class _ctx:
             if el_align == "first":
                 setattr(el_rect, oa, padoa)
             if el_align == "last":
-                setattr(
-                    el_rect, "right" if a == "y" else "left", getattr(rect, oav) - padoa
-                )
+                setattr(el_rect, "right" if a == "y" else "left", rectoav - padoa)
             if el_align == "center":
-                setattr(el_rect, f"center{oa}", getattr(rect, oav) / 2)
+                setattr(el_rect, f"center{oa}", rectoav / 2)
 
         element["grid"] = {
             f"overflow{oa}": max(0, biggest_oa - padded_oa),
@@ -515,9 +534,6 @@ class _ctx:
             "spacey": space,
         }
 
-        for el in list(changed):
-            self._organize_element(el)
-
     def _start(self, style, winpos):
         if self._canva is None:
             return
@@ -528,11 +544,14 @@ class _ctx:
             "id": 0,
             "children": [],
             "children_grid": [],
+            "children_fillx": [],
+            "children_filly": [],
             "components": [],
             "parent": None,
             "top": False,
             "z": 0,
             "hovered": False,
+            "is_parent": True,
         }
         self._id = 1
         self._element = self._parent
@@ -554,7 +573,7 @@ class _ctx:
         self._mouse_rel = mouse_pos - self._mouse_pos
         self._mouse_pos = mouse_pos
         if 0 in self._memory:
-            self._get_old_el(self._stack)
+            self._get_old_el(self._stack, None)
         self._memory[0] = self._stack
 
         if self._global_mouse:
@@ -606,8 +625,9 @@ class _ctx:
         if hover and parent_hover:
             self._abs_hovered.append(element)
 
-    def _get_old_el(self, element):
-        old_el = self._memory[element["id"]]
+    def _get_old_el(self, element, old_el):
+        if old_el is None:
+            old_el = self._memory[element["id"]]
         self._old_data[element["id"]] = {
             "rect": old_el["rect"],
             "abs_rect": old_el["abs_rect"],
@@ -618,10 +638,12 @@ class _ctx:
         }
         return old_el
 
-    def _get_interaction(self, element: dict[str, typing.Any]) -> "_data.Interaction":
-        if element["id"] not in self._memory:
+    def _get_interaction(
+        self, element: dict[str, typing.Any], old_el
+    ) -> "_data.Interaction":
+        if old_el is None:
             return _coreutils._partial_interaction(self, element, False)
-        old_el = self._get_old_el(element)
+        old_el = self._get_old_el(element, old_el)
         absolute_hover = old_el["abs_rect"].collidepoint(self._mouse_pos)
         if old_el["top"]:
             if self._style_val(element["style"], "element", "blocking", True) is None:

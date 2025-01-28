@@ -137,6 +137,8 @@ class MILI:
             _core._globalctx._mili = _core._globalctx._mili_stack[-1]
         else:
             _core._globalctx._mili = None
+        if self._ctx._cleared > 0:
+            self._ctx._cleared -= 1
 
     def element(
         self,
@@ -162,7 +164,7 @@ class MILI:
         header: str = "",
     ) -> _data.Interaction:
         self._ctx._start_check()
-        el, interaction = self._ctx._get_element(rect, style)
+        el, interaction = self._ctx._get_element(rect, style, True)
         self._ctx._parent = el
         self._ctx._parents_stack.append(el)
         if uid := self._ctx._style_val(el["style"], "element", "update_id", None):
@@ -201,18 +203,7 @@ class MILI:
         self._ctx._start_check()
         parent = self._ctx._parent
         if parent and parent["id"] != 0:
-            style = parent["style"]
-            if (
-                (
-                    bool(self._ctx._style_val(style, "element", "fillx", False))
-                    is False
-                    and bool(self._ctx._style_val(style, "element", "filly", False))
-                    is False
-                )
-                or self._ctx._style_val(style, "element", "resizey", False)
-                or self._ctx._style_val(style, "element", "resizex", False)
-            ):
-                self._ctx._organize_element(parent)
+            self._ctx._organize_element(parent)
         else:
             raise _error.MILIStatusError("end() called too many times")
         if len(self._ctx._parents_stack) > 1:
@@ -356,7 +347,10 @@ class MILI:
             return _core._coreutils._element_data(self._ctx, self._ctx._stack)
 
     def clear_memory(self):
-        self._ctx._memory = {}
+        self._ctx._cleared = 3
+        self._ctx._memory.clear()
+        self._ctx._old_data.clear()
+        self._ctx._interaction_cache.clear()
 
     def id_checkpoint(self, id_: int):
         if id_ < 1:

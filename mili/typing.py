@@ -96,6 +96,8 @@ class _RectStyleLike(_ComponentStyleLike):
     color: pygame.typing.ColorLike
     aspect_ratio: float | None
     align: BoundingAlignLike
+    dash_size: NumberOrPercentage | typing.Iterable[NumberOrPercentage] | None
+    dash_offset: NumberOrPercentage
 
 
 type RectStyleLike = _RectStyleLike | dict[str, typing.Any]
@@ -111,7 +113,7 @@ class _CircleStyleLike(_ComponentStyleLike):
     aspect_ratio: float | None
     align: BoundingAlignLike
     corners: typing.Iterable[bool]
-    dash_size: float | typing.Iterable[float]
+    dash_size: float | typing.Iterable[float] | None
     dash_anchor: float | typing.Iterable[float]
 
 

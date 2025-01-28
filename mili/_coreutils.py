@@ -9,6 +9,8 @@ if typing.TYPE_CHECKING:
 
 __all__ = ()
 
+_VALID_ALIGN = set(["first", "last", "center", "max_spacing"])
+
 
 def _render_layer_cache(self: _data.ImageLayerCache, canva: pygame.Surface | None):
     if canva is None or not self.active or self._rendered:
@@ -23,10 +25,11 @@ def _render_layer_cache(self: _data.ImageLayerCache, canva: pygame.Surface | Non
             self._surface.blit(
                 cache._cache["output"], cache._cache["pos"] - self._offset
             )
-        if self._erase_rect is not None:
-            r = self._erase_rect.copy()
-            r.topleft -= self._offset
-            self._surface.fill((0, 0, 0, 0), r)
+        if self._erase_rects is not None:
+            for rect in self._erase_rects:
+                r = rect.copy()
+                r.topleft -= self._offset
+                self._surface.fill((0, 0, 0, 0), r)
         self._dirty = False
     else:
         for cache in self._caches:
@@ -235,7 +238,7 @@ def _align_rect(align, rect: pygame.Rect, padx, pady):
 
 
 def _check_align(align):
-    if align not in ["first", "last", "center", "max_spacing"]:
+    if align not in _VALID_ALIGN:
         raise error.MILIValueError(f"Invalid alignment/anchoring '{align}'")
 
 
