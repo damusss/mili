@@ -4,14 +4,27 @@
 
 -   Fixed `MILI.clear_memory()` so it actually clears all that needs to be cleared.
 -   Added the missing component stubs in `mili.typing`.
+-   Fixed a ZeroDivisionError happening with scrollbars
 
 ### Enhancements
 
 -   Added a bunch of micro and medium optimizations to massively speed up the UI.
+-   Reorganized the utility objects for code robustness (no user changes).
+-   Added the utility styles in the guide.
 
 ### New API
 
+-   Added the `mili.DropMenu` utility object.
+-   Added the `mili.style.cond_value` function.
 -   Added the `erase_rects` property to the `mili.ImageLayerCache` object.
+-   Added the `mili.typing.ScrollbarStyleLike` object after the scrollbar changes.
+-   Added the `mili.typing.SliderStyleLike` objectr after the slider changes.
+-   Added the `blit_flags` style to the image and text components, aswell as an `ImageLayerCache.blit_flags` attribute.
+
+### API-Breaking
+
+-   Refreshed the scrollbar styling: added the `mili.Scrollbar.style` attribute and removed the `short_size`, `padding`, `border_dist`, `size_reduce` attributes and constructor arguments (accessible from the style). The `bar_update_id` and `handle_update_id` constructor arguments are added in the style argument.
+-   Refreshed the slider styling: added the `mili.Slider.style` attribute and removed the `lock_x`, `lock_y`, `handle_size`, `strict_borders` attrbutes and constructor arguments (accessible from the style). The `area_update_id` and `handle_update_id` constructor arguments are added in the style argument.
 
 # 1.0.3
 

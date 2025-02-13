@@ -4,6 +4,7 @@ from mili import data as _data
 
 if typing.TYPE_CHECKING:
     from mili import _core
+    from mili import utility
 
 __all__ = (
     "NumberOrPercentage",
@@ -18,6 +19,9 @@ __all__ = (
     "TextStyleLike",
     "ImageStyleLike",
     "AnyStyleLike",
+    "ScrollbarStyleLike",
+    "SliderStyleLike",
+    "DropMenuStyleLike",
     "ComponentProtocol",
 )
 
@@ -40,6 +44,63 @@ type BoundingAlignLike = typing.Literal[
 type PointsLike = typing.Sequence[typing.Sequence[NumberOrPercentage]]
 type AnimValueLike = float | pygame.Color | typing.Sequence[float]
 type EasingLike = typing.Callable[[float], float]
+
+
+class ScrollbarStyleLike(typing.TypedDict):
+    axis: typing.Literal["x", "y"]
+    short_size: float
+    border_dist: float
+    padding: float
+    size_reduce: float
+    bar_update_id: str | None
+    handle_update_id: str | None
+
+
+class SliderStyleLike(typing.TypedDict):
+    lock_x: bool
+    lock_y: bool
+    handle_size: typing.Sequence[float]
+    strict_borders: bool
+    area_update_id: str | None
+    handle_update_id: str | None
+
+
+class DropMenuStyleLike(typing.TypedDict):
+    direction: typing.Literal["up", "down"]
+    anchor: typing.Literal["first", "center", "last"]
+    padding: float
+    selected_update_id: str | None
+    option_update_id: str | None
+    menu_update_id: str | None
+
+
+class TextBoxStyleLike(typing.TypedDict):
+    placeholder: str
+    text_style: "TextStyleLike"
+    bg_rect_style: "RectStyleLike|None"
+    outline_rect_style: "RectStyleLike|None"
+    placeholder_color: pygame.typing.ColorLike
+    error_color: pygame.typing.ColorLike
+    text_wrap_x: bool  #
+    multi_line: bool
+    cursor_w: int  #
+    cursor_color: pygame.typing.ColorLike
+    blink_interval: int
+    input_validator: typing.Callable[[str], str | None] | None
+    text_validator: typing.Callable[[str], bool] | None
+    validator_lowercase: bool
+    validator_windows_path: bool
+    target_number: bool
+    number_min: float | None
+    number_max: float | None
+    number_integer: bool
+    selection_color: pygame.typing.ColorLike | None  #
+    keymod: int
+    copy_key: int | None
+    paste_key: int | None
+    select_all_key: int | None
+    delete_all_key: int | None
+    scroll: "utility.Scroll|None"
 
 
 class _ElementStyleLike(typing.TypedDict):
@@ -176,6 +237,7 @@ class _ImageStyleLike(_ComponentStyleLike):
     stretchy: bool
     fill_color: pygame.typing.ColorLike
     smoothscale: bool
+    ready_border_radius: NumberOrPercentage
     border_radius: NumberOrPercentage
     alpha: int
     ninepatch_size: NumberOrPercentage

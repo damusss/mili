@@ -38,7 +38,7 @@ def _render_layer_cache(self: _data.ImageLayerCache, canva: pygame.Surface | Non
     for cache in remove:
         self._caches.remove(cache)
         self._caches_set.remove(cache)
-    canva.blit(self._surface, self._offset)
+    canva.blit(self._surface, self._offset, special_flags=self.blit_flags)
     self._rendered = True
 
 
@@ -133,10 +133,22 @@ def _get_image(
     alpha,
     smoothscale,
     nine_patch,
+    ready_border_radius,
 ) -> pygame.Surface:
     iw, ih = data.size
     tw, th = max(rect.w - padx * 2, 1), max(rect.h - pady * 2, 1)
 
+    if ready_border_radius > 0:
+        mask_surf = pygame.Surface((iw, ih), pygame.SRCALPHA)
+        newdata = pygame.Surface((iw, ih), pygame.SRCALPHA)
+        newdata.blit(data)
+        mask_surf.fill(0)
+        pygame.draw.rect(
+            mask_surf, (255, 255, 255, 255), (0, 0, iw, ih), 0, int(ready_border_radius)
+        )
+        newdata.blit(mask_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        data = newdata
+        border_radius = 0
     if nine_patch == 0:
         if not do_fill:
             w = tw

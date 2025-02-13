@@ -881,6 +881,7 @@ class _ctx:
         color = self._style_val(style, "text", "color", "white")
         bg_color = self._style_val(style, "text", "bg_color", None)
         align = self._style_val(style, "text", "align", "center")
+        blit_flags = self._style_val(style, "text", "blit_flags", 0)
         growx, growy = (
             self._style_val(style, "text", "growx", False),
             self._style_val(style, "text", "growy", True),
@@ -999,7 +1000,7 @@ class _ctx:
             rect.w = sw + padx * 2
 
         txtrect = surf.get_rect(**_coreutils._align_rect(align, rect, padx, pady))
-        self._canva.blit(surf, txtrect)
+        self._canva.blit(surf, txtrect, special_flags=blit_flags)
 
     def _text_size(self, data: str, style):
         font = self._get_font(style)
@@ -1071,6 +1072,7 @@ class _ctx:
         if data is None or self._canva is None:
             return
         ready = self._style_val(style, "image", "ready", False)
+        blit_flags = self._style_val(style, "image", "blit_flags", 0)
         if ready:
             output = data
         else:
@@ -1090,6 +1092,10 @@ class _ctx:
             smoothscale = self._style_val(style, "image", "smoothscale", False)
             border_radius = _coreutils._abs_perc(
                 self._style_val(style, "image", "border_radius", 0), min(rect.w, rect.h)
+            )
+            ready_border_radius = _coreutils._abs_perc(
+                self._style_val(style, "image", "ready_border_radius", 0),
+                min(data.size),
             )
             alpha = self._style_val(style, "image", "alpha", 255)
             nine_patch = _coreutils._abs_perc(
@@ -1120,6 +1126,7 @@ class _ctx:
                     alpha,
                     smoothscale,
                     nine_patch,
+                    ready_border_radius,
                 )
                 if layer_cache:
                     layer_cache._dirty = True
@@ -1138,6 +1145,7 @@ class _ctx:
                         "size": rect.size,
                         "smoothscale": smoothscale,
                         "nine_patch": nine_patch,
+                        "rborder_radius": ready_border_radius,
                         "pos": None,
                     }
                     output = _coreutils._get_image(
@@ -1153,6 +1161,7 @@ class _ctx:
                         alpha,
                         smoothscale,
                         nine_patch,
+                        ready_border_radius,
                     )
                     new_cache["output"] = output
                     cache._cache = new_cache
@@ -1173,6 +1182,7 @@ class _ctx:
                         or border_radius != _cache["border_radius"]
                         or alpha != _cache["alpha"]
                         or nine_patch != _cache["nine_patch"]
+                        or ready_border_radius != _cache["rborder_radius"]
                     ):
                         new_cache = {
                             "data": data,
@@ -1187,6 +1197,7 @@ class _ctx:
                             "size": rect.size,
                             "smoothscale": smoothscale,
                             "nine_patch": nine_patch,
+                            "rborder_radius": ready_border_radius,
                             "pos": None,
                         }
                         output = _coreutils._get_image(
@@ -1202,6 +1213,7 @@ class _ctx:
                             alpha,
                             smoothscale,
                             nine_patch,
+                            ready_border_radius,
                         )
                         new_cache["output"] = output
                         cache._cache = new_cache
@@ -1211,7 +1223,7 @@ class _ctx:
                         output = _cache["output"]
         image_rect = output.get_rect(center=rect.center)
         if ready or not layer_cache:
-            self._canva.blit(output, image_rect)
+            self._canva.blit(output, image_rect, special_flags=blit_flags)
         else:
             prev = cache._cache["pos"]
             new = pygame.Vector2(image_rect.topleft)

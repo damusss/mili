@@ -34,11 +34,13 @@ class ImageLayerCache:
         mili: "_MILI",
         size: typing.Sequence[float],
         offset: typing.Sequence[float] = (0, 0),
+        blit_flags: int = 0,
     ):
         self._offset = pygame.Vector2(0, 0)
         self._surface = pygame.Surface((0, 0))
         self.size = size
         self.active = True
+        self.blit_flags: int = blit_flags
         self._offset = pygame.Vector2(offset)
         self._erase_rects: tuple[pygame.Rect, ...] | None = None
         self._mili = mili

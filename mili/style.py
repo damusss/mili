@@ -14,6 +14,7 @@ __all__ = (
     "Style",
     "StyleStatus",
     "conditional",
+    "cond_value",
     "filter",
     "same",
     "RESIZE",
@@ -113,6 +114,7 @@ def conditional[TK, TV](
     press: dict[TK, TV] | None = None,
     selected=False,
     press_button: int = pygame.BUTTON_LEFT,
+    absolute_hover: bool = False,
 ) -> dict[TK, TV]:
     if hover is None:
         hover = {}
@@ -122,7 +124,7 @@ def conditional[TK, TV](
         base = {}
     new_base = {}
     new_base.update(base)
-    if interaction.hovered:
+    if interaction.hovered or (absolute_hover and interaction.absolute_hover):
         if selected or interaction.press_button == press_button:
             new_base.update(press)
         else:
@@ -131,6 +133,23 @@ def conditional[TK, TV](
         if selected or interaction.press_button == press_button:
             new_base.update(press)
     return new_base
+
+
+def cond_value[TV](
+    interaction: _data.Interaction,
+    base: TV,
+    hover: TV,
+    press: TV,
+    selected=False,
+    press_button: int = pygame.BUTTON_LEFT,
+    absolute_hover: bool = False,
+    repeat: int = 1,
+):
+    if selected or interaction.press_button == press_button:
+        return press if repeat <= 1 else (press,) * repeat
+    if interaction.hovered or (absolute_hover and interaction.absolute_hover):
+        return hover if repeat <= 1 else (hover,) * repeat
+    return base if repeat <= 1 else (base,) * repeat
 
 
 def filter[TK, TV](

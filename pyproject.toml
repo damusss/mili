@@ -24,4 +24,4 @@ Issues = "https://github.com/damusss/mili/issues"
 Documentation = "https://github.com/damusss/mili/blob/main/guide/guide.md"
 
 [tool.setuptools]
-packages = ['mili']
+packages = ['mili', 'mili._utils']

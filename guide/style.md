@@ -148,6 +148,7 @@ For every combination of font name and size a font object is created and cached.
 | padx, pady | `number/percentage` | _control the space between the text and the element borders_ | `5/3` |
 | pad | `number/percentage/None` | _override the space between the text and the element borders for both directions_ | `None` |
 | wraplen | `number/percentage` | _manually control the maximum width the text can have. 0 means the text is not restricted_ | `0` |
+| blit_flags | `integer` | _flags passed to the special\_flags parameter of Surface.blit to control blending_ | `0` |
 | draw_above | `True/False` | _control wether the text is drawn above the children_ | `False` |
 | slow_grow | `True/False` | _temporary style, since Font.size() does not implement wrapline or newlines, if slow_grow is set to True Font.render will be used (which is slower). incompatible with growx_ | `False` |
 
@@ -168,7 +169,9 @@ By default the surface keeps its aspect ratio while fitting in the element area.
 | fill_color | `color value/None` | _if not `None`, fill the surface with this color_ | `None` |
 | smoothscale | `True/False` | _control the scale backend to use_ | `False` |
 | border_radius | `number/percentage` | _control how rounded are the corners of the surface_ | `0` |
+| ready_border_radius | `number/percentage` | _control how rounded are the corners of the surface (the rounding is applied before the image is resized)_ | `0` |
 | alpha | `integer 0-255` | _control the surface alpha_ | `255` |
+| blit_flags | `integer` | _flags passed to the special\_flags parameter of Surface.blit to control blending_ | `0` |
 | ninepatch_size | `number/percentage` | _if > 0, the surface will be scaled to fit the element but the 4 corners of the specified size will be preserved_ (**incompatible with fill, stretchx, and stretchy**) | `0` |
 | draw_above | `True/False` | _control wether the image is drawn above the children_ | `False` |
 | ready | `True/False` | _if true, mili will assume the image was already modified and scaled to be inside the element by the user so no operations and useless checks will be performed. useful when combining mili.fit\_image and multithreading_ | `False` |
@@ -200,6 +203,43 @@ The points should be a sequence of at least 2 sequences where the x and y values
 | color | `color value` | _control the polygon color_ | `black` |
 | draw_above | `True/False` | _control wether the polygon is drawn above the children_ | `False` |
 
+## Utility Styles
+
+### mili.Scrollbar
+
+| Name | Type/Value | Description | Default |
+| ------------------- | ------------------- | ------------------- | ------------------- |
+| axis | `x/y` | _The axis the scrollbar controls_ | `y` |
+| short_size | `number` | _How wide is the scrollbar in the opposite axis. It is adviced to customize at least this value_ | `10` |
+| border_dist | `number` | _The distance from the right/bottom side of the scrollbar and the border of the container_ | `3` |
+| padding | `number` | _The distance from the tips of the scrollbar and the borders of the container_ | `3` |
+| size_reduce | `number` | _A value that can reduce the calculated length of the scrollbar. Useful to accomodate a scrollbar of the opposite axis in that space_ | `0` |
+| bar_update_id | `str/None` | _The update ID to assign to the bar of the scrollbar to automatically update it_ | `None` |
+| handle_update_id | `str/None` | _The update ID to assign to the handle of the scrollbar to automatically update it_ | `None` |
+
+### mili.Slider
+
+| Name | Type/Value | Description | Default |
+| ------------------- | ------------------- | ------------------- | ------------------- |
+| lock_x | `True/False` | _Lock the movement of the slider on the X axis. If the lock\_y style is False this will result in a vertical slider_ | `False` |
+| lock_y | `True/False` | _Lock the movement of the slider on the Y axis. If the lock\_x style is False this will result in an horizontal slider_ | `False` |
+| handle_size | `[number, number]` | _The size of the handle. It is adviced to customize at least this value_ | `(10, 10)` |
+| strict_borders | `True/False` | _Specify wether the handle can exceed the area borders by half its size or if it should be perfectly contained_ | `False` |
+| area_update_id | `str/None` | _The update ID to assign to the area of the slider to automatically update it_ | `None` |
+| handle_update_id | `str/None` | _The update ID to assign to the handle of the slider to automatically update it_ | `None` |
+
+
+### mili.DropMenu
+
+| Name | Type/Value | Description | Default |
+| ------------------- | ------------------- | ------------------- | ------------------- |
+| direction | `up/down` | _Wether it is a drop down or a drop up_ | `down` |
+| anchor | `first/center/last` | _Wether the menu container should be aligned with the left side of the selected option element, the right side of it or centered to it_ | `first` |
+| padding | `number` | _The distance from the selected option element and the menu container_ | `3` |
+| selected_update_id | `str/None` | _The update ID to assign to the selected option element to automatically update it_ | `None` |
+| menu_update_id | `str/None` | _The update ID to assign to the menu container to automatically update it_ | `None` |
+| option_update_id | `str/None` | _The same update ID to assign to each option of the drop menu to automatically update them | `None` |
+
 ## Style Helpers
 
 ### (exported in the `mili.style` module)
@@ -221,6 +261,8 @@ The points should be a sequence of at least 2 sequences where the x and y values
 - `mili.style.same()` creates a dictionary with the same value for different style names<br>
 
 - `mili.style.conditional()` will use the base style and expand it with the hover and press style based on the interaction status and selection status<br>
+
+- `mili.style.cond_value()` same as `conditional` but works for any value and not only dictionaries with an additional option to repeat the value in a tuple.<br>
 
 - `mili.style.Style` will help you cache common styles. you can retrieve them with `get(type)` or use the shortcuts like `get_rect()`<br>
 
