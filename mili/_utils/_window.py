@@ -9,7 +9,7 @@ class GenericApp:
         self,
         window: pygame.Window,
         target_framerate: int = 60,
-        clear_color: pygame.typing.ColorLike = 0,
+        clear_color: pygame.typing.ColorLike | None = 0,
         start_style: _typing.ElementStyleLike | None = None,
         use_global_mouse: bool = False,
     ):
@@ -17,7 +17,7 @@ class GenericApp:
         self.clock = pygame.Clock()
         self.target_framerate: int = target_framerate
         self.mili = _MILI(self.window.get_surface(), use_global_mouse)
-        self.clear_color: pygame.typing.ColorLike = clear_color
+        self.clear_color: pygame.typing.ColorLike | None = clear_color
         self.start_style: _typing.ElementStyleLike | None = start_style
         self.delta_time: float = 0
 
@@ -45,13 +45,74 @@ class GenericApp:
                 else:
                     self.event(event)
 
-            self.window.get_surface().fill(self.clear_color)
+            if self.clear_color is not None:
+                self.window.get_surface().fill(self.clear_color)
             self.update()
             self.ui()
             self.mili.update_draw()
             self.post_draw()
             self.window.flip()
             self.delta_time = self.clock.tick(self.target_framerate) / 1000
+
+
+class _HasSizeAttr(typing.Protocol):
+    size: typing.Sequence[float]
+
+
+class AdaptiveUIScaler:
+    def __init__(
+        self,
+        window: pygame.Window | _HasSizeAttr,
+        relative_size: typing.Sequence[float],
+        scale_clamp: tuple[float | None, float | None] | None = (0.2, 1.2),
+        width_weight: float = 1,
+        height_weight: float = 1,
+        min_value: float | None = 1,
+        int_func: typing.Callable[[float], int] = int
+    ):
+        self.window = window
+        self.relative_size = pygame.Vector2(relative_size)
+        self.scale_clamp = scale_clamp
+        self.width_weight = width_weight
+        self.height_weight = height_weight
+        self.min_value = min_value
+        self.int_func = int_func
+        self._mult = 1
+
+    def update(self):
+        size = self.window.size
+        xmult = size[0] / self.relative_size.x
+        ymult = size[1] / self.relative_size.y
+        mult = (xmult * self.width_weight + ymult * self.height_weight) / (
+            self.width_weight + self.height_weight
+        )
+        if self.scale_clamp is not None:
+            clampmin, clampmax = self.scale_clamp
+            if clampmin is not None and mult < clampmin:
+                mult = clampmin
+            if clampmax is not None and mult > clampmax:
+                mult = clampmax
+        self._mult = mult
+
+    def scale(
+        self, value: float, min_override: float | None = None
+    ) -> int:
+        min_value = self.min_value
+        if min_override is not None:
+            min_value = min_override
+        scaled = value * self._mult
+        if min_value is not None and scaled < min_value:
+            scaled = min_value
+        return self.int_func(scaled)
+
+    def scalef(self, value: float, min_override: float | None = None) -> float:
+        min_value = self.min_value
+        if min_override is not None:
+            min_value = min_override
+        scaled = value * self._mult
+        if min_value is not None and scaled < min_value:
+            scaled = min_value
+        return scaled
 
 
 class CustomWindowBorders:
@@ -78,6 +139,8 @@ class CustomWindowBorders:
             ]
         ]
         | typing.Literal["all"] = "all",
+        constraint_rect: pygame.typing.RectLike | None = None,
+        *,
         on_move: typing.Callable[[], None] | None = None,
         on_resize: typing.Callable[[], None] | None = None,
         on_start_move: typing.Callable[[], None] | None = None,
@@ -94,6 +157,9 @@ class CustomWindowBorders:
         self.ratio_axis = ratio_axis
         self.uniform_resize_key = uniform_resize_key
         self.allowed_directions = allowed_directions
+        self.constraint_rect = (
+            pygame.Rect(constraint_rect) if constraint_rect is not None else None
+        )
         self._callbacks: dict[
             typing.Literal["move", "resize"],
             dict[
@@ -167,21 +233,26 @@ class CustomWindowBorders:
                 handle._make_rect()
 
         if self.change_cursor:
+            next_cursor = None
             if not self.resizing:
                 if tbar_rect.h > 0 and (tbar_rect.collidepoint(mpos) or self.dragging):
-                    pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
+                    next_cursor = pygame.SYSTEM_CURSOR_HAND
                     modified_cursor = True
-            for handle in self._resize_handles:
-                if (
-                    self.allowed_directions == "all"
-                    or handle._name in self.allowed_directions
-                ) and (
-                    handle._rect.collidepoint(mpos)
-                    or (self.resizing and self._resize_handle is handle)
-                ):
-                    pygame.mouse.set_cursor(handle._cursor)
-                    modified_cursor = True
-                    break
+            if not self.dragging:
+                for handle in self._resize_handles:
+                    if (
+                        self.allowed_directions == "all"
+                        or handle._name in self.allowed_directions
+                    ) and (
+                        handle._rect.collidepoint(mpos)
+                        or (self.resizing and self._resize_handle is handle)
+                    ):
+                        pygame.mouse.set_cursor(handle._cursor)
+                        modified_cursor = True
+                        next_cursor = None
+                        break
+            if next_cursor is not None:
+                pygame.mouse.set_cursor(next_cursor)
 
         if just:
             for handle in self._resize_handles:
@@ -229,7 +300,8 @@ class CustomWindowBorders:
         if pressed:
             if not just and self.dragging:
                 previous = pygame.Vector2(self.window.position)
-                self.window.position = self._start_val + (gmpos - self._press_global)
+                new_position = self._start_val + (gmpos - self._press_global)
+                self.window.position = self._constrain_position(new_position)
                 self.relative = self.window.position - previous
                 self.cumulative_relative = self.window.position - self._start_val
                 callback = self._callbacks["move"]["during"]
@@ -244,6 +316,23 @@ class CustomWindowBorders:
             self.dragging = False
             self.relative = pygame.Vector2()
         return modified_cursor
+
+    def _constrain_position(self, pos: pygame.Vector2):
+        if self.constraint_rect is None:
+            return pos
+        sx, sy = self.window.size
+        return pygame.Vector2(
+            pygame.math.clamp(
+                pos.x,
+                self.constraint_rect.x,
+                max(self.constraint_rect.right - sx, self.constraint_rect.x),
+            ),
+            pygame.math.clamp(
+                pos.y,
+                self.constraint_rect.y,
+                max(self.constraint_rect.bottom - sy, self.constraint_rect.y),
+            ),
+        )
 
     class _ResizeHandle:
         def __init__(
@@ -326,7 +415,7 @@ class CustomWindowBorders:
             if newsize.x <= 0 or newsize.y <= 0:
                 return
             if self._parent.minimum_ratio is not None:
-                if self._parent.ratio_axis:
+                if self._parent.ratio_axis == "y":
                     ratio = newsize[0] / newsize[1]
                 else:
                     ratio = newsize[1] / newsize[0]
@@ -339,6 +428,11 @@ class CustomWindowBorders:
                         newsize = pygame.Vector2(
                             newsize[0], newsize[0] * self._parent.minimum_ratio
                         )
+            if self._parent.constraint_rect is not None:
+                newsize = pygame.Vector2(
+                    pygame.math.clamp(newsize.x, 0, self._parent.constraint_rect.w),
+                    pygame.math.clamp(newsize.y, 0, self._parent.constraint_rect.h),
+                )
             self._parent.window.size = newsize
             diff = self._parent.window.size - newsize
             if self._movewindow == "x" and diff.x != 0:
@@ -352,7 +446,9 @@ class CustomWindowBorders:
                 self._parent.window.size - self._parent._start_val
             )
             if posrel.length() != 0 and self._parent._resize_winpos is not None:
-                self._parent.window.position = self._parent._resize_winpos - posrel
+                self._parent.window.position = self._parent._constrain_position(
+                    self._parent._resize_winpos - posrel
+                )
             callback = self._parent._callbacks["resize"]["during"]
             if callback is not None:
                 callback()

@@ -7,6 +7,8 @@ if typing.TYPE_CHECKING:
 
 __all__ = ("ImageCache", "TextCache", "ImageLayerCache", "Interaction", "ElementData")
 
+PARENT_PRE_ORGANIZE_CHILDREN = 1
+
 
 class ImageCache:
     _preallocated_caches = []
@@ -109,6 +111,7 @@ class TextCache:
 
     def __init__(self):
         self._cache: dict[str, typing.Any] | None = None
+        self._rich: dict | None = None
 
     def get_output(self) -> pygame.Surface | None:
         if self._cache is None:
@@ -123,7 +126,7 @@ class TextCache:
         return cls._preallocated_caches[cls._preallocated_index]
 
 
-@dataclass
+@dataclass(slots=True)
 class ElementGridData:
     overflowx: float
     overflowy: float
@@ -141,10 +144,11 @@ class ElementData:
     z: int
     id: int
     style: dict[str, typing.Any]
-    children_ids: list[int]
     components: dict[typing.Literal["type", "style", "data"], typing.Any]
     parent_id: int
     _grid: dict | None | ElementGridData
+    _children: list[dict]
+    _children_ids: list[int] | None = None
 
     @property
     def grid(self) -> ElementGridData:
@@ -156,6 +160,12 @@ class ElementData:
         self._grid = ElementGridData(**self._grid)
         return self._grid
 
+    @property
+    def children_ids(self) -> list[int]:
+        if self._children_ids is None:
+            self._children_ids = [el["id"] for el in self._children]
+        return self._children_ids
+
 
 @dataclass
 class Interaction:
@@ -166,10 +176,19 @@ class Interaction:
     just_released_button: int
     absolute_hover: bool
     unhover_pressed: bool
-    just_hovered: bool
-    just_unhovered: bool
+    _just_hover: int
     _raw_data: dict[str, typing.Any]
     _data: ElementData | None = None
+    _did_begin: bool = False
+    parent: "Interaction|None" = None
+
+    @property
+    def just_hovered(self) -> bool:
+        return self._just_hover == 1
+
+    @property
+    def just_unhovered(self) -> bool:
+        return self._just_hover == -1
 
     @property
     def left_pressed(self) -> bool:
@@ -183,6 +202,36 @@ class Interaction:
     def left_just_released(self) -> bool:
         return self.just_released_button == pygame.BUTTON_LEFT
 
+    left_clicked = left_just_released
+
+    @property
+    def right_pressed(self) -> bool:
+        return self.press_button == pygame.BUTTON_RIGHT
+
+    @property
+    def right_just_pressed(self) -> bool:
+        return self.just_pressed_button == pygame.BUTTON_RIGHT
+
+    @property
+    def right_just_released(self) -> bool:
+        return self.just_released_button == pygame.BUTTON_RIGHT
+
+    right_clicked = right_just_released
+
+    @property
+    def middle_pressed(self) -> bool:
+        return self.press_button == pygame.BUTTON_MIDDLE
+
+    @property
+    def middle_just_pressed(self) -> bool:
+        return self.just_pressed_button == pygame.BUTTON_MIDDLE
+
+    @property
+    def middle_just_released(self) -> bool:
+        return self.just_released_button == pygame.BUTTON_MIDDLE
+
+    middle_clicked = middle_just_released
+
     @property
     def data(self) -> ElementData:
         if self._data is None:
@@ -195,4 +244,5 @@ class Interaction:
         return self
 
     def __exit__(self, *args, **kwargs):
-        self._mili.end()
+        if self._did_begin:
+            self._mili.end()

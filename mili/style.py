@@ -1,6 +1,7 @@
 import typing
 import pygame
 import functools
+import copy
 
 from mili import _core
 from mili import error as _error
@@ -50,6 +51,10 @@ class Style:
         if type not in self.styles:
             raise _error.MILIValueError("Invalid style type")
         self.styles[type] = style
+
+    def sets(self, **types_styles: _typing.AnyStyleLike):
+        for type, style in types_styles.items():
+            self.set(type, style)
 
     def get(self, type: str) -> _typing.AnyStyleLike:
         if type not in self.styles:
@@ -105,6 +110,37 @@ class StyleStatus:
     get_line = functools.partialmethod(get, "line")
     get_text = functools.partialmethod(get, "text")
     get_image = functools.partialmethod(get, "image")
+
+
+class DefaultStyle:
+    def __init__(
+        self, style: Style | None = None, **types_styles: _typing.AnyStyleLike
+    ):
+        if style is None:
+            style = Style(**types_styles)  # type: ignore
+        else:
+            style = Style(**style.styles)
+            style.sets(**types_styles)
+        self.style = style
+        self._previous = None
+        self._mili: "_MILI|None" = None
+
+    def __enter__(self):
+        mili = _core._globalctx._mili
+        if mili is None:
+            raise _error.MILIStatusError(
+                "Can only use the default style context manager after calling MILI.start()"
+            )
+        self._mili = None
+        self._previous = copy.deepcopy(mili._ctx._default_styles)
+        for name, style in self.style.styles.items():
+            mili._ctx._default_styles[name].update(style)
+
+    def __exit__(self, *args, **kwargs):
+        if self._mili is None or self._previous is None:
+            return
+        self._mili._ctx._default_styles = self._previous
+        self._previous = self._mili = None
 
 
 def conditional[TK, TV](
@@ -175,6 +211,14 @@ def filter[TK, TV](
 
 def same[TV](value: TV, *names: str) -> dict[str, TV]:
     return {name: value for name in names}
+
+
+def color(color):
+    return {"color": color}
+
+
+def outline(color, size=1):
+    return {"color": color, "outline": size, "draw_above": True}
 
 
 RESIZE = {"resizex": True, "resizey": True}

@@ -54,7 +54,7 @@ In MILI there are no prefabs such as buttons or labels. The skeleton is composed
 -   `MILI.end()`: Signal that the current parent has ended
 
 Elements created after the begin call will be assigned to that parent. The end call will set the parent to the previous one.
-You can avoid calling end using the context manager on the returned `Interaction` object.
+You can avoid calling end using the context manager on the returned `Interaction` object. You can use the context manager for elements aswell without errors.
 
 Example of an element structure:
 
@@ -106,6 +106,8 @@ my_mili.element(rect, {"update_id": "element1"})
 # automatically call dragger.update and sound_player.play
 ```
 
+Use the `mili.register_update_id` function to associate your own function (that must take an `Interaction` object as the only parameter) to an `update_id`. If the update_id passed to it is `None` the call will be ignored.
+
 ## Components
 
 Since elements have no graphics, to give the user visual feedback you need to use components. There are six built in components, each with its method:
@@ -148,6 +150,34 @@ To reduce boilerplate code, for every component there is a shortcut that creates
 
 For text specifically there are also the utilities `MILI.text_size` and `MILI.text_font` that compute and return the size and font a text element would use if it was rendered.
 
+## Markdown
+
+MILI supports rendering markdown with a built in renderer that converts markdown text to MILI native calls. To use it you firstly need to store a `mili.MarkDown` object permanently, to which you give the markdown source and the style (more info in the style guide). Then, in your UI loop just call `MILI.markdown(markdown)`. The markdown will be rendered inside the parent at the time of calling MILI.markdown(). If the style allows it, this method will return a boolean signaling if the cursor was changed to a hand or not.
+
+You can change the style fields but not remove any field. To apply some style changes you might have to call `mili.MarkDown.rebuild()`.
+
+Other than markdown rich text (check what is supported in the style guide), supported elements are:
+
+-   `# titles` (up to 6 #s)
+-   `\n`/`<br>` (separators)
+-   `---`/`***`/`___`/`<hr>` (breaklines)
+-   \`\`\` multiline code blocks \`\`\`
+-   `![alt text](image url/path)` (images)
+-   `[![image alt text](image url/path)](click url)` (link images)
+-   `- bullet lists` (can nest elements)
+-   `> quotes` (can nest elements)
+-   Tables (cell content can be: a paragraph, an image, a link image):
+```
+| title 1 | title 2 |
+| :------ | ------: |
+| cell 1 | cell 2  |
+| cell 3 | cell 4  |
+```
+
+Tabs result in indentation.
+
+**NOTE**: Processing markdown has limited efficiency so keep it in mind when rendering giant files.
+
 ## Advanced Usage
 
 ### Advanced Properties
@@ -159,12 +189,15 @@ You can manage the font cache with the provided functions. A font instance will 
 
 MILI instances have a couple advanced properties and methods:
 
+-   `MILI.last_interaction`: The Interaction object returned by the last element/parent
+-   `MILI.current_parent_interaction`: The Interaction object of the currently active parent
+-   `MILI.id`: The element ID that will be used by the next element. Can be assigned to, having the same behaviour as `MILI.id_checkpoint`
 -   `MILI.stack_id`: The ID of the main parent element
 -   `MILI.current_parent_id`: The ID of the current parent
 -   `MILI.all_elements_ids`: A list with the IDs of all created elements in memory
 -   `MILI.data_from_id()`: Get an `ElementData` object from an element ID
--   `MILI.clear_memory()`: Clear all the elments in memory. Useful when changing scenes or massively updating them to avoid specific glitches.
--   `MILI.id_checkpoint()`: Manually set the internal ID. Useful to avoid new elements to inherit the memory of the previous element and be visually unpleasent for a few frames.
+-   `MILI.clear_memory(keep_ids=None)`: Clear all the elments in memory. Useful when changing scenes or massively updating them to avoid specific glitches. A list of IDs can be passed wich represent elements that should not be erased from memory.
+-   `MILI.id_checkpoint(id)`: Manually set the internal ID. Useful to avoid new elements to inherit the memory of the previous element and be visually unpleasent for a few frames.
 
 -   `MILI.add_element_style(style, element_id)`:
 

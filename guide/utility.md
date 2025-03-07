@@ -7,17 +7,6 @@ The `mili.utility` module contains functions and classes to simplify managing el
 ## Functions
 
 -   `mili.percentage`: Calculates the percentage of a value and returns it. The same calculation is used internally for percentage strings.
--   `mili.indent`: This function doesn't do anything, but you can use the python syntax to put lines on different indentations, for example:
-    ```py
-    mili.indent(
-    mili.element(rect, style), # 1 indentation for element
-        mili.rect(style),
-        mili.text(text, style),
-        mili.rect(style),
-        # 2 indentations for components of this element.
-    )
-    ```
-    You can really achieve the same by using the if statement, as the return value of element or begin will always compute to True.
 -   `mili.fit_image`: Return a surface that is constrained inside the provided rectangle plus extra applied styles which are the same that you would provide to an image component and work the same.
 
 Keep in mind that to make gray colors (generally to repeat a value in a tuple) you can use the multiply operator. `(50,) * 3` -> `(50, 50, 50)`
@@ -212,6 +201,36 @@ if menu.shown:
                 print("Selected: ", menu.selected)
 ```
 
+## `EntryLine`
+
+An object that implements a rich entryline (no multiline support) supporting every key and mouse shortcut aswell as selecting, copying, cutting and pasting. By default an history (accessible with ctrl-z and ctrl-y) is enabled.
+
+The style allows for a very high customization (every style field can be changed at any moment without underfined behaviour but removing a style key will result in a KeyError). Check the style guide to use the styles properly. It is adviced to call `pygame.key.set_repeat()` in your app.
+
+For the entryline to work two main methods must be called in your loop:
+
+-   `event(pygame.Event)`: Must be called for every event in your event loop
+-   `ui(container)`: Must be called in the UI loop. It will update the entryline and render the text. The container interaction parameter must be a parent. If the bg and outline style rect shortcuts are specified they will be added to that element. By default the inner text element will fill the container on the y axis and will not let the text grow on that axis, but this behaviour can be overridden with the `"text_filly"` and `"text_style"` style fields.
+
+You can get the text with the `text` or `text_strip` properties. If the target is a number, get an (always) valid number within allowed range using the `text_as_number` property.
+
+Most actions accessible with key and mouse shortcuts are accessible with code aswell:
+
+-   `insert(string)`: Add a string at cursor position
+-   `move_cursor(amount)`: Move and clamp the cursor (check the cursor with the `cursor` attribute)
+-   `delete(amount)`: Delete backwards (with a negative amount) or forward (with a positive amount) from the cursor position
+-   `select(start, end)`: Manually set the selection endpoints (right value will also be the cursor)
+-   `cancel_selection()`: Keep the cursor position but cancel the selection
+-   `delete_selection()`: Erase the selection
+-   `get_selection()`: Get the portion of the text selected
+-   `undo()`: Restore the previous action
+-   `redo()`: Restore the last action that was undone
+-   `focus()`/`unfocus()`: Control the entryline focus (access the state with the `focused` attribute)
+
+If you use a `Scroll` object to scroll the text left and right it must be set as the scroll field in the style.
+
+Validators are optional custom callable. The input validator should expect a single character and return it (or modified) if it's valid or None if it should be discarded. The text validator should expect a string and return a tuple with the validated string (or the same string) and a boolean indicating if the string was valid or not.
+
 ## `InteractionSound`
 
 This utility class allows you to play sounds when elements are interacted. You have to create an instance of it for every sounds collection. Not to complicate the implementation, an instance will only play click sounds for a selected mouse button, you need multiple instances for multiple mouse buttons. Every sound is optional.
@@ -302,3 +321,19 @@ When the user hovers over the allowed sides or corners or titlebar, it will be a
 -   `cumulative_relative`: The relative value from the moment the action started (for example the relative size compared to the moment the user started resizing). The same attribute is used for moving and resizing.
 
 The `relative` and `cumulative_relative` flags are always up-to-date when the callbacks are called.
+
+## `AdaptiveUIScaler`
+
+This object utility makes the UI sizes of your app dynamic when the window resizes. It works by using some reference sizes (the preferred sizes of your app) and calculate a multiplier based on how smaller or bigger the current window size is compared to the preferred sizes.
+
+For it to work you need to call `update()` every frame (preferrebly before your UI loop) and then call `scale(size)` for every size that you wish to be adaptive. `scalef()` is a copy of `scale` that doesn't convert the result to an integer (unlike `scale`).
+
+If your app has a preferred width of 1920 pixels, and you want a font size of 24, but the current window size is 960 (half) when you use `scale(24)` it will return 12 (half) with default settings.
+You can customize the scaler in the constructor as follows:
+
+-   `window`: A pygame.Window or an object with a `size` attribute to use as the up-to-date container.
+-   `relative_size`: The preffered application sizes in pixels.
+-   `scale_clamp`: A tuple with the minimum and maximum values that the multiplier can have, to avoid making the UI too small or too big. If min or max are None they won't be limited.
+-   `width_weight`, `height_weight`: Control how much the container dimentions weight on the multiplier. It depends on the dominant dimention of your application.
+-   `min_value`: The minimum value that a scaled size can have. This defaults to `1`, and it is generally suggested not to set it to 0 to avoid errors if the window has zero dimentions. This value can be overridden for each `scale` call.
+-   `int_func`: A function that converts a floating point number to an integer. Defaults to the builtin `int` type. Good alternative candidates are: `round`, `math.floor`, `math.ceil` depending on your preference.

@@ -9,6 +9,7 @@ The `mili.data` submodule contains 4 classes that represent data.
 The interaction object is returned by all elements by default. It contains all information you can need to understand how the user is interacting with the element:
 
 - `Interaction.data`: The `ElementData` object holding more detailed information about the element.
+- `Interaction.parent`: The `Interaction` object returned by the parent of this one.
 - `Interaction.hovered`: The user pointer is over this element which is also the highest element.
 - `Interaction.absolute_hover`: The user pointer is over this element but other elements might be covering it.
 - `Interaction.just_hovered`: The hovered status becomes True this frame meaning the user has started hovering
@@ -17,7 +18,8 @@ The interaction object is returned by all elements by default. It contains all i
 - `Interaction.just_pressed_button`: Same as `press_button` but is only set the first frame it happens.
 - `Interaction.just_released_button`: Same as `press_button` but is only set the last frame it happens. Corresponds to the "click" event.
 
-There are also three shortcuts for the left mouse button (most common): `left_pressed`, `left_just_pressed`, `left_just_released`
+There are also some shortcuts for the left, right, middle mouse buttons (most common): `left_pressed`, `left_just_pressed`, `left_just_released`, `right_pressed`, `right_just_pressed`, `right_just_released`, `middle_pressed`, `middle_just_pressed`, `middle_just_released`.
+The `*_just_released` properties are also exported as `*_clicked` as it is more intuitive.
 
 # `ElementData`
 
@@ -25,7 +27,7 @@ The element data object holds more information than the interaction and since it
 
 The `grid` attribute contains information about its parental behaviour such as the overflow, the padding, and the spacing (needed for scrolling) which are contained in the `ElementGridData` object, only accessible using the `mili.data` module (the others are exported to the `mili` package)
 
-The attributes might not be super accurate and might have some delay.
+The attributes might not be accurate every frame and might have some delay.
 
 # `ImageCache`
 

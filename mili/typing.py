@@ -22,6 +22,8 @@ __all__ = (
     "ScrollbarStyleLike",
     "SliderStyleLike",
     "DropMenuStyleLike",
+    "EntryLineStyleLike",
+    "MarkDownStyleLike",
     "ComponentProtocol",
 )
 
@@ -44,6 +46,66 @@ type BoundingAlignLike = typing.Literal[
 type PointsLike = typing.Sequence[typing.Sequence[NumberOrPercentage]]
 type AnimValueLike = float | pygame.Color | typing.Sequence[float]
 type EasingLike = typing.Callable[[float], float]
+
+
+class _ConditionalColorStyleLike(typing.TypedDict):
+    default: pygame.typing.ColorLike | None
+    hover: pygame.typing.ColorLike | None
+    pressed: pygame.typing.ColorLike | None
+
+
+class _MarkDownCodeCopyStyleLike(typing.TypedDict):
+    size: float
+    icon_color: _ConditionalColorStyleLike
+    icon_pad: NumberOrPercentage
+
+
+class _MarkDownCodeScrollbarStyleLike(typing.TypedDict):
+    border_radius: float
+    height: float
+    padx: float
+    pady: float
+    bar_color: pygame.typing.ColorLike | None
+    handle_color: _ConditionalColorStyleLike
+
+
+class MarkDownStyleLike(typing.TypedDict):
+    element_style: "ElementStyleLike"
+    rect_style: "RectStyleLike"
+    circle_style: "CircleStyleLike"
+    line_style: "LineStyleLike"
+    image_style: "ImageStyleLike"
+    text_style: "TextStyleLike"
+    quote_width: float
+    quote_border_radius: float
+    indent_width: float
+    separator_height: float
+    line_break_size: float
+    bullet_diameter: float
+    table_outline_size: float
+    table_border_radius: float
+    table_alignx: typing.Literal["left", "center", "right"]
+    table_aligny: typing.Literal["top", "center", "bottom"]
+    line_break_color: pygame.typing.ColorLike
+    bullet_color: pygame.typing.ColorLike
+    table_bg_color: pygame.typing.ColorLike|None
+    quote_color: pygame.typing.ColorLike
+    code_bg_color: pygame.typing.ColorLike
+    code_outline_color: pygame.typing.ColorLike
+    code_border_radius: NumberOrPercentage
+    code_copy_style: _MarkDownCodeCopyStyleLike
+    code_scrollbar_style: _MarkDownCodeScrollbarStyleLike
+    title1_size: int
+    title2_size: int
+    title3_size: int
+    title4_size: int
+    title5_size: int
+    title6_size: int
+    allow_image_link: bool
+    change_cursor: bool
+    load_images_async: bool
+    open_links_in_browser: bool
+    parse_async: bool
 
 
 class ScrollbarStyleLike(typing.TypedDict):
@@ -74,40 +136,50 @@ class DropMenuStyleLike(typing.TypedDict):
     menu_update_id: str | None
 
 
-class TextBoxStyleLike(typing.TypedDict):
+class EntryLineStyleLike(typing.TypedDict):
     placeholder: str
+    placeholder_color: pygame.typing.ColorLike
+    text_filly: str
     text_style: "TextStyleLike"
     bg_rect_style: "RectStyleLike|None"
     outline_rect_style: "RectStyleLike|None"
-    placeholder_color: pygame.typing.ColorLike
+    selection_style: "RectStyleLike|None"
+    selection_color: pygame.typing.ColorLike | None
     error_color: pygame.typing.ColorLike
-    text_wrap_x: bool  #
-    multi_line: bool
-    cursor_w: int  #
     cursor_color: pygame.typing.ColorLike
+    cursor_width: int
     blink_interval: int
+    double_click_interval: int
     input_validator: typing.Callable[[str], str | None] | None
-    text_validator: typing.Callable[[str], bool] | None
+    text_validator: typing.Callable[[str], tuple[str, bool]] | None
     validator_lowercase: bool
+    validator_uppercase: bool
     validator_windows_path: bool
     target_number: bool
     number_min: float | None
     number_max: float | None
     number_integer: bool
-    selection_color: pygame.typing.ColorLike | None  #
+    enable_history: bool
+    history_limit: int | None
     keymod: int
     copy_key: int | None
     paste_key: int | None
+    cut_key: int | None
     select_all_key: int | None
     delete_all_key: int | None
+    undo_key: int | None
+    redo_key: int | None
     scroll: "utility.Scroll|None"
 
 
 class _ElementStyleLike(typing.TypedDict):
-    resizex: bool | dict[typing.Literal["min", "max"], NumberOrPercentage]
-    resizey: bool | dict[typing.Literal["min", "max"], NumberOrPercentage]
+    resizex: bool
+    resizey: bool
     fillx: bool | NumberOrPercentage
     filly: bool | NumberOrPercentage
+    size_clamp: (
+        dict[typing.Literal["min", "max"], tuple[float | None, float | None]] | None
+    )
     blocking: bool
     ignore_grid: bool
     align: typing.Literal["first", "center", "last"]
@@ -126,6 +198,8 @@ class _ElementStyleLike(typing.TypedDict):
     )
     update_id: str
     image_layer_cache: _data.ImageLayerCache | None
+    parent_flag: int
+    cache_rect_size: bool
 
     axis: typing.Literal["x", "y"]
     spacing: NumberOrPercentage
@@ -159,6 +233,7 @@ class _RectStyleLike(_ComponentStyleLike):
     align: BoundingAlignLike
     dash_size: NumberOrPercentage | typing.Iterable[NumberOrPercentage] | None
     dash_offset: NumberOrPercentage
+    ready_rect: pygame.typing.RectLike | None
 
 
 type RectStyleLike = _RectStyleLike | dict[str, typing.Any]
@@ -200,6 +275,14 @@ class _PolygonStyleLike(_ComponentStyleLike):
 type PolygonStyleLike = _PolygonStyleLike | dict[str, typing.Any]
 
 
+class _TextRichMarkdownStyleLike(typing.TypedDict):
+    spoiler_color: pygame.typing.ColorLike
+    spoiler_text_color: pygame.typing.ColorLike
+    code_bg_color: pygame.typing.ColorLike
+    code_text_color: pygame.typing.ColorLike
+    highlight_color: pygame.typing.ColorLike
+
+
 class _TextStyleLike(_ComponentStyleLike):
     cache: _data.TextCache | None
     name: str | None
@@ -221,6 +304,13 @@ class _TextStyleLike(_ComponentStyleLike):
     pady: NumberOrPercentage
     wraplen: NumberOrPercentage
     slow_grow: bool
+    rich: bool
+    rich_aligny: typing.Literal["top", "center", "bottom"]
+    rich_linespace: int
+    rich_actions: dict[str, typing.Callable[[typing.Any], None]]
+    rich_link_color: pygame.typing.ColorLike
+    rich_markdown: bool
+    rich_markdown_style: _TextRichMarkdownStyleLike
 
 
 type TextStyleLike = _TextStyleLike | dict[str, typing.Any]

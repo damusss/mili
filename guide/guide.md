@@ -20,31 +20,8 @@ MILI also provides useful utilities to manage elements and animations:
 
 ## [MILI Animation](https://github.com/damusss/mili/blob/main/guide/animation.md)
 
+## [MILI Icon](https://github.com/damusss/mili/blob/main/guide/icon.md)
+
 Finally, there are common errors and typehints:
 
 ## [MILI Errors and Typehints](https://github.com/damusss/mili/blob/main/guide/extra.md)
-
-# Immediate Mode
-
-Subjective preference is excluded from the comparison.
-
-## Pros
-
-- More control, more flexible structure
-- Interaction is immediate bypassing callbacks and events
-- UI layout can seemelessly change between frames
-- Quickly change styles, layout and parenting without rebuilding
-- Element prefabs can be made with mere functions
-- Easily make conditional layouts with more logic between elements
-- UI layout runs on functions and is easier to follow and organize
-- Easier implementation of animations
-- Highly responsive to changes
-
-## Cons (against OO UI)
-
-- Less access to some internal mechanics
-- Less freedom to override internal mechanics
-- While possible, caching is harder and requires user-made long living objects
-- Higher number of repetitive checks and calls
-- Higher number of objects created
-- Generally less performant for stable and very large layouts

@@ -1,7 +1,10 @@
 import pygame
 import typing
+import threading
+import webbrowser
 
 from mili import _core
+from mili import _richtext
 from mili import error as _error
 from mili import data as _data
 from mili import typing as _typing
@@ -9,6 +12,7 @@ from mili import typing as _typing
 
 __all__ = (
     "MILI",
+    "MarkDown",
     "register_custom_component",
     "pack_component",
     "get_font_cache",
@@ -32,6 +36,117 @@ def clear_font_cache():
     _core._globalctx._font_cache = {}
 
 
+def register_update_id(
+    update_id: str | None, function: typing.Callable[[_data.Interaction], None]
+):
+    _core._globalctx._register_update_id(update_id, function)
+
+
+class MarkDown:
+    def __init__(
+        self, source: str, style: _typing.MarkDownStyleLike | dict | None = None
+    ):
+        self._source = source
+        self._any_hover = False
+        self._parse_result: None | list = None
+        self._images = {}
+        self._heights = {}
+        if style is None:
+            style = {}
+        copy = style.get("code_copy_style", {})
+        sbar = style.get("code_scrollbar_style", {})
+        self.style: _typing.MarkDownStyleLike = {
+            "element_style": style.get("element_style", {}),
+            "rect_style": style.get("rect_style", {}),
+            "circle_style": style.get("circle_style", {}),
+            "line_style": style.get("line_style", {}),
+            "image_style": style.get("image_style", {}),
+            "text_style": style.get("text_style", {}),
+            "quote_width": style.get("quote_width", 3),
+            "quote_border_radius": style.get("quote_border_radius", 3),
+            "indent_width": style.get("indent_width", 30),
+            "separator_height": style.get("separator_height", 5),
+            "line_break_size": style.get("line_break_size", 1),
+            "bullet_diameter": style.get("bullet_diameter", 5),
+            "table_outline_size": style.get("table_outline_size", 1),
+            "table_border_radius": style.get("table_border_radius", 7),
+            "table_alignx": style.get("table_alignx", "left"),
+            "table_aligny": style.get("table_aligny", "center"),
+            "line_break_color": style.get("line_break_color", (80, 80, 80)),
+            "bullet_color": style.get("bullet_color", "white"),
+            "table_bg_color": style.get("table_bg_color", (30, 30, 30)),
+            "quote_color": style.get("quote_color", (150, 150, 150)),
+            "code_bg_color": style.get("code_bg_color", (40, 40, 40)),
+            "code_outline_color": style.get("code_outline_color", (50, 50, 50)),
+            "code_border_radius": style.get("code_border_radius", 3),
+            "code_copy_style": {
+                "size": copy.get("size", 26),
+                "icon_color": copy.get(
+                    "icon_color",
+                    {"default": (120,) * 3, "hover": (180,) * 3, "press": (100,) * 3},
+                ),
+                "icon_pad": "10",
+            },
+            "code_scrollbar_style": {
+                "height": sbar.get("height", 7),
+                "padx": sbar.get("padx", 1),
+                "pady": sbar.get("pady", 1),
+                "border_radius": sbar.get("border_radius", 3),
+                "bar_color": sbar.get("bar_color", (30,) * 3),
+                "handle_color": sbar.get(
+                    "handle_color",
+                    {
+                        "default": (50,) * 3,
+                        "hover": (60,) * 3,
+                        "press": (50,) * 3,
+                    },
+                ),
+            },
+            "title1_size": style.get("title1_size", 26),
+            "title2_size": style.get("title2_size", 22),
+            "title3_size": style.get("title3_size", 19),
+            "title4_size": style.get("title4_size", 16),
+            "title5_size": style.get("title5_size", 14),
+            "title6_size": style.get("title6_size", 12),
+            "allow_image_link": style.get("allow_image_link", True),
+            "change_cursor": style.get("change_cursor", True),
+            "load_images_async": style.get("load_images_async", True),
+            "open_links_in_browser": style.get("open_links_in_browser", True),
+            "parse_async": style.get("parse_async", True),
+        }
+        self.rebuild()
+
+    @property
+    def source(self):
+        return self._source
+
+    @source.setter
+    def source(self, value):
+        changed = False
+        if self._source != value:
+            changed = True
+        self._source = value
+        if changed:
+            self.rebuild()
+
+    def rebuild(self):
+        if self.style["parse_async"]:
+            thread = threading.Thread(
+                target=_richtext._markdown_parse, args=(self._source, self)
+            )
+            thread.daemon = True
+            thread.start()
+        else:
+            _richtext._markdown_parse(self._source, self)
+
+    def _link_hover(self, dt):
+        self._any_hover = True
+
+    def _link_click(self, dt):
+        if self.style["open_links_in_browser"]:
+            webbrowser.open(str(dt))
+
+
 class MILI:
     def __init__(
         self, canva: pygame.Surface | None = None, use_global_mouse: bool = False
@@ -40,6 +155,16 @@ class MILI:
         if canva is not None:
             self.canva = canva
         self.use_global_mouse = use_global_mouse
+        self.last_interaction: _data.Interaction | None = None
+        self.current_parent_interaction: _data.Interaction | None = None
+
+    @property
+    def id(self):
+        return self._ctx._id
+
+    @id.setter
+    def id(self, value):
+        self.id_checkpoint(value)
 
     @property
     def stack_id(self) -> int:
@@ -85,7 +210,7 @@ class MILI:
             self._ctx._get_just_released_func = pygame.mouse.get_just_released
 
     def default_style(self, type: str, style: _typing.AnyStyleLike):
-        if type not in _core._globalctx._component_types:
+        if type != "element" and type not in _core._globalctx._component_types:
             raise _error.MILIValueError("Invalid style type")
         else:
             if type not in self._ctx._default_styles:
@@ -98,7 +223,7 @@ class MILI:
 
     def reset_style(self, *types: str):
         for tp in types:
-            if tp not in _core._globalctx._component_types:
+            if tp != "element" and tp not in _core._globalctx._component_types:
                 raise _error.MILIValueError("Invalid style type")
             self._ctx._default_styles[tp] = {}
 
@@ -113,9 +238,10 @@ class MILI:
         _core._globalctx._mili_stack.append(self)
         _core._globalctx._mili = self
         if style is None:
-            style = {}
-        style = style.copy()
-        style.update(blocking=False)
+            style = {"blocking": False}
+        else:
+            style = style.copy()
+            style["blocking"] = False
         self._ctx._start(style, window_position)
         if is_global:
             _data.ImageCache._preallocated_index = -1
@@ -140,6 +266,16 @@ class MILI:
         if self._ctx._cleared > 0:
             self._ctx._cleared -= 1
 
+    def markdown(self, markdown: MarkDown) -> bool:
+        changed = False
+        if markdown.style["change_cursor"]:
+            if markdown._any_hover:
+                pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
+                changed = True
+            markdown._any_hover = False
+        _richtext._markdown_ui(self, markdown)
+        return changed
+
     def element(
         self,
         rect: pygame.typing.RectLike | None,
@@ -147,6 +283,9 @@ class MILI:
     ) -> _data.Interaction:
         self._ctx._start_check()
         el, interaction = self._ctx._get_element(rect, style)
+        interaction._did_begin = False
+        interaction.parent = self.current_parent_interaction
+        self.last_interaction = interaction
         if uid := self._ctx._style_val(el["style"], "element", "update_id", None):
             uids = [uid]
             if not isinstance(uid, str):
@@ -161,10 +300,12 @@ class MILI:
         self,
         rect: pygame.typing.RectLike | None,
         style: _typing.ElementStyleLike | None = None,
-        header: str = "",
     ) -> _data.Interaction:
         self._ctx._start_check()
         el, interaction = self._ctx._get_element(rect, style, True)
+        interaction._did_begin = True
+        interaction.parent = self.current_parent_interaction
+        self.last_interaction = self.current_parent_interaction = interaction
         self._ctx._parent = el
         self._ctx._parents_stack.append(el)
         if uid := self._ctx._style_val(el["style"], "element", "update_id", None):
@@ -199,7 +340,7 @@ class MILI:
         if "z" in style:
             element["z"] = style["z"]
 
-    def end(self, header: str = ""):
+    def end(self):
         self._ctx._start_check()
         parent = self._ctx._parent
         if parent and parent["id"] != 0:
@@ -211,6 +352,8 @@ class MILI:
             self._ctx._parent = self._ctx._parents_stack[-1]
         else:
             self._ctx._parent = self._ctx._parents_stack[0]
+        if self.current_parent_interaction is not None:
+            self.current_parent_interaction = self.current_parent_interaction.parent
 
     def rect(self, style: _typing.RectStyleLike | None = None):
         self._ctx._add_component("rect", None, style)
@@ -287,11 +430,26 @@ class MILI:
         return data
 
     def text_size(
-        self, text: str, style: _typing.TextStyleLike | None = None
+        self,
+        text: str,
+        style: _typing.TextStyleLike | None = None,
+        padded: bool = False,
     ) -> pygame.Vector2:
         if style is None:
             style = {}
-        return pygame.Vector2(self._ctx._text_size(text, style))
+        size = pygame.Vector2(self._ctx._text_size(text, style))
+        if not padded:
+            return size
+
+        pad: float = self._ctx._style_val(style, "text", "pad", None)  # type: ignore
+        if pad is not None:
+            padx = pady = pad
+        else:
+            padx: float = self._ctx._style_val(style, "text", "padx", 5)  # type: ignore
+            pady: float = self._ctx._style_val(style, "text", "pady", 3)  # type: ignore
+        size.x += padx * 2
+        size.y += pady * 2
+        return size
 
     def text_font(self, style: _typing.TextStyleLike | None = None) -> pygame.Font:
         if style is None:
@@ -346,11 +504,23 @@ class MILI:
         elif element_id == 0:
             return _core._coreutils._element_data(self._ctx, self._ctx._stack)
 
-    def clear_memory(self):
-        self._ctx._cleared = 3
-        self._ctx._memory.clear()
-        self._ctx._old_data.clear()
-        self._ctx._interaction_cache.clear()
+    def clear_memory(self, keep_ids: list[int] | None = None):
+        ctx = self._ctx
+        ctx._cleared = 3
+        memory_keep = {}
+        old_data_keep = {}
+        if keep_ids:
+            for _id in keep_ids:
+                if _id in ctx._memory:
+                    memory_keep[_id] = ctx._memory[_id]
+                if _id in ctx._old_data:
+                    old_data_keep[_id] = ctx._old_data[_id]
+        ctx._memory.clear()
+        ctx._old_data.clear()
+        ctx._interaction_cache.clear()
+        if keep_ids:
+            ctx._memory.update(memory_keep)
+            ctx._old_data.update(old_data_keep)
 
     def id_checkpoint(self, id_: int):
         if id_ < 1:

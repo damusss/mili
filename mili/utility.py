@@ -1,7 +1,11 @@
 import pygame
 from mili import _core
-from mili._utils._window import GenericApp, CustomWindowBorders
-from mili._utils._interaction import InteractionCursor, InteractionSound
+from mili import _richtext
+from mili._utils._window import GenericApp, AdaptiveUIScaler, CustomWindowBorders
+from mili._utils._interaction import (
+    InteractionCursor,
+    InteractionSound,
+)
 from mili._utils._prefabs import (
     Dragger,
     Selectable,
@@ -9,6 +13,7 @@ from mili._utils._prefabs import (
     Scrollbar,
     Slider,
     DropMenu,
+    EntryLine,
 )
 
 __all__ = (
@@ -18,21 +23,22 @@ __all__ = (
     "Scrollbar",
     "Slider",
     "DropMenu",
+    "EntryLine",
     "GenericApp",
+    "AdaptiveUIScaler",
     "InteractionSound",
     "InteractionCursor",
     "CustomWindowBorders",
     "percentage",
-    "indent",
     "fit_image",
 )
+
+_richtext.ScrollClass = Scroll
+_richtext.ScrollbarClass = Scrollbar
 
 
 def percentage(percentage: float, value: float) -> float:
     return (percentage * value) / 100
-
-
-def indent(*args, **kwargs): ...
 
 
 def fit_image(

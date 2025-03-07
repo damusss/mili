@@ -4,11 +4,14 @@ from mili import error
 from mili import data as _data
 from mili import typing as _typing
 from mili import _coreutils
+from mili import _richtext
 
 if typing.TYPE_CHECKING:
     from mili import MILI as _MILI
 
 __all__ = ()
+
+_PARENT_NONE = 0
 
 
 class _globalctx:
@@ -38,10 +41,12 @@ class _ctx:
             "abs_rect": pygame.Rect(0, 0, 1, 1),
             "style": {},
             "id": 0,
-            "children": [],
-            "children_grid": [],
-            "children_fillx": [],
-            "children_filly": [],
+            "cd": {
+                "children": [],
+                "children_grid": [],
+                "children_fillx": [],
+                "children_filly": [],
+            },
             "components": [],
             "parent": None,
             "top": False,
@@ -75,7 +80,7 @@ class _ctx:
         self._image_layer_caches: list[_data.ImageLayerCache] = []
         self._cleared = 0
         self._dummy_interaction = _data.Interaction(
-            mili, False, -1, -1, -1, False, False, False, False, {}
+            mili, False, -1, -1, -1, False, False, 0, {}
         )
         self._default_styles = {
             "element": {},
@@ -91,8 +96,9 @@ class _ctx:
         self, rect: pygame.typing.RectLike | None, arg_style, did_begin=False
     ) -> tuple[dict[str, typing.Any], "_data.Interaction"]:
         if arg_style is None:
-            arg_style = {}
-        style = arg_style.copy()
+            style = {}
+        else:
+            style = arg_style.copy()
         old_el = self._memory.get(self._id, None)
         if rect is None:
             rect = pygame.Rect()
@@ -111,41 +117,64 @@ class _ctx:
             "abs_rect": absrect,
             "style": style,
             "id": self._id,
-            "children": [],
             "components": [],
-            "children_grid": [],
-            "children_fillx": [],
-            "children_filly": [],
             "parent": parent,
             "top": False,
             "z": 1,
             "hovered": False,
             "is_parent": did_begin,
+            "fillx": False,
+            "filly": False,
+            "cd": {
+                "children": [],
+                "children_grid": [],
+                "children_fillx": [],
+                "children_filly": [],
+            }
+            if did_begin
+            else {},
         }
-
+        cache_size = self._style_val(style, "element", "cache_rect_size", False)
+        oldr = None
+        if cache_size and old_el:
+            oldr = old_el["rect"]
+            rect.w = absrect.w = oldr.w
+            rect.h = absrect.h = oldr.h
+        constraint = self._style_val(style, "element", "size_clamp", None)
+        if constraint:
+            element["constraint"] = constraint
+            rect.w = absrect.w = self._constrain(rect.w, constraint, 0)
+            rect.h = absrect.h = self._constrain(rect.h, constraint, 1)
         interaction = self._get_interaction(element, old_el)
-        self._memory[self._id] = element
+        if old_el:
+            oldr = old_el["rect"]
+            old_el.update(element)
+        else:
+            old_el = element
+        self._memory[self._id] = old_el
+        element = old_el
         if parent:
             z = self._z
+            cd = parent["cd"]
             if "z" in style:
                 z = style["z"]
             if parent["z"] > z:
-                z = parent["z"] + len(parent["children"]) + 1
-            parent["children"].append(element)
+                z = parent["z"] + len(cd["children"]) + 1
+            cd["children"].append(element)
             if not self._style_val(style, "element", "ignore_grid", False):
-                parent["children_grid"].append(element)
+                cd["children_grid"].append(element)
                 fillx = self._style_val(style, "element", "fillx", False)
                 filly = self._style_val(style, "element", "filly", False)
                 if bool(fillx):
                     element["fillx"] = fillx
-                    parent["children_fillx"].append(element)
-                    if old_el:
-                        rect.w = absrect.w = old_el["rect"].w
+                    cd["children_fillx"].append(element)
+                    if oldr:
+                        rect.w = absrect.w = oldr.w
                 if bool(filly):
                     element["filly"] = filly
-                    parent["children_filly"].append(element)
-                    if old_el:
-                        rect.h = absrect.h = old_el["rect"].h
+                    cd["children_filly"].append(element)
+                    if oldr:
+                        rect.h = absrect.h = oldr.h
             element["z"] = z + 1
         self._id += 1
         self._element = element
@@ -170,13 +199,12 @@ class _ctx:
         anchor,
         resizeoa,
         resizea,
-        minresizeoa,
-        minresizea,
-        maxresizea,
-        maxresizeoa,
+        constraint,
         padded_oa,
         padded_a,
         children,
+        ai,
+        oai,
     ):
         rectav = getattr(rect, av)
         rectoav = getattr(rect, oav)
@@ -190,15 +218,33 @@ class _ctx:
             self._style_val(style, "element", f"grid_space{oa}", space),
             rectoav,
         )
-
         line_elements = []
         lines = []
         line_size_a = 0
         longest_line_size_a = 0
         current_pos_oa = padoa
         longest_line_size_oa = 0
+        minresizea = float("-inf")
+        minresizeoa = float("-inf")
+        maxresizea = float("inf")
+        maxresizeoa = float("inf")
+        if constraint:
+            if "min" in constraint:
+                mina = constraint["min"][ai]
+                minoa = constraint["min"][oai]
+                if mina is not None:
+                    minresizea = mina
+                if minoa is not None:
+                    minresizeoa = minoa
+            if "max" in constraint:
+                maxa = constraint["max"][ai]
+                maxoa = constraint["max"][oai]
+                if maxa is not None:
+                    maxresizea = maxa
+                if maxoa is not None:
+                    maxresizeoa = maxoa
 
-        for child in element[f"children_fill{a}"]:
+        for child in element["cd"][f"children_fill{a}"]:
             ch_fill_a = child.get(f"fill{a}", False)
             if ch_fill_a is True:
                 ch_fill_a = "100"
@@ -206,7 +252,7 @@ class _ctx:
             setattr(child["rect"], av, fill_a_v)
             self._organize_element(child)
 
-        for child in element[f"children_fill{oa}"]:
+        for child in element["cd"][f"children_fill{oa}"]:
             ch_fill_oa = child.get(f"fill{oa}", False)
             if ch_fill_oa is True:
                 ch_fill_oa = "100"
@@ -334,14 +380,17 @@ class _ctx:
             return
         style = element["style"]
         rect = element["rect"]
-        children = element["children_grid"]
+        cd = element["cd"]
+        children = cd["children_grid"]
         a = self._style_val(style, "element", "axis", "y")
         if a not in ["x", "y"]:
             raise error.MILIValueError(f"Invalid axis {a}")
         oa = "x" if a == "y" else "y"
         av = "w" if a == "x" else "h"
         oav = "w" if av == "h" else "h"
-        pad = self._style_val(style, "text", "pad", 5)
+        ai = 0 if a == "x" else 1
+        oai = 1 if a == "x" else 0
+        pad = self._style_val(style, "element", "pad", 5)
         pada = self._style_val(style, "element", f"pad{a}", pad)
         padoa = self._style_val(style, "element", f"pad{oa}", pad)
         rectav = getattr(rect, av)
@@ -356,28 +405,9 @@ class _ctx:
         anchor = self._style_val(style, "element", "anchor", "first")
         def_align = self._style_val(style, "element", "default_align", "first")
         _coreutils._check_align(anchor)
-        resizeoa = self._style_val(style, "element", f"resize{oa}", False)
-        resizea = self._style_val(style, "element", f"resize{a}", False)
-        if isinstance(resizea, dict):
-            maxv = resizea.get("max", float("inf"))
-            minv = resizea.get("min", 0)
-            minresizea = _coreutils._abs_perc(minv, rectav)
-            maxresizea = _coreutils._abs_perc(maxv, rectav)
-            resizea = True
-        else:
-            resizea = bool(resizea)
-            minresizea = 0
-            maxresizea = float("inf")
-        if isinstance(resizeoa, dict):
-            maxv = resizeoa.get("max", float("inf"))
-            minv = resizeoa.get("min", 0)
-            minresizeoa = _coreutils._abs_perc(minv, rectoav)
-            maxresizeoa = _coreutils._abs_perc(maxv, rectoav)
-            resizeoa = True
-        else:
-            resizeoa = bool(resizeoa)
-            minresizeoa = 0
-            maxresizeoa = float("inf")
+        resizeoa = bool(self._style_val(style, "element", f"resize{oa}", False))
+        resizea = bool(self._style_val(style, "element", f"resize{a}", False))
+        constraint = element.get("constraint", None)
         _filloa, _filla = (
             self._style_val(style, "element", f"fill{oa}", False),
             self._style_val(style, "element", f"fill{a}", False),
@@ -410,18 +440,17 @@ class _ctx:
                 anchor,
                 resizeoa,
                 resizea,
-                minresizeoa,
-                minresizea,
-                maxresizea,
-                maxresizeoa,
+                constraint,
                 padded_oa,
                 padded_a,
                 children,
+                ai,
+                oai,
             )
             return
 
-        elements_with_filloa = element[f"children_fill{oa}"]
-        elements_with_filla = element[f"children_fill{a}"]
+        elements_with_filloa = cd[f"children_fill{oa}"]
+        elements_with_filla = cd[f"children_fill{a}"]
         biggest_oa = 0
         fixed_elements_a = 0
 
@@ -429,7 +458,15 @@ class _ctx:
             el_rect = el["rect"]
             el_filloa = el.get(f"fill{oa}", False)
             el_filla = el.get(f"fill{a}", False)
-            if bool(el_filloa) is False and getattr(el_rect, oav) > biggest_oa:
+            el_constraint = el.get("constraint", None)
+            if (
+                bool(el_filloa) is False
+                or (
+                    el_constraint is not None
+                    and "min" in el_constraint
+                    and el_constraint["min"][oai] is not None
+                )
+            ) and getattr(el_rect, oav) > biggest_oa:
                 biggest_oa = getattr(el_rect, oav)
             fixed_elements_a += space
             if bool(el_filla) is False:
@@ -438,11 +475,11 @@ class _ctx:
         available_to_filla = max(0, padded_a - fixed_elements_a)
 
         if resizeoa and biggest_oa > 0:
-            rectoav = min(max(biggest_oa + padoa * 2, minresizeoa), maxresizeoa)
+            rectoav = self._constrain(biggest_oa + padoa * 2, constraint, oai)
             setattr(rect, oav, rectoav)
             padded_oa = rectoav - padoa * 2
         if resizea and fixed_elements_a > 0:
-            rectav = min(max(fixed_elements_a + pada * 2, minresizea), maxresizea)
+            rectav = self._constrain(fixed_elements_a + pada * 2, constraint, ai)
             setattr(rect, av, rectav)
             padded_a = rectav - pada * 2
             available_to_filla = 0
@@ -453,7 +490,11 @@ class _ctx:
             filloa = filloa_el[f"fill{oa}"]
             if filloa is True:
                 filloa = "100"
-            el_filloa = _coreutils._abs_perc(filloa, padded_oa)
+            el_filloa = self._constrain(
+                _coreutils._abs_perc(filloa, padded_oa),
+                filloa_el.get("constraint", None),
+                oai,
+            )
             prev = getattr(el_rect, oav)
             if prev != el_filloa or self._cleared > 0:
                 setattr(el_rect, oav, el_filloa)
@@ -475,18 +516,15 @@ class _ctx:
 
         total_a = fixed_elements_a
         if filla_totalsize != 0:
-            if fixed_elements_a <= padded_a:
-                total_a = padded_a
-            else:
-                total_a = fixed_elements_a
             multiplier = 1
             if filla_totalsize > available_to_filla:
                 multiplier = available_to_filla / filla_totalsize
-            else:
-                total_a = fixed_elements_a + filla_totalsize
             for filla_el in elements_with_filla:
                 el_rect = filla_el["rect"]
-                val = filla_el["filla"] * multiplier
+                val = self._constrain(
+                    filla_el["filla"] * multiplier, filla_el.get("constraint", None), ai
+                )
+                total_a += val + space
                 prev = getattr(el_rect, av)
                 if val != prev or self._cleared > 0:
                     setattr(el_rect, av, val)
@@ -534,6 +572,17 @@ class _ctx:
             "spacey": space,
         }
 
+    def _constrain(self, value, constraint, vi):
+        if constraint is None:
+            return value
+        minc = constraint.get("min", (None, None))[vi]
+        maxc = constraint.get("max", (None, None))[vi]
+        if minc is not None and value < minc:
+            value = minc
+        elif maxc is not None and value > maxc:
+            value = maxc
+        return value
+
     def _start(self, style, winpos):
         if self._canva is None:
             return
@@ -542,10 +591,12 @@ class _ctx:
             "abs_rect": self._canva.get_rect(),
             "style": style,
             "id": 0,
-            "children": [],
-            "children_grid": [],
-            "children_fillx": [],
-            "children_filly": [],
+            "cd": {
+                "children": [],
+                "children_grid": [],
+                "children_fillx": [],
+                "children_filly": [],
+            },
             "components": [],
             "parent": None,
             "top": False,
@@ -632,7 +683,7 @@ class _ctx:
             "rect": old_el["rect"],
             "abs_rect": old_el["abs_rect"],
             "components": old_el["components"],
-            "children_ids": [ch["id"] for ch in old_el["children"]],
+            "children": old_el["cd"].get("children", ()),
             "parent_id": old_el["parent"]["id"] if old_el["parent"] else -1,
             "grid": old_el["grid"] if "grid" in old_el else None,
         }
@@ -647,7 +698,7 @@ class _ctx:
         absolute_hover = old_el["abs_rect"].collidepoint(self._mouse_pos)
         if old_el["top"]:
             if self._style_val(element["style"], "element", "blocking", True) is None:
-                self._dummy_interaction._raw_data = element
+                self._dummy_interaction._raw_data = old_el
                 self._dummy_interaction._data = None
                 return self._dummy_interaction
             if (
@@ -692,13 +743,13 @@ class _ctx:
             return _coreutils._partial_interaction(self, element, absolute_hover)
 
     def _add_component(self, type, data, arg_style):
-        self._start_check()
         if arg_style is None:
-            arg_style = {}
-        style = self._default_styles[type].copy()
-        style.update(arg_style)
+            style = {}
+        else:
+            style = arg_style.copy()
         if type in ["text", "image"]:
-            if "cache" in style and style["cache"] == "auto":
+            cache = self._style_val(style, type, "cache", None)
+            if cache == "auto":
                 style["cache"] = (
                     _data.ImageCache.get_next_cache()
                     if type == "image"
@@ -716,7 +767,16 @@ class _ctx:
                 "Cannot add component to previous element if no element was created"
             )
         if type == "text":
-            self._text_resize(element["rect"], data, style)
+            rich = self._style_val(style, "text", "rich", False)
+            cache = None
+            if rich:
+                cache = self._style_val(style, "text", "cache", None)
+                if cache is None:
+                    raise error.MILIStatusError(
+                        "Rich text requires a valid TextCache object for the cache style"
+                    )
+                _richtext._comp_init(self, data, style, cache, element["rect"].size)
+            self._text_resize(element["rect"], data, style, rich, cache)
         compobj = _globalctx._component_types[type]
         if not isinstance(compobj, str):
             compobj.added(self, data, style, element)
@@ -733,9 +793,18 @@ class _ctx:
             _globalctx._font_cache[key] = font
         return _globalctx._font_cache[key]
 
+    def _get_font_from(self, path, size, sysfont):
+        key = f"{path}_{size}"
+        if key not in _globalctx._font_cache:
+            func = pygame.font.SysFont if sysfont else pygame.font.Font
+            font = func(path, size)
+            _globalctx._font_cache[key] = font
+        return _globalctx._font_cache[key]
+
     def _draw_comp_rect(self, data, style, el, rect: pygame.Rect):
         if self._canva is None:
             return
+        ready_rect = self._style_val(style, "rect", "ready_rect", None)
         pad = self._style_val(style, "rect", "pad", 0)
         padx = self._style_val(style, "rect", "padx", pad)
         pady = self._style_val(style, "rect", "pady", pad)
@@ -756,20 +825,23 @@ class _ctx:
                 int(_coreutils._abs_perc(br, min(rect.w, rect.h))) for br in br_style
             ]
         color = self._style_val(style, "rect", "color", "black")
-        aspect_ratio = self._style_val(style, "rect", "aspect_ratio", None)
-        if aspect_ratio is None:
-            draw_rect = rect.inflate(-padx * 2, -pady * 2)
+        if ready_rect:
+            draw_rect = ready_rect
         else:
-            align = self._style_val(style, "rect", "align", "center")
-            availx, availy = rect.w - padx * 2, rect.h - pady * 2
-            rx, ry = availx, availy
-            rx = availy * aspect_ratio
-            if rx > availx:
-                ry = availx * (1 / aspect_ratio)
-                rx = availx
-            draw_rect = pygame.Rect((0, 0), (rx, ry)).move_to(
-                **_coreutils._align_rect(align, rect, padx, pady)
-            )
+            aspect_ratio = self._style_val(style, "rect", "aspect_ratio", None)
+            if aspect_ratio is None:
+                draw_rect = rect.inflate(-padx * 2, -pady * 2)
+            else:
+                align = self._style_val(style, "rect", "align", "center")
+                availx, availy = rect.w - padx * 2, rect.h - pady * 2
+                rx, ry = availx, availy
+                rx = availy * aspect_ratio
+                if rx > availx:
+                    ry = availx * (1 / aspect_ratio)
+                    rx = availx
+                draw_rect = pygame.Rect((0, 0), (rx, ry)).move_to(
+                    **_coreutils._align_rect(align, rect, padx, pady)
+                )
         dash_size = self._style_val(style, "line", "dash_size", None)
         dash_offset = self._style_val(style, "line", "dash_offset", 0)
         _coreutils._draw_rect(
@@ -870,6 +942,23 @@ class _ctx:
     def _draw_comp_text(self, data: str, style, el, rect: pygame.Rect):
         if self._canva is None:
             return
+        blit_flags = self._style_val(style, "text", "blit_flags", 0)
+        align = self._style_val(style, "text", "align", "center")
+        padx = self._style_val(style, "text", "padx", 5)
+        pady = self._style_val(style, "text", "pady", 3)
+        pad = self._style_val(style, "text", "pad", None)
+        if pad is not None:
+            padx = pady = pad
+        padx, pady = (
+            _coreutils._abs_perc(padx, rect.w),
+            _coreutils._abs_perc(pady, rect.h),
+        )
+        rich = self._style_val(style, "text", "rich", False)
+        if rich:
+            cache = self._style_val(style, "text", "cache", False)
+            actions = self._style_val(style, "text", "rich_actions", {})
+            _richtext._render(self, cache, rect, blit_flags, align, padx, pady, actions)
+            return
         font = self._get_font(style)
         cache = style.get("cache", None)
         fontalign = self._style_val(style, "text", "font_align", pygame.FONT_CENTER)
@@ -880,21 +969,12 @@ class _ctx:
         antialias = self._style_val(style, "text", "antialias", True)
         color = self._style_val(style, "text", "color", "white")
         bg_color = self._style_val(style, "text", "bg_color", None)
-        align = self._style_val(style, "text", "align", "center")
-        blit_flags = self._style_val(style, "text", "blit_flags", 0)
+
         growx, growy = (
             self._style_val(style, "text", "growx", False),
             self._style_val(style, "text", "growy", True),
         )
-        padx = self._style_val(style, "text", "padx", 5)
-        pady = self._style_val(style, "text", "pady", 3)
-        pad = self._style_val(style, "text", "pad", None)
-        if pad is not None:
-            padx = pady = pad
-        padx, pady = (
-            _coreutils._abs_perc(padx, rect.w),
-            _coreutils._abs_perc(pady, rect.h),
-        )
+
         wraplen = _coreutils._abs_perc(
             self._style_val(style, "text", "wraplen", 0), rect.w - padx * 2
         )
@@ -1003,6 +1083,14 @@ class _ctx:
         self._canva.blit(surf, txtrect, special_flags=blit_flags)
 
     def _text_size(self, data: str, style):
+        rich = self._style_val(style, "text", "rich", False)
+        if rich:
+            cache = self._style_val(style, "text", "cache", None)
+            if cache is None:
+                raise error.MILIStatusError(
+                    "Rich text requires a valid TextCache object for the cache style"
+                )
+            return cache._rich["size"]
         font = self._get_font(style)
         font.align = self._style_val(style, "text", "font_align", pygame.FONT_CENTER)
         if self._style_val(style, "text", "slow_grow", False):
@@ -1014,14 +1102,13 @@ class _ctx:
             ).get_size()
         return font.size(data)
 
-    def _text_resize(self, rect: pygame.Rect, data, style):
+    def _text_resize(self, rect: pygame.Rect, data, style, rich, cache):
         growx, growy = (
             self._style_val(style, "text", "growx", False),
             self._style_val(style, "text", "growy", True),
         )
         if not growx and not growy:
             return
-        slow_grow = self._style_val(style, "text", "slow_grow", False)
         padx = self._style_val(style, "text", "padx", 5)
         pady = self._style_val(style, "text", "pady", 3)
         pad = self._style_val(style, "text", "pad", None)
@@ -1031,24 +1118,36 @@ class _ctx:
             _coreutils._abs_perc(padx, rect.w),
             _coreutils._abs_perc(pady, rect.h),
         )
-        font = self._get_font(style)
-        if slow_grow:
-            fontalign = self._style_val(style, "text", "font_align", pygame.FONT_CENTER)
-            wraplen = _coreutils._abs_perc(
-                self._style_val(style, "text", "wraplen", 0), rect.w - padx * 2
-            )
-            cache = style.get("cache", None)
-            if cache is not None and cache._cache is not None:
-                _cache = cache._cache
-                if (
-                    font == _cache["font"]
-                    and data == _cache["data"]
-                    and fontalign == _cache["fontalign"]
-                    and padx == _cache["padx"]
-                    and pady == _cache["pady"]
-                    and wraplen == _cache["wraplen"]
-                ):
-                    sw, sh = cache._cache["output"].get_size()
+        if rich:
+            sw, sh = cache._rich["size"]
+        else:
+            slow_grow = self._style_val(style, "text", "slow_grow", False)
+            font = self._get_font(style)
+            if slow_grow:
+                fontalign = self._style_val(
+                    style, "text", "font_align", pygame.FONT_CENTER
+                )
+                wraplen = _coreutils._abs_perc(
+                    self._style_val(style, "text", "wraplen", 0), rect.w - padx * 2
+                )
+                cache = style.get("cache", None)
+                if cache is not None and cache._cache is not None:
+                    _cache = cache._cache
+                    if (
+                        font == _cache["font"]
+                        and data == _cache["data"]
+                        and fontalign == _cache["fontalign"]
+                        and padx == _cache["padx"]
+                        and pady == _cache["pady"]
+                        and wraplen == _cache["wraplen"]
+                    ):
+                        sw, sh = cache._cache["output"].get_size()
+                    else:
+                        font.align = fontalign
+
+                        sw, sh = font.render(
+                            data, True, "white", None, max(0, int(wraplen))
+                        ).get_size()
                 else:
                     font.align = fontalign
 
@@ -1056,16 +1155,10 @@ class _ctx:
                         data, True, "white", None, max(0, int(wraplen))
                     ).get_size()
             else:
-                font.align = fontalign
-
-                sw, sh = font.render(
-                    data, True, "white", None, max(0, int(wraplen))
-                ).get_size()
-        else:
-            sw, sh = font.size(str(data))
-        if growy and sh > rect.h + pady * 2:
+                sw, sh = font.size(str(data))
+        if growy and sh + pady * 2 > rect.h + pady * 2:
             rect.h = sh + pady * 2
-        if growx and sw > rect.w + padx * 2:
+        if growx and sw + padx * 2 > rect.w + padx * 2:
             rect.w = sw + padx * 2
 
     def _draw_comp_image(self, data: pygame.Surface, style, el, rect: pygame.Rect):
@@ -1292,8 +1385,9 @@ class _ctx:
                 el_data = _coreutils._element_data(self, element)
             mid_draw(self._canva, el_data, clip)
             self._canva.set_clip(clip)
-        if len(element["children"]) > 0:
-            for child in sorted(element["children"], key=lambda c: c["z"]):
+        cd = element["cd"]
+        if len(cd.get("children", ())) > 0:
+            for child in sorted(cd["children"], key=lambda c: c["z"]):
                 self._canva.set_clip(clip)
                 self._draw_update_element(child, absolute_rect.topleft, clip)
                 self._canva.set_clip(clip)

@@ -201,7 +201,7 @@ def _element_data(ctx: "_ctx", el: dict[str, typing.Any]) -> "_data.ElementData"
         old_data = {
             "rect": pygame.Rect(),
             "abs_rect": pygame.Rect(),
-            "children_ids": [],
+            "children": [],
             "components": [],
             "parent_id": 0,
             "grid": None,
@@ -212,10 +212,10 @@ def _element_data(ctx: "_ctx", el: dict[str, typing.Any]) -> "_data.ElementData"
         absolute_rect=old_data["abs_rect"].copy(),
         z=el["z"],
         id=el["id"],
-        style=el["style"].copy(),
-        children_ids=list(old_data["children_ids"]),
+        style=el["style"],
+        _children=old_data["children"],
         parent_id=old_data["parent_id"],
-        components=old_data["components"].copy(),
+        components=old_data["components"],
         _grid=grid,
     )
 
@@ -265,11 +265,10 @@ def _partial_interaction(ctx, element, absolute_hover):
             i.just_released_button,
             i.absolute_hover,
             i.unhover_pressed,
-            i.just_hovered,
-            i.just_unhovered,
+            i._just_hover,
             i._raw_data,
             i._data,
-        ) = (False, -1, -1, -1, absolute_hover, False, False, False, element, None)
+        ) = (False, -1, -1, -1, absolute_hover, False, 0, element, None)
         return i
 
     i = _data.Interaction(
@@ -280,8 +279,7 @@ def _partial_interaction(ctx, element, absolute_hover):
         -1,
         absolute_hover,
         False,
-        False,
-        False,
+        0,
         element,
     )
     ctx._interaction_cache[eid] = i
@@ -298,20 +296,18 @@ def _total_interaction(ctx, element, absolute_hover, hovered, unhovered, old_el)
             i.just_released_button,
             i.absolute_hover,
             i.unhover_pressed,
-            i.just_hovered,
-            i.just_unhovered,
+            i._just_hover,
             i._raw_data,
             i._data,
         ) = (
             absolute_hover and hovered,
             _get_first_button(pygame.mouse.get_pressed(5, ctx._global_mouse)),
             _get_first_button(ctx._get_just_pressed_func()),
-            _get_first_button(ctx._get_just_released_func()),
+            _get_first_button(ctx._get_just_released_func()) if absolute_hover else -1,
             absolute_hover,
             unhovered,
-            False,
-            False,
-            element,
+            0,
+            old_el,
             None,
         )
     else:
@@ -320,18 +316,17 @@ def _total_interaction(ctx, element, absolute_hover, hovered, unhovered, old_el)
             absolute_hover and hovered,
             _get_first_button(pygame.mouse.get_pressed(5, ctx._global_mouse)),
             _get_first_button(ctx._get_just_pressed_func()),
-            _get_first_button(ctx._get_just_released_func()),
+            _get_first_button(ctx._get_just_released_func()) if absolute_hover else -1,
             absolute_hover,
             unhovered,
-            False,
-            False,
-            element,
+            0,
+            old_el,
         )
         ctx._interaction_cache[eid] = i
     if i.hovered and not old_el["hovered"]:
-        i.just_hovered = True
+        i._just_hover = 1
     if not i.hovered and old_el["hovered"]:
-        i.just_unhovered = True
+        i._just_hover = -1
     element["hovered"] = i.hovered
     return i
 

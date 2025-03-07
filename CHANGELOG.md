@@ -1,3 +1,53 @@
+# 1.0.5
+
+### New API
+
+-   Added the `mili.MarkDown` object, the `MILI.markdown` method and markdown rendering (added it to the guide).
+-   Added the `mili.EntryLine` rich utility object and a section on the utility and style guide for it.
+-   Added rich text support: added the `rich`, `rich_y_align`, `rich_linespace`, `rich_actions`, `rich_link_color`, `rich_markdown`, `rich_markdown_style` text styles.
+-   Added the `mili.CustomWindowBorders.constraint_rect` attribute and constructor parameter.
+-   Added the `mili.Scroll.wheel_event` method.
+-   Added the `size_clamp` element style, to constrain the element size after fillx|y and resizex|y operations.
+-   Added the `MarkDownStyleLike` and `EntryLineStyleLike` objects in `mili.typing`.
+-   Added the `ready_rect` rect style.
+-   Added the `svg` parameter to `mili.icon.get` and `mili.icon.preload` to properly load svg icons.
+-   Added the `mili.icon.get_svg` shortcut to call `mili.icon.get` with `svg=True`.
+-   Added the cache parameter when getting google icons to override the setting.
+-   Added the `cache_rect_size` style to the elements.
+-   Added the `keep_ids` argument to `MILI.clear_memory()`
+-   Added the `MILI.id` property.
+-   Added the `MILI.last_interaction` and `mili.current_parent_interaction` attributes.
+-   Added the `Interaction.parent` attribute.
+-   Added the `mili.style.color` and `mili.style.outline` functions
+-   Added an equivalent of `mili.Interaction.left_pressed` etc for right and middle mouse buttons.
+-   Added the `mili.style.DefaultStyle` context manager object.
+-   Added the `padded` argument to the `MILI.text_size` method.
+-   Added the `mili.AdaptiveUIScaler` utility object.
+
+### Enhancements
+
+-   Calling `mili.Scrollbar.scroll_moved` after calling `mili.Scroll.scroll/set_scroll` is redundant as Scroll now keeps a list of scrollbars and automatically calls the method for you.
+-   It is allowed to use the with statement with elements and not just parents without errors.
+-   `mili.GenericApp.clear_color` can be None to disable clearing the window at the start of the frame.
+-   Documented the `mili.icon` module.
+-   Refactored some of the internals including the file structure.
+
+### Fixes
+
+-   Added a section for the `mili.icon` module in the guide.
+-   Allowed passing `"element"` to the style methods of MILI.
+
+### Behaviour-Changing:
+
+-   `mili.Interaction.just_released_button` is not set anymore when the element was not hovered while releasing the mouse.
+-   The `resizex` and `resizey` element styles only recognize boolean values. For min and max check the `size_clamp` new style.
+-   Removed `mili.indent`. There are better alternatives now.
+
+### API-Breaking
+
+-   Small break, within `mili.icon` `google_size` has been renamed to svg_size
+-   Removed the header argument to `MILI.begin/end`. Always been dumb.
+
 # 1.0.4
 
 ### Fixes
