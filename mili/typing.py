@@ -70,12 +70,6 @@ class _MarkDownCodeScrollbarStyleLike(typing.TypedDict):
 
 
 class MarkDownStyleLike(typing.TypedDict):
-    element_style: "ElementStyleLike"
-    rect_style: "RectStyleLike"
-    circle_style: "CircleStyleLike"
-    line_style: "LineStyleLike"
-    image_style: "ImageStyleLike"
-    text_style: "TextStyleLike"
     quote_width: float
     quote_border_radius: float
     indent_width: float
@@ -88,7 +82,7 @@ class MarkDownStyleLike(typing.TypedDict):
     table_aligny: typing.Literal["top", "center", "bottom"]
     line_break_color: pygame.typing.ColorLike
     bullet_color: pygame.typing.ColorLike
-    table_bg_color: pygame.typing.ColorLike|None
+    table_bg_color: pygame.typing.ColorLike | None
     quote_color: pygame.typing.ColorLike
     code_bg_color: pygame.typing.ColorLike
     code_outline_color: pygame.typing.ColorLike
@@ -108,13 +102,41 @@ class MarkDownStyleLike(typing.TypedDict):
     parse_async: bool
 
 
+class _UIAppButtonStyleLike(typing.TypedDict):
+    bg_default: pygame.typing.ColorLike
+    bg_hover: pygame.typing.ColorLike
+    bg_press: pygame.typing.ColorLike
+    icon_name: str
+    icon_set: str
+    icon_source: typing.Literal["google", "iconify", "file", "svg"]
+    icon_color: pygame.typing.ColorLike
+    alpha_default: float
+    alpha_hover: float
+    alpha_press: float
+
+
+class UIAppStyleLike(typing.TypedDict):
+    start_style: "ElementStyleLike"
+    target_framerate: float
+    clear_color: pygame.typing.ColorLike
+    window_outline: float
+    window_icon: pygame.Surface | None
+    outline_color: pygame.typing.ColorLike
+    fullscreen_key: int | None
+    titlebar_show_title: bool
+    title_style: "TextStyleLike"
+    titlebar_color: pygame.typing.ColorLike
+    minimize_button: _UIAppButtonStyleLike
+    maximize_button: _UIAppButtonStyleLike
+    close_button: _UIAppButtonStyleLike
+
+
 class ScrollbarStyleLike(typing.TypedDict):
     axis: typing.Literal["x", "y"]
     short_size: float
     border_dist: float
     padding: float
     size_reduce: float
-    bar_update_id: str | None
     handle_update_id: str | None
 
 
@@ -141,6 +163,7 @@ class EntryLineStyleLike(typing.TypedDict):
     placeholder_color: pygame.typing.ColorLike
     text_filly: str
     text_style: "TextStyleLike"
+    text_anchor: typing.Literal["left", "right"]
     bg_rect_style: "RectStyleLike|None"
     outline_rect_style: "RectStyleLike|None"
     selection_style: "RectStyleLike|None"
@@ -187,19 +210,10 @@ class _ElementStyleLike(typing.TypedDict):
     parent_id: int
     offset: typing.Sequence[float]
     clip_draw: bool
-    pre_draw_func: (
-        typing.Callable[[pygame.Surface, _data.ElementData, pygame.Rect], None] | None
-    )
-    mid_draw_func: (
-        typing.Callable[[pygame.Surface, _data.ElementData, pygame.Rect], None] | None
-    )
-    post_draw_func: (
-        typing.Callable[[pygame.Surface, _data.ElementData, pygame.Rect], None] | None
-    )
     update_id: str
-    image_layer_cache: _data.ImageLayerCache | None
     parent_flag: int
     cache_rect_size: bool
+    cache: _data.ParentCache | None
 
     axis: typing.Literal["x", "y"]
     spacing: NumberOrPercentage
@@ -208,8 +222,10 @@ class _ElementStyleLike(typing.TypedDict):
     pady: NumberOrPercentage
     anchor: typing.Literal["first", "center", "last", "max_spacing"]
     default_align: typing.Literal["first", "center", "last"]
-    grid: bool
-    grid_align: typing.Literal["first", "center", "last", "max_spacing"]
+    layout: typing.Literal["stack", "grid", "table"]
+    grid_align: typing.Literal[
+        "first", "center", "last", "max_spacing", "first_center", "last_center"
+    ]
     grid_spacex: NumberOrPercentage
     grid_spacey: NumberOrPercentage
 
@@ -220,12 +236,12 @@ type ElementStyleLike = _ElementStyleLike | dict[str, typing.Any]
 class _ComponentStyleLike(typing.TypedDict):
     draw_above: bool
     element_id: int
-
-
-class _RectStyleLike(_ComponentStyleLike):
     pad: NumberOrPercentage
     padx: NumberOrPercentage
     pady: NumberOrPercentage
+
+
+class _RectStyleLike(_ComponentStyleLike):
     outline: NumberOrPercentage
     border_radius: NumberOrPercentage | typing.Iterable[NumberOrPercentage]
     color: pygame.typing.ColorLike
@@ -239,10 +255,16 @@ class _RectStyleLike(_ComponentStyleLike):
 type RectStyleLike = _RectStyleLike | dict[str, typing.Any]
 
 
+class _TransparentRectStyleLike(_ComponentStyleLike):
+    border_radius: NumberOrPercentage
+    color: pygame.typing.ColorLike
+    alpha: int
+
+
+type TransparentRectStyleLike = _TransparentRectStyleLike | dict[str, typing.Any]
+
+
 class _CircleStyleLike(_ComponentStyleLike):
-    pad: NumberOrPercentage
-    padx: NumberOrPercentage
-    pady: NumberOrPercentage
     outline: NumberOrPercentage
     color: pygame.typing.ColorLike
     antialias: bool
@@ -299,9 +321,6 @@ class _TextStyleLike(_ComponentStyleLike):
     bg_color: pygame.typing.ColorLike
     growx: bool
     growy: bool
-    pad: NumberOrPercentage
-    padx: NumberOrPercentage
-    pady: NumberOrPercentage
     wraplen: NumberOrPercentage
     slow_grow: bool
     rich: bool
@@ -319,9 +338,6 @@ type TextStyleLike = _TextStyleLike | dict[str, typing.Any]
 class _ImageStyleLike(_ComponentStyleLike):
     cache: _data.ImageCache | None
     layer_cache: _data.ImageLayerCache | None
-    pad: NumberOrPercentage
-    padx: NumberOrPercentage
-    pady: NumberOrPercentage
     fill: bool
     stretchx: bool
     stretchy: bool

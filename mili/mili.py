@@ -2,6 +2,7 @@ import pygame
 import typing
 import threading
 import webbrowser
+import copy
 
 from mili import _core
 from mili import _richtext
@@ -56,12 +57,6 @@ class MarkDown:
         copy = style.get("code_copy_style", {})
         sbar = style.get("code_scrollbar_style", {})
         self.style: _typing.MarkDownStyleLike = {
-            "element_style": style.get("element_style", {}),
-            "rect_style": style.get("rect_style", {}),
-            "circle_style": style.get("circle_style", {}),
-            "line_style": style.get("line_style", {}),
-            "image_style": style.get("image_style", {}),
-            "text_style": style.get("text_style", {}),
             "quote_width": style.get("quote_width", 3),
             "quote_border_radius": style.get("quote_border_radius", 3),
             "indent_width": style.get("indent_width", 30),
@@ -221,11 +216,31 @@ class MILI:
         for name, value in types_styles.items():
             self.default_style(name, value)
 
-    def reset_style(self, *types: str):
+    def reset_default_styles(self, *types: str):
         for tp in types:
             if tp != "element" and tp not in _core._globalctx._component_types:
                 raise _error.MILIValueError("Invalid style type")
             self._ctx._default_styles[tp] = {}
+
+    def push_styles(self, **types_styles: _typing.AnyStyleLike):
+        self._ctx._styles_stack.append(copy.deepcopy(self._ctx._styles))
+        for type_, style in types_styles.items():
+            if type_ not in self._ctx._styles:
+                self._ctx._styles[type_] = style
+            else:
+                self._ctx._styles[type_].update(style)
+        return _core._PushStylesCtx(self)
+
+    def pop_styles(self):
+        try:
+            last = self._ctx._styles_stack.pop()
+            self._ctx._styles = last
+        except IndexError:
+            raise _error.MILIStatusError("MILI.pop_styles called too many times")
+
+    def reset_styles(self):
+        self._ctx._styles = {}
+        self._ctx._styles_stack = []
 
     def start(
         self,
@@ -345,6 +360,9 @@ class MILI:
         parent = self._ctx._parent
         if parent and parent["id"] != 0:
             self._ctx._organize_element(parent)
+            if parent["id"] == self._ctx._inside_cache:
+                self._ctx._inside_cache = -1
+                self._ctx._static_cache = False
         else:
             raise _error.MILIStatusError("end() called too many times")
         if len(self._ctx._parents_stack) > 1:
@@ -352,11 +370,16 @@ class MILI:
             self._ctx._parent = self._ctx._parents_stack[-1]
         else:
             self._ctx._parent = self._ctx._parents_stack[0]
+        self._ctx._element = self._ctx._parent
         if self.current_parent_interaction is not None:
             self.current_parent_interaction = self.current_parent_interaction.parent
 
-    def rect(self, style: _typing.RectStyleLike | None = None):
+    def cache_should_create_children(self):
+        return self._ctx._inside_cache == -1 or not self._ctx._static_cache
+
+    def rect(self, style: _typing.RectStyleLike | None = None) -> typing.Self:
         self._ctx._add_component("rect", None, style)
+        return self
 
     def rect_element(
         self,
@@ -368,8 +391,39 @@ class MILI:
         self.rect(rect_style)
         return data
 
-    def circle(self, style: _typing.CircleStyleLike | None = None):
+    def transparet_rect(
+        self, style: _typing.TransparentRectStyleLike | None = None
+    ) -> typing.Self:
+        if style is None:
+            style = {}
+        self.image(
+            _core._globalctx._sample_surf,
+            {
+                "fill": True,
+                "cache": "auto",
+                "pad": style.get("pad", 0),
+                "padx": style.get("padx", 0),
+                "pady": style.get("pady", 0),
+                "fill_color": style.get("color", None),
+                "alpha": style.get("alpha", 255),
+                "border_radius": style.get("border_radius", 0),
+            },
+        )
+        return self
+
+    def transparent_rect_element(
+        self,
+        transparent_rect_style: _typing.TransparentRectStyleLike | None = None,
+        element_rect: pygame.typing.RectLike | None = None,
+        element_style: _typing.ElementStyleLike | None = None,
+    ) -> _data.Interaction:
+        data = self.element(element_rect, element_style)
+        self.transparet_rect(transparent_rect_style)
+        return data
+
+    def circle(self, style: _typing.CircleStyleLike | None = None) -> typing.Self:
         self._ctx._add_component("circle", None, style)
+        return self
 
     def circle_element(
         self,
@@ -383,8 +437,9 @@ class MILI:
 
     def polygon(
         self, points: _typing.PointsLike, style: _typing.PolygonStyleLike | None = None
-    ):
+    ) -> typing.Self:
         self._ctx._add_component("polygon", points, style)
+        return self
 
     def polygon_element(
         self,
@@ -401,8 +456,15 @@ class MILI:
         self,
         start_end: _typing.PointsLike,
         style: _typing.LineStyleLike | None = None,
-    ):
+    ) -> typing.Self:
         self._ctx._add_component("line", start_end, style)
+        return self
+
+    def hline(self, style: _typing.LineStyleLike | None = None) -> typing.Self:
+        return self.line([("-50", 0), ("50", 0)], style)
+
+    def vline(self, style: _typing.LineStyleLike | None = None) -> typing.Self:
+        return self.line([(0, "-50"), (0, "50")], style)
 
     def line_element(
         self,
@@ -415,8 +477,31 @@ class MILI:
         self.line(start_end, line_style)
         return data
 
-    def text(self, text: str, style: _typing.TextStyleLike | None = None):
+    def vline_element(
+        self,
+        line_style: _typing.LineStyleLike | None = None,
+        element_rect: pygame.typing.RectLike | None = None,
+        element_style: _typing.ElementStyleLike | None = None,
+    ) -> _data.Interaction:
+        data = self.element(element_rect, element_style)
+        self.vline(line_style)
+        return data
+
+    def hline_element(
+        self,
+        line_style: _typing.LineStyleLike | None = None,
+        element_rect: pygame.typing.RectLike | None = None,
+        element_style: _typing.ElementStyleLike | None = None,
+    ) -> _data.Interaction:
+        data = self.element(element_rect, element_style)
+        self.hline(line_style)
+        return data
+
+    def text(
+        self, text: str, style: _typing.TextStyleLike | None = None
+    ) -> typing.Self:
         self._ctx._add_component("text", str(text), style)
+        return self
 
     def text_element(
         self,
@@ -458,8 +543,9 @@ class MILI:
 
     def image(
         self, surface: pygame.Surface, style: _typing.ImageStyleLike | None = None
-    ):
+    ) -> typing.Self:
         self._ctx._add_component("image", surface, style)
+        return self
 
     def image_element(
         self,
@@ -485,6 +571,7 @@ class MILI:
                 f"No custom component '{component}' registered"
             )
         self._ctx._add_component(component, data, style)
+        return self
 
     def packed_component(
         self,
@@ -494,6 +581,23 @@ class MILI:
             if comp["type"] not in _core._globalctx._component_types:
                 _error.MILIStatusError(f"No component '{comp['type']}' exists")
             self._ctx._add_component(comp["type"], comp["data"], comp["style"])
+        return self
+
+    def register_prefab(
+        self, name: str, prefab_function: typing.Callable[["MILI"], typing.Any]
+    ):
+        self._ctx._prefabs[name] = prefab_function
+
+    def prefab(self, name: str, *args, **kwargs) -> typing.Any:
+        if name not in self._ctx._prefabs:
+            raise _error.MILIValueError(
+                f"No prefab was registered with name '{name}'. Existing prefabs: {list(self._ctx._prefabs.keys())}"
+            )
+        return self._ctx._prefabs[name](self, *args, **kwargs)
+
+    def image_layer_renderer(self, layer: _data.ImageLayerCache) -> typing.Self:
+        self._ctx._add_component("image_layer", layer, {"draw_above": True})
+        return self
 
     def data_from_id(self, element_id: int) -> _data.ElementData | None:
         self._ctx._start_check()
@@ -525,5 +629,20 @@ class MILI:
     def id_checkpoint(self, id_: int):
         if id_ < 1:
             id_ = 1
-        if self._ctx._id < id_:
+        if self._ctx._id <= id_:
             self._ctx._id = id_
+            self._ctx._last_checkpoint = id_
+        else:
+            raise _error.MILIStatusError(
+                f"The current ID ({self._ctx._id}) already surpassed the checkpoint ({id_}) so it cannot be applied"
+            )
+
+    def id_jump(self, amount: int):
+        new_id = self._ctx._last_checkpoint + amount
+        if new_id >= self._ctx._id:
+            self._ctx._id = new_id
+            self._ctx._last_checkpoint = new_id
+        else:
+            raise _error.MILIStatusError(
+                f"Jumping from {self._ctx._last_checkpoint} by {amount} IDs does not surpass the current ID ({self._ctx._id}) so it cannot be done"
+            )

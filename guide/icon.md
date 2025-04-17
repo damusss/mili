@@ -14,6 +14,8 @@ With this function you setup default arguments for using icons. The customizable
 -   `svg_size`: the size that the surfaces loaded from svgs (including google ones) will have. higher values will have an higher resolution.
 -   `google_cache`: wether to save the downloaded google icons to the path for faster next loads or not.
 -   `file_type`: the extension type of file icons (defaults/recommended is png) excluding svgs.
+-   `iconify_default_set`: the default icon set to use for iconify icons. Defaults to `material-symbols`.
+-   `iconify_cache`: wether to save the downloaded iconify icons to the path for faster next loads or not.
 
 ## File Icons
 
@@ -21,4 +23,8 @@ Using `mili.icon.get`, `mili.icon.get_svg` and `mili.icon.preload` will work wit
 
 ## Google Icons
 
-The icon module allows support to use google icons by using a very simple google API to download them and (optionally) caching them. Both `mili.icon.get_google` and `mili.icon.preload_google` work similarly with their file counterparts but will occasionally make requests with urllib to fetch the icon data. Note that the API cannot use the latest google icons versions, so the downloaded ones might be different or they might be missing entirely. The `cache` argument can override the default setting. Support for more icon APIs might come in the future.
+The icon module allows support to use google icons by using a very simple google API (`https://fonts.gstatic.com/s/i/materialicons/<name>/v6/24px.svg`) to download them and (optionally) caching them. Both `mili.icon.get_google` and `mili.icon.preload_google` work similarly with their file counterparts but will occasionally make requests with urllib to fetch the icon data. Note that the API cannot use the latest google icons versions, so the downloaded ones might be different or they might be missing entirely. The `cache` argument can override the default setting.
+
+## Iconify Icons
+
+The icon module also allows support to use iconify icons by using their official API (`https://api.iconify.design/<icon set>/<name>.svg`) to download them and (optionally) caching them. Both `mili.icon.get_iconify` and `mili.icon.preload_iconify` work similarly with their file counterparts but will occasionally make requests with urllib to fetch the icon data. The `cache` argument can override the default setting. If `icon_set` is specified as None, the default one will be used instead.

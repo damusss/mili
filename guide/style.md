@@ -10,6 +10,32 @@ padx of value `"20%"` will result in padding x which is 20% of the element width
 
 Available bounding alignment values are: `center`, `topleft`, `bottomleft`, `topright`, `bottomright`, `midleft`/`left`, `midright`/`right`, `midtop`/`top`, `midbottom`/`bottom`.
 
+## MILI style methods
+MILI has a few methods related to styling:
+
+-   `MILI.default_style`/`MILI.default_styles`: Set the default styles for the style resolution
+-   `MILI.reset_default_styles`: Reset the default styles
+
+Remember that default styles are only accessed when rendering/organizing, you cannot use them for a single section of the UI. To solve this, appropriate methods exist:
+
+-   `MILI.push_styles(element=..., rect=..., ...)`: Push the styles of the selected components as the current context style. The next elements will inherit those styles immediately. The previously pushed styles will be preserved unless the current ones override them. Returns a context manager, so you can avoid to call `pop_styles`
+-   `MILI.pop_styles()`: Restore the context style to before calling the last `push_styles`. Use a context manager not to forget about this.
+-   `MILI.reset_styles()`: Erase the context style regardless of the content.
+
+For example:
+
+```py
+my_mili.default_styles(rect={"color": "white"}) # will work for all rectangles
+my_mili.rect() # outline is 0
+with my_mili.push_styles(rect={"outline": 1}):
+    my_mili.rect() # outline is 1
+    my_mili.rect({"color": "green"}) # outline is one, color overrides default
+    my_mili.rect({"outline": 2}) # outline is 2 overriding the context style
+    my_mili.rect() # outline is 1
+my_mili.rect() # outline is 0
+```
+
+
 ## Style Resolution Method
 
 - 1. search in the provided style
@@ -19,7 +45,15 @@ Available bounding alignment values are: `center`, `topleft`, `bottomleft`, `top
   # result: the size is 50
   ```
 
-- 2. search in the default style
+- 2. use the context style
+
+  ```py
+  with my_mili.push_styles(text={"size": 40}):
+    my_mili.text("Example")
+  # result: the size is 40
+  ```
+
+- 3. search in the default style
 
   ```py
   my_mili.default_style("text", {"size": 30})
@@ -27,7 +61,7 @@ Available bounding alignment values are: `center`, `topleft`, `bottomleft`, `top
   # result: the size is 30
   ```
 
-- 3. use the internal default value
+- 4. use the internal default value
 
   ```py
   my_mili.text("Example")
@@ -50,12 +84,9 @@ The following styles apply to the current element.
 | parent_id | `integer` | _ignore the current parent and manually set the element parent using the ID_ | auto |
 | offset | `Sequence[float]` | _draw and interaction offset from its relative position_ | `(0, 0)` |
 | clip_draw | `True/False` | _if False, disable the clip rect allowing components and children to be visible outside of the element rect_ | `True` |
-| pre_draw_func | `(Surface, ElementData, Rect) -> None / None` | _a function that takes the canvas, the element data and the clip rect to be called before the components are drawn_ | `None` |
-| mid_draw_func | `(Surface, ElementData, Rect) -> None / None` | _a function that takes the canvas, the element data and the clip rect to be called after the components are drawn and before the children are drawn_ | `None` |
-| post_draw_func | `(Surface, ElementData, Rect) -> None / None` | _a function that takes the canvas, the element data and the clip rect to be called after the children are drawn_ | `None` |
 | update_id | `string/list[string]` | _the update ID(s) that will be used to automatically update utilities associated with it_ | `None` |
-| image_layer_cache | `ImageLayerCache/None` | _draws the provided `ImageLayerCache` when this element is done rendering, instead of doing it on top of everything_ (**cannot be set as a default style**) | `None` |
 | cache_rect_size | `True/False` | _Control wether the element should inherit the size of the previous holder of the current ID. Always happens for elements that have fillx or filly in the respective axis. Could save performance or be required for things to look right in certain scenarios_ | `False` |
+| cache | `mili.ParentCache/None` | _The ParentCache cache object_ | `None` |
 
 ### Children Style
 
@@ -68,9 +99,17 @@ The following styles only apply to the children of this element.
 | padx, pady | `number/percentage` | _control the space between the children and the element borders_ | same as `pad` |
 | anchor | `first/center/last/max_spacing` | _control how children are aligned along the element axis_ | `first` |
 | default_align | `first/center/last` | _control the default opposite axis alignment of every children_ | `first` |
-| grid | `True/False` | _control wether the children should be organized in both directions_ (**children alignment is ignored. fillx and filly values for children are calculated based on the parent size alone**) | `False` |
-| grid_align | `first/center/last/max_spacing` | _control how children are aligned along the rows of the element axis, while the anchor controls the alignement of the rows themselves_ (**only effective if the element is a grid**) | `first` |
+| layout | `stack/grid/table` | _control the algorithm organizing the children. see below for detailed information_ | `stack` |
+| grid_align | `first/center/last/max_spacing/first_center/last_center` | _control how children are aligned along the rows of the element axis, while the anchor controls the alignement of the rows themselves_ (**only effective if the element is a grid**) | `first` |
 | grid_spacex, grid_spacey | `number/percentage` | _control the space between children along the row and between the rows depending on the axis separately_ (**only effective if the element is a grid**) | same as `spacing` |
+
+### Layout
+
+- stack: The default layout. A stack parent will organize children in one single row or column and if the children don't fit they will overflow. Children with fill styles are highly supported.
+
+- grid: Also known as wrapping layout. When the children overflow the parent axis they will go to the next row/column. Children alignment is ignored. Children with fill styles are partially supported, meaning their size is not calculated dynamically rather only relative to the parent size.
+
+- table: WORK IN PROGRESS.
 
 ### Anchoring
 
@@ -83,12 +122,29 @@ The following styles only apply to the children of this element.
 - max_spacing<br>
   ` |C1----C2----C3----C4|`
 
+first_center and last_center are special grid alignments. The meaning is that the first word (first/last) controls how the elements are ognanized within their own row/column, and center means that the row/column itself is centered relative to the longest row/column. For example:
+
+- example with grid_align = first
+  ```
+  |XXXX |
+  |XXXX |
+  |XX       |
+  ```
+- example with grid_align = first_center
+  ```
+  | XXXX |
+  | XXXX |
+  | XX       |
+  ```
+
 ## Common Component Styles
 
 | Name | Type/Value | Description | Default |
 | ------------------- | ------------------- | :------------------- | ------------------- |
 | draw_above | `True/False` | _control wether the component is drawn above the children_ | `False` |
 | element_id | `int` | _select the element this component should be attached to instead of the most recently created element_ (**cannot be set as a default style**) | `None` |
+
+Padding is also common for all components, but it is explained in depth for each one.
 
 ## Rect Style
 
@@ -167,7 +223,7 @@ For every combination of font name and size a font object is created and cached.
 | spoiler_text_color | `color value` | _The color of the text foreground when the text is shown_ |  `(150, 150, 150)`|
 | code_bg_color | `color value` | _The background color of the text in the code_ |  `(60, 60, 60)`|
 | code_color | `color value` | _The color of the text inside the code_ |  `white`|
-| highlight_color | `color value` | _The background color of highlighted text_ | #604c44 |
+| highlight_color | `color value` | _The background color of highlighted text_ | `#604c44` |
 
 ### Rich Text
 
@@ -246,6 +302,8 @@ The start_end should be a sequence of 2 sequences where the x and y values can b
 | antialias | `True/False` | _wether the line is antialiased. currently not supported for sizes different from 1_ | `False` |
 | dash_size | `number/percentage/[number/percentage x2]/None` | _enables the dashed style. a single value or an iterable for fill and space segment sizes can be provided. the percentage will be relative to the line length_ | `None` |
 | dash_offset | `number/percentage` | _when the style is dashed, controls the offset after which to draw the first segment. the percentage will be relative to the line length_ | `0` |
+| pad | `number/percentage` | _clamp the points of the line so they don't exceed the specified distance from the borders in both directions_ | `0` |
+| padx, pady | `number/percentage` | _clamp the points of the line so they don't exceed the specified distance from the borders of a specific axis_ | same as `pad` |
 
 ## Polygon Style
 
@@ -257,7 +315,8 @@ The points should be a sequence of at least 2 sequences where the x and y values
 | ------------------- | ------------------- | :------------------- | ------------------- |
 | outline | `number/percentage` | _control the size of the outline. 0 means no outline_ | `0` |
 | color | `color value` | _control the polygon color_ | `black` |
-| draw_above | `True/False` | _control wether the polygon is drawn above the children_ | `False` |
+| pad | `number/percentage` | _clamp the points of the polygon so they don't exceed the specified distance from the borders in both directions_ | `0` |
+| padx, pady | `number/percentage` | _clamp the points of the polygon so they don't exceed the specified distance from the borders of a specific axis_ | same as `pad` |
 
 ## Markdown Style
 
@@ -266,12 +325,6 @@ Some styles are going to override the values of X_style to ensure markdown rende
 
 | Name | Type/Value | Description | Default |
 | ------------------- | ------------------- | :------------------- | ------------------- |
-| element_style | `rect style dict` | _the default style for inner elements_ | `{}` |
-| rect_style | `rect style dict` | _the default style for rect elements_ | `{}` |
-| circle_style | `circle style dict` | _the default style for circle elements_ | `{}` |
-| line_style | `line style dict` | _the default style for line elements_ | `{}` |
-| image_style | `image style dict` | _the default style for image elements_ | `{}` |
-| text_style | `text style dict` | _the default style for text elements_ | `{}` |
 | quote_width | `number` | _contrl how wide is the vertical rect preceding a quote block_ | `3` |
 | quote_border_radius | `number` | _contrl the border radius of the vertical rect preceding a quote block_ | `3` |
 | indent_width | `number` | _control how wide is an indentation_ | `30` |
@@ -338,7 +391,6 @@ A modified version of the regular scrollbar style (always horizontal).
 | border_dist | `number` | _the distance from the right/bottom side of the scrollbar and the border of the container_ | `3` |
 | padding | `number` | _the distance from the tips of the scrollbar and the borders of the container_ | `3` |
 | size_reduce | `number` | _a value that can reduce the calculated length of the scrollbar. Useful to accomodate a scrollbar of the opposite axis in that space_ | `0` |
-| bar_update_id | `str/None` | _the update ID to assign to the bar of the scrollbar to automatically update it_ | `None` |
 | handle_update_id | `str/None` | _the update ID to assign to the handle of the scrollbar to automatically update it_ | `None` |
 
 ### mili.Slider
@@ -370,6 +422,7 @@ A modified version of the regular scrollbar style (always horizontal).
 | ------------------- | ------------------- | :------------------- | ------------------- |
 | placeholder | `string` | _the text to display when the entryline is empty_ | `Enter text...` |
 | placeholder_color | `color value` | _the color of the placeholder text_ | `(180, 180, 180)` |
+| text_anchor | `left/right` | _the side that the text is attached to_ | `left` |
 | text_filly | `True/False/number/percentage` | _the filly style for the text element_ | `"100"` |
 | text_style | `text style dict` | _additional style for the text (f.e. text size or font)_ | `{}` |
 | bg_rect_style | `rect style dict/None` | _if not None, provide the style for a rect background shortcut_ | `None` |
@@ -412,6 +465,8 @@ A modified version of the regular scrollbar style (always horizontal).
 
 - `mili.PADLESS`: Sets padding to zero on both axis
 
+- `mili.SPACELESS`: Sets spacing to zero
+
 - `mili.RESIZE`: Sets resizing to true on both axis
 
 - `mili.FILL`: Sets filling to true on both axis
@@ -433,14 +488,5 @@ A modified version of the regular scrollbar style (always horizontal).
 - `mili.style.Style` will help you cache common styles. you can retrieve them with `get(type)` or use the shortcuts like `get_rect()`
 
 - `mili.style.StyleStatus` will help you cache styles for different interactions, using `mili.style.Style` objects for base, hover and press statuses that you can retrieve with the `get(type, interaction)` or use the shortcuts like `get_rect(interaction)` (similar to `mili.style.conditional()`)
-
-- `mili.style.DefaultStyle`: A context manager object that applies the default styles only within its context, reverting the previous style when exiting, for example:
-  ```py
-  my_mili.rect() # rect is black
-  with mili.style.DefaultStyle(rect=mili.style.color("white")):
-    my_mili.rect() # rect is white
-  my_mili.rect() # rect is black
-  # this class should be used with more complex styles
-  ```
 
 Keep in mind that you can merge styles using the pipe operator, for example `mili.CENTER | mili.PADLESS`

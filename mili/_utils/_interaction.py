@@ -64,6 +64,7 @@ class InteractionCursor:
         pygame.SYSTEM_CURSOR_HAND
     )
     disabled_cursor: int | pygame.Cursor | None = pygame.SYSTEM_CURSOR_NO
+    _active = True
 
     @classmethod
     def setup(
@@ -82,12 +83,16 @@ class InteractionCursor:
         cls.hover_cursor = hover_cursor
         cls.press_cursor = press_cursor
         cls.disabled_cursor = disabled_cursor
+        cls._active = True
         _core._globalctx._register_update_id(update_id, cls.update)
 
     @classmethod
     def apply(
         cls,
     ) -> int | pygame.Cursor | None:
+        if not cls._active:
+            cls._cursor_stolen = None
+            return None
         if cls._cursor_stolen is None and cls.idle_cursor is not None:
             pygame.mouse.set_cursor(cls.idle_cursor)
             cls._cursor_stolen = None

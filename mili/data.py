@@ -5,9 +5,27 @@ from dataclasses import dataclass
 if typing.TYPE_CHECKING:
     from mili import MILI as _MILI
 
-__all__ = ("ImageCache", "TextCache", "ImageLayerCache", "Interaction", "ElementData")
+__all__ = ("ImageCache", "TextCache", "ParentCache", "ImageLayerCache", "Interaction", "ElementData")
 
-PARENT_PRE_ORGANIZE_CHILDREN = 1
+
+class ParentCache:
+    def __init__(self, static):
+        self._cache = None
+        self._rebuild = True
+        self._size = None
+        self._grid = None
+        self._static = static
+        self._style = None
+
+    def refresh(self):
+        self._rebuild = True
+        self._cache = {
+            "children": [],
+            "children_grid": [],
+            "children_fillx": [],
+            "children_filly": [],
+        }
+        self._grid = None
 
 
 class ImageCache:

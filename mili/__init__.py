@@ -6,8 +6,8 @@ from .mili import (
     get_font_cache,
     clear_font_cache,
 )
-from .data import ElementData, Interaction, ImageCache, TextCache, ImageLayerCache, PARENT_PRE_ORGANIZE_CHILDREN
-from .style import RESIZE, X, CENTER, PADLESS, FLOATING, FILL
+from .data import ElementData, Interaction, ImageCache, TextCache, ImageLayerCache, ParentCache
+from .style import RESIZE, X, CENTER, PADLESS, FLOATING, FILL, SPACELESS
 from .utility import (
     Selectable,
     Dragger,
@@ -17,10 +17,12 @@ from .utility import (
     DropMenu,
     EntryLine,
     GenericApp,
+    UIApp,
     AdaptiveUIScaler,
     InteractionSound,
     InteractionCursor,
     CustomWindowBorders,
+    CustomWindowBehavior,
     percentage,
     fit_image,
 )
@@ -32,8 +34,8 @@ from . import animation
 from . import icon
 
 from collections import namedtuple
-
-VERSION = namedtuple("VersionInfo", "major minor micro")(1, 0, 5)
+# explain UIApp in guide
+VERSION = namedtuple("VersionInfo", "major minor micro")(1, 0, 6)
 VERSION_STR = f"{VERSION.major}.{VERSION.minor}.{VERSION.micro}"
 del namedtuple
 
@@ -45,6 +47,7 @@ __all__ = (
     "ImageCache",
     "TextCache",
     "ImageLayerCache",
+    "ParentCache",
     "Selectable",
     "Dragger",
     "Scroll",
@@ -53,22 +56,24 @@ __all__ = (
     "DropMenu",
     "EntryLine",
     "GenericApp",
+    "UIApp",
     "AdaptiveUIScaler",
     "InteractionSound",
     "InteractionCursor",
     "CustomWindowBorders",
+    "CustomWindowBehavior",
     "percentage",
     "fit_image",
     "register_custom_component",
     "pack_component",
     "get_font_cache",
     "clear_font_cache",
-    "PARENT_PRE_ORGANIZE_CHILDREN",
     "RESIZE",
     "X",
     "CENTER",
     "PADLESS",
     "FLOATING",
+    "SPACELESS",
     "FILL",
     "error",
     "style",

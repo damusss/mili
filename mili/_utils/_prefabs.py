@@ -113,6 +113,7 @@ class Scroll:
         self._element_data: _data.ElementData | None = None
         self._scrollbars: list["Scrollbar"] = []
         _core._globalctx._register_update_id(update_id, self.update)
+        self._update_id = update_id
 
     def update[IT: _data.Interaction | _data.ElementData](self, container: IT) -> IT:
         if isinstance(container, _data.ElementData):
@@ -126,9 +127,13 @@ class Scroll:
         self,
         event: pygame.Event,
         multiplier: float = 35,
+        constrain_rect: pygame.typing.RectLike | None = None,
         axis_invert_kmod: int | None = None,
     ):
-        if event.type == pygame.MOUSEWHEEL:
+        if event.type == pygame.MOUSEWHEEL and (
+            constrain_rect is None
+            or pygame.Rect(constrain_rect).collidepoint(pygame.mouse.get_pos())
+        ):
             x, y = -event.x * multiplier, -event.y * multiplier
             if (
                 axis_invert_kmod is not None
@@ -237,7 +242,6 @@ class Scrollbar:
             "border_dist": style.get("border_dist", 3),
             "padding": style.get("padding", 3),
             "size_reduce": style.get("size_reduce", 0),
-            "bar_update_id": style.get("bar_update_id", None),
             "handle_update_id": style.get("handle_update_id", None),
         }
         self.size: int | float = 0
@@ -249,9 +253,13 @@ class Scrollbar:
         self.handle_rect: pygame.Rect = pygame.Rect()
 
         self.bar_style: _typing.ElementStyleLike = {"ignore_grid": True, "z": 999}
-        self.handle_style: _typing.ElementStyleLike = {"ignore_grid": True, "z": 9999}
+        self.handle_style: _typing.ElementStyleLike = {
+            "ignore_grid": True,
+            "z": 9999,
+            "update_id": self.style["handle_update_id"],
+        }
 
-        _core._globalctx._register_update_id(self.style["bar_update_id"], self.update)
+        _core._globalctx._register_update_id(self._scroll._update_id, self.update)
         _core._globalctx._register_update_id(
             self.style["handle_update_id"], self.update_handle
         )
@@ -571,12 +579,12 @@ class DropMenu:
         self._option_i = 0
         self.__just_open = False
         _core._globalctx._register_update_id(
-            style["selected_update_id"], self.update_selected
+            self.style["selected_update_id"], self.update_selected
         )
         _core._globalctx._register_update_id(
-            style["option_update_id"], self.update_option
+            self.style["option_update_id"], self.update_option
         )
-        _core._globalctx._register_update_id(style["menu_update_id"], self.update_menu)
+        _core._globalctx._register_update_id(self.style["menu_update_id"], self.update_menu)
 
     def show(self):
         self.shown = True
@@ -681,6 +689,7 @@ class EntryLine:
             "redo_key": style.get("redo_key", pygame.K_y),
             "undo_key": style.get("undo_key", pygame.K_z),
             "history_limit": style.get("history_limit", 1000),
+            "text_anchor": style.get("text_anchor", "left"),
         }
         self._text = str(text)
         self.cursor = len(self._text)
@@ -754,7 +763,7 @@ class EntryLine:
             self._cursor_time = pygame.time.get_ticks()
         if not self.focused:
             self._cursor_on = False
-        if self._press and (pygame.time.get_ticks() - self._press_time >= 40):
+        if self._press and (pygame.time.get_ticks() - self._press_time >= 80):
             self._set_cursor_on()
             new_cursor, tocheck = self._cursor_from_pos(mposx, 1)
             if (
@@ -801,8 +810,12 @@ class EntryLine:
         self._cont_rect = container_element.data.absolute_rect
         self._font = mili.text_font(style)
         fonth = self._font.get_height()
-        text_to_cursor = self._text[: self.cursor]
-        size = mili.text_size(text_to_cursor, style)
+        if self.style["text_anchor"] != "right":
+            text_to_cursor = self._text[: self.cursor]
+            size = mili.text_size(text_to_cursor, style)
+        else:
+            text_from_cursor = self._text[self.cursor :]
+            size = mili.text_size(text_from_cursor, style)
         self._size = size.x
         self._pad = pad
         self._cont_w = container_element.data.rect.w
@@ -818,6 +831,7 @@ class EntryLine:
                 "blocking": False,
                 "filly": self.style["text_filly"],
                 "offset": pygame.Vector2(-self._offset, 0) + scrolloffset,
+                "align": "first" if self.style["text_anchor"] == "left" else "last",
             },
         )
         self._rect = te.data.absolute_rect
@@ -848,9 +862,12 @@ class EntryLine:
                 | {"ready_rect": sel_rect, "color": self.style["selection_color"]}
             )
         mili.text(text, style)
+        cursor_pos = pad + (self._size - self._offset)
+        if self.style["text_anchor"] == "right":
+            cursor_pos = self._cont_w - pad - self._size - self._offset
         mili.element(
             (
-                pad + (self._size - self._offset),
+                cursor_pos,
                 te.data.rect.bottom - te.data.rect.h / 2 - fonth / 2,
                 self.style["cursor_width"],
                 fonth,
@@ -924,7 +941,10 @@ class EntryLine:
             if self._rect.collidepoint(mpos):
                 self._release_time = pygame.time.get_ticks()
             else:
-                self.cursor = len(self._text)
+                if self.style["text_anchor"] == "right":
+                    self.cursor = 0
+                else:
+                    self.cursor = len(self._text)
                 self._set_cursor_on()
                 self.cancel_selection()
 
@@ -1141,11 +1161,18 @@ class EntryLine:
             self.cursor = 0
         if self.cursor > len(self._text):
             self.cursor = len(self._text)
-        cursorpos = self._size - self._offset
-        if cursorpos > self._cont_w - self._pad * 2:
-            self._offset = self._size - (self._cont_w - self._pad * 2)
-        if cursorpos < 0:
-            self._offset = self._size
+        if self.style["text_anchor"] != "right":
+            cursorpos = self._size - self._offset
+            if cursorpos > self._cont_w - self._pad * 2:
+                self._offset = self._size - (self._cont_w - self._pad * 2)
+            if cursorpos < 0:
+                self._offset = self._size
+        else:
+            cursorpos = self._cont_w - self._pad * 2 - self._size - self._offset
+            if cursorpos > self._cont_w - self._pad * 2:
+                self._offset = -self._size
+            if cursorpos < 0:
+                self._offset = -(self._size - (self._cont_w - self._pad * 2))
         if self.style["scroll"] is not None:
             self.style["scroll"].scroll_offset.x = 0
         if edit:
@@ -1202,9 +1229,7 @@ class EntryLine:
             self._history_index = 0
         else:
             if self._history_index < len(self._history) - 1:
-                # print("before", self._history)
                 self._history = self._history[: self._history_index]
-                # print("after")
             self._history.append(state)
             self._history_index += 1
         if self.style["history_limit"] is None:

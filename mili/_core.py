@@ -11,13 +11,24 @@ if typing.TYPE_CHECKING:
 
 __all__ = ()
 
-_PARENT_NONE = 0
+
+class _PushStylesCtx:
+    def __init__(self, mili):
+        self._mili = mili
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        self._mili.pop_styles()
 
 
 class _globalctx:
+    _sample_surf = pygame.Surface((10, 10), pygame.SRCALPHA)
     _font_cache = {}
     _component_types: dict[str, str | _typing.ComponentProtocol] = dict.fromkeys(
-        ["rect", "circle", "line", "polygon", "line", "text", "image"], "builtin"
+        ["rect", "circle", "line", "polygon", "line", "text", "image", "image_layer"],
+        "builtin",
     )
     _mili_stack = []
     _mili: "_MILI|None" = None
@@ -34,7 +45,6 @@ class _globalctx:
 
 class _ctx:
     def __init__(self, mili: "_MILI"):
-        self._coreutils = _coreutils
         self._mili = mili
         self._parent: dict[str, typing.Any] = {
             "rect": pygame.Rect(0, 0, 1, 1),
@@ -54,6 +64,7 @@ class _ctx:
             "hovered": False,
             "is_parent": True,
         }
+        self._coreutils = _coreutils
         self._stack: dict[str, typing.Any] = self._parent
         self._parents_stack = [self._stack]
         self._id = 1
@@ -79,6 +90,12 @@ class _ctx:
         self._get_just_released_func: typing.Callable = pygame.mouse.get_just_released
         self._image_layer_caches: list[_data.ImageLayerCache] = []
         self._cleared = 0
+        self._inside_cache = -1
+        self._static_cache = False
+        self._last_checkpoint = 0
+        self._styles = {}
+        self._styles_stack = []
+        self._prefabs = {}
         self._dummy_interaction = _data.Interaction(
             mili, False, -1, -1, -1, False, False, 0, {}
         )
@@ -90,16 +107,36 @@ class _ctx:
             "line": {},
             "text": {},
             "image": {},
+            "image_layer": {},
         }
 
     def _get_element(
         self, rect: pygame.typing.RectLike | None, arg_style, did_begin=False
     ) -> tuple[dict[str, typing.Any], "_data.Interaction"]:
-        if arg_style is None:
-            style = {}
+        if len(self._styles_stack) <= 0:
+            if arg_style is None:
+                style = {}
+            else:
+                style = arg_style.copy()
         else:
-            style = arg_style.copy()
+            if arg_style is None:
+                style = self._styles.get("element", {})
+            else:
+                style = self._styles.get("element", {}).copy()
+                style.update(arg_style)
         old_el = self._memory.get(self._id, None)
+        if self._inside_cache != -1 and old_el:
+            if self._static_cache:
+                self._z += 1
+                self._id += 1
+                return old_el, self._dummy_interaction
+            else:
+                ret_interaction = self._get_interaction(old_el, old_el)
+                old_el.update(top=False, hovered=False, style=style, components=[])
+                self._element = old_el
+                self._z += 1
+                self._id += 1
+                return old_el, ret_interaction
         if rect is None:
             rect = pygame.Rect()
             absrect = pygame.Rect()
@@ -134,6 +171,16 @@ class _ctx:
             if did_begin
             else {},
         }
+        cache = None
+        if did_begin:
+            cache = self._style_val(style, "element", "cache", None)
+            if cache is not None:
+                element["cache"] = cache
+                if not cache._rebuild:
+                    element["cd"] = cache._cache
+                    element["grid"] = cache._grid
+                    self._inside_cache = self._id
+                    self._static_cache = cache._static
         cache_size = self._style_val(style, "element", "cache_rect_size", False)
         oldr = None
         if cache_size and old_el:
@@ -165,20 +212,40 @@ class _ctx:
                 cd["children_grid"].append(element)
                 fillx = self._style_val(style, "element", "fillx", False)
                 filly = self._style_val(style, "element", "filly", False)
-                if bool(fillx):
+                if fillx:
                     element["fillx"] = fillx
                     cd["children_fillx"].append(element)
-                    if oldr:
+                    if oldr is not None:
                         rect.w = absrect.w = oldr.w
-                if bool(filly):
+                if filly:
                     element["filly"] = filly
                     cd["children_filly"].append(element)
-                    if oldr:
+                    if oldr is not None:
                         rect.h = absrect.h = oldr.h
+                if oldr is not None:
+                    if fillx and self._style_val(style, "element", "resizey", False):
+                        rect.h = absrect.h = oldr.h
+                    if filly and self._style_val(style, "element", "resizex", False):
+                        rect.w = absrect.w = oldr.w
             element["z"] = z + 1
         self._id += 1
         self._element = element
         self._z += 1
+        if cache is not None:
+            if cache._size != rect.size or style != cache._style:
+                cache._size = rect.size
+                cache._style = style
+                cache._rebuild = True
+                element["cd"] = {
+                    "children": [],
+                    "children_grid": [],
+                    "children_fillx": [],
+                    "children_filly": [],
+                }
+                cache._cache = element["cd"]
+                cache._grid = None
+                self._inside_cache = -1
+                self._static_cache = False
         return element, interaction
 
     def _style_val(self, style: dict, major, minor, default):
@@ -209,7 +276,7 @@ class _ctx:
         rectav = getattr(rect, av)
         rectoav = getattr(rect, oav)
         grid_align = self._style_val(style, "element", "grid_align", "first")
-        _coreutils._check_align(grid_align)
+        _coreutils._check_align_grid(grid_align)
         spacea = _coreutils._abs_perc(
             self._style_val(style, "element", f"grid_space{a}", space),
             rectav,
@@ -354,8 +421,12 @@ class _ctx:
                     grid_align = "center"
             if grid_align == "last":
                 current_pos_a = padded_a - line_size
-            if grid_align == "center":
+            elif grid_align == "center":
                 current_pos_a = rectav / 2 - line_size / 2
+            elif grid_align == "first_center":
+                current_pos_a = rectav / 2 - longest_line_size_a / 2
+            elif grid_align == "last_center":
+                current_pos_a = padded_a / 2 + longest_line_size_a / 2 - line_size
             for el in elements:
                 el_rect = el["rect"]
                 setattr(el_rect, oa, current_pos_oa)
@@ -374,9 +445,15 @@ class _ctx:
             f"space{a}": spacea,
             f"space{oa}": spaceoa,
         }
+        if (cache := element.get("cache", None)) is not None:
+            cache._cache = element["cd"]
+            cache._rebuild = False
+            cache._grid = element["grid"]
 
     def _organize_element(self, element: dict[str, typing.Any]):
         if not element["is_parent"]:
+            return
+        if self._inside_cache != -1:
             return
         style = element["style"]
         rect = element["rect"]
@@ -404,7 +481,7 @@ class _ctx:
         )
         anchor = self._style_val(style, "element", "anchor", "first")
         def_align = self._style_val(style, "element", "default_align", "first")
-        _coreutils._check_align(anchor)
+        _coreutils._check_anchor(anchor)
         resizeoa = bool(self._style_val(style, "element", f"resize{oa}", False))
         resizea = bool(self._style_val(style, "element", f"resize{a}", False))
         constraint = element.get("constraint", None)
@@ -424,8 +501,11 @@ class _ctx:
         padded_oa = rectoav - padoa * 2
         padded_a = rectav - pada * 2
 
-        grid = self._style_val(style, "element", "grid", False)
-        if grid:
+        layout = self._style_val(style, "element", "layout", "stack")
+        if layout == "table":
+            # organize table
+            ...
+        elif layout == "grid" or self._style_val(style, "element", "grid", False):
             self._organize_grid(
                 element,
                 a,
@@ -571,6 +651,10 @@ class _ctx:
             "spacex": space,
             "spacey": space,
         }
+        if (cache := element.get("cache", None)) is not None:
+            cache._cache = element["cd"]
+            cache._rebuild = False
+            cache._grid = element["grid"]
 
     def _constrain(self, value, constraint, vi):
         if constraint is None:
@@ -607,7 +691,7 @@ class _ctx:
         self._id = 1
         self._element = self._parent
         self._stack = self._parent
-        self._parents_stack = [self._stack]
+        self._parents_stack = [self._parent]
         self._abs_hovered = []
         self._started = True
         self._z = 0
@@ -743,10 +827,19 @@ class _ctx:
             return _coreutils._partial_interaction(self, element, absolute_hover)
 
     def _add_component(self, type, data, arg_style):
-        if arg_style is None:
-            style = {}
+        if self._static_cache:
+            return
+        if len(self._styles_stack) <= 0:
+            if arg_style is None:
+                style = {}
+            else:
+                style = arg_style.copy()
         else:
-            style = arg_style.copy()
+            if arg_style is None:
+                style = self._styles.get(type, {}).copy()
+            else:
+                style = self._styles.get(type, {}).copy()
+                style.update(arg_style)
         if type in ["text", "image"]:
             cache = self._style_val(style, type, "cache", None)
             if cache == "auto":
@@ -903,9 +996,20 @@ class _ctx:
         if self._canva is None:
             return
         points = []
+        pad = self._style_val(style, "line", "pad", 0)
+        padx = self._style_val(style, "line", "padx", pad)
+        pady = self._style_val(style, "line", "pady", pad)
+        padx, pady = (
+            int(_coreutils._abs_perc(padx, rect.w)),
+            int(_coreutils._abs_perc(pady, rect.h)),
+        )
         for raw_p in data:
             rx, ry = raw_p
             rx, ry = _coreutils._abs_perc(rx, rect.w), _coreutils._abs_perc(ry, rect.h)
+            if padx * 2 < rect.w:
+                rx = pygame.math.clamp(rx, -rect.w // 2 + padx, rect.w // 2 - padx)
+            if pady * 2 < rect.h:
+                ry = pygame.math.clamp(ry, -rect.h // 2 + pady, rect.h // 2 - pady)
             points.append((rect.centerx + rx, rect.centery + ry))
         color = self._style_val(style, "polygon", "color", "black")
         outline = int(
@@ -921,9 +1025,20 @@ class _ctx:
         if self._canva is None:
             return
         points = []
+        pad = self._style_val(style, "line", "pad", 0)
+        padx = self._style_val(style, "line", "padx", pad)
+        pady = self._style_val(style, "line", "pady", pad)
+        padx, pady = (
+            int(_coreutils._abs_perc(padx, rect.w)),
+            int(_coreutils._abs_perc(pady, rect.h)),
+        )
         for raw_p in data:
             rx, ry = raw_p
             rx, ry = _coreutils._abs_perc(rx, rect.w), _coreutils._abs_perc(ry, rect.h)
+            if padx * 2 < rect.w:
+                rx = pygame.math.clamp(rx, -rect.w // 2 + padx, rect.w // 2 - padx)
+            if pady * 2 < rect.h:
+                ry = pygame.math.clamp(ry, -rect.h // 2 + pady, rect.h // 2 - pady)
             points.append((rect.centerx + int(rx), rect.centery + int(ry)))
         if len(points) != 2:
             raise error.MILIValueError("Wrong number of points")
@@ -1328,6 +1443,14 @@ class _ctx:
                 layer_cache._caches.append(cache)
             layer_cache._caches_activity[cache] = True
 
+    def _draw_comp_image_layer(self, data: _data.ImageLayerCache, style, el, rect):
+        if self._canva is None:
+            return
+        clip = self._canva.get_clip()
+        self._canva.set_clip(self._canva_rect)
+        _coreutils._render_layer_cache(data, self._canva)
+        self._canva.set_clip(clip)
+
     def _draw_update_element(
         self, element: dict[str, typing.Any], parent_pos, parent_clip=None
     ):
@@ -1351,20 +1474,7 @@ class _ctx:
         else:
             clip = parent_clip
         self._check_interaction(element)
-
-        pre_draw, mid_draw, post_draw = [
-            self._style_val(el_style, "element", name, None)
-            for name in ["pre_draw_func", "mid_draw_func", "post_draw_func"]
-        ]
-        layer_cache = el_style.get("image_layer_cache", None)
-        el_data = None
-
         self._canva.set_clip(clip)
-        if pre_draw:
-            if el_data is None:
-                el_data = _coreutils._element_data(self, element)
-            pre_draw(self._canva, el_data, clip)
-            self._canva.set_clip(clip)
         render_above = []
         for component in element["components"]:
             comp_type = component["type"]
@@ -1380,11 +1490,6 @@ class _ctx:
                 compobj.draw(
                     self, component["data"], component["style"], element, absolute_rect
                 )
-        if mid_draw:
-            if el_data is None:
-                el_data = _coreutils._element_data(self, element)
-            mid_draw(self._canva, el_data, clip)
-            self._canva.set_clip(clip)
         cd = element["cd"]
         if len(cd.get("children", ())) > 0:
             for child in sorted(cd["children"], key=lambda c: c["z"]):
@@ -1402,15 +1507,6 @@ class _ctx:
                 compobj.draw(
                     self, component["data"], component["style"], element, absolute_rect
                 )
-        if post_draw:
-            if el_data is None:
-                el_data = _coreutils._element_data(self, element)
-            post_draw(self._canva, el_data, clip)
-            self._canva.set_clip(clip)
-        if layer_cache is not None:
-            self._canva.set_clip(self._canva_rect)
-            _coreutils._render_layer_cache(layer_cache, self._canva)
-            self._canva.set_clip(clip)
 
     def _start_check(self):
         if not self._started:

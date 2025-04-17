@@ -1,7 +1,7 @@
 import pygame
 from mili import _core
 from mili import _richtext
-from mili._utils._window import GenericApp, AdaptiveUIScaler, CustomWindowBorders
+from mili._utils._window import GenericApp, UIApp, AdaptiveUIScaler, CustomWindowBorders, CustomWindowBehavior
 from mili._utils._interaction import (
     InteractionCursor,
     InteractionSound,
@@ -25,10 +25,12 @@ __all__ = (
     "DropMenu",
     "EntryLine",
     "GenericApp",
+    "UIApp",
     "AdaptiveUIScaler",
     "InteractionSound",
     "InteractionCursor",
     "CustomWindowBorders",
+    "CustomWindowBehavior",
     "percentage",
     "fit_image",
 )

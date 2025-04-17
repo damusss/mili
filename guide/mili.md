@@ -9,17 +9,14 @@ Each instance has an internal context instance.
 
 A MILI instance must be associated with a surface to draw on. You can retrieve it or change it with the `MILI.canva: Surface` property. If the canva isn't the screen and is not rendered at the topleft, you can seet the `MILI.canva_offset` property to the render position relative to the window so that the mouse clicks are registered correctly.
 
-MILI has a few methods related to styling:
-
--   `MILI.default_style`/`MILI.default_styles`: Set the default styles for the style resolution
--   `MILI.reset_style`: Reset the default styles
+MILI has 6 methods related to styling. Check the start of [style guide]() to learn about them.
 
 The following are two essential functions in the game loop:
 
--   `MILI.start(style)`: Must be called at the start of the game loop. Acts like the parent of all elements, so it supports styling and components. If `is_global` is True the `ImageCache` preallocated index will be reset. You only want one MILI instance to start as global.
+-   `MILI.start(style)`: Must be called at the start of the game loop. Acts like the parent of all elements, so it supports styling and components. If `is_global` is True the `ImageCache`/`TextCache` preallocated index will be reset. You only want one MILI instance to start as global.
 -   `MILI.update_draw`: Update the interaction and draws all elements. Elements are sorted using their z index which automatically increases when new elements are created.
 
-Boilerplate example code for MILI (it's a better practice to use classes):
+Boilerplate example code for MILI (it's a better practice to use classes like `mili.GenericApp`):
 
 ```py
 import mili
@@ -124,6 +121,10 @@ To have both a filled version and the outline version of a shape you must concat
 Components are attached to the most recent element (unless overridden by a style). They are contained within the hitbox of the element (customizable with styles).
 You should change the style of components based on interaction for visual feeback.
 
+There are also three built-in shortcut components. They actually call existing components but make them easier for specific usecases. They are:
+-   `MILI.transparent_rect(style)` (uses an image component)
+-   `MILI.vline(style)`/`MILI.hline(style)` (inserts the start and ending points automatically for the most common lines)
+
 Example usage of components:
 
 ```py
@@ -142,13 +143,13 @@ with my_mili.begin(None, {"fillx": "50", "filly": "80"}) as container:
 
             if interaction.left_just_released:...
                 # action on button press
-
-    # NOTE: calling my_mili.component here will attach it to the last button, not container!
 ```
 
 To reduce boilerplate code, for every component there is a shortcut that creates an element with a single component of said type, for example `MILI.text_element` will create an element with a text component.
 
 For text specifically there are also the utilities `MILI.text_size` and `MILI.text_font` that compute and return the size and font a text element would use if it was rendered.
+
+`MILI.image_layer_renderer` is technically also a component, check the interaction data guide for it.
 
 ## Markdown
 
@@ -167,6 +168,7 @@ Other than markdown rich text (check what is supported in the style guide), supp
 -   `- bullet lists` (can nest elements)
 -   `> quotes` (can nest elements)
 -   Tables (cell content can be: a paragraph, an image, a link image):
+
 ```
 | title 1 | title 2 |
 | :------ | ------: |
@@ -197,7 +199,8 @@ MILI instances have a couple advanced properties and methods:
 -   `MILI.all_elements_ids`: A list with the IDs of all created elements in memory
 -   `MILI.data_from_id()`: Get an `ElementData` object from an element ID
 -   `MILI.clear_memory(keep_ids=None)`: Clear all the elments in memory. Useful when changing scenes or massively updating them to avoid specific glitches. A list of IDs can be passed wich represent elements that should not be erased from memory.
--   `MILI.id_checkpoint(id)`: Manually set the internal ID. Useful to avoid new elements to inherit the memory of the previous element and be visually unpleasent for a few frames.
+-   `MILI.id_checkpoint(id)`: Manually set the internal ID. Useful to avoid new elements to inherit the memory of the previous element and be visually unpleasent for a few frames. If the current ID is higher a `MILIStatusError` is raised.
+-   `MILI.id_jump(amount)`: Increase the last checkpoint by the amount and sets it as a new checkpoint (similar to `id_checkpoint`). If the current ID is higher than the new checkpoint a `MILIStatusError` is raised.
 
 -   `MILI.add_element_style(style, element_id)`:
 

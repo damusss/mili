@@ -1,3 +1,54 @@
+# 1.0.6
+
+# TODO
+textbox w command pattern
+more shortcuts to entryline/textbox
+table organization
+support entryline with right insertion
+vline, hline, with padding possibly smh
+transparent simple rect
+
+### Deprecation
+
+-   Element style `grid` has been deprecated. Use the new layout style and set it to grid. The old will work for this version and won't in the next version.
+
+### New API
+
+-   Added the `mili.CustomWindowBehavior` window utility.
+-   Added the `mili.UIApp` window utility.
+-   Added the `mili.SPACELESS` style shortcut.
+-   Added the `MILI.id_jump()` method.
+-   Added the following attributes to `mili.CustomWindowBorders`: `active`, `active_drag`, `active_resize`.
+-   Added the `MILI.push_styles`, `MILI.pop_styles` and `MILI.reset_styles` methods.
+-   Added the `MILI.cache_should_create_children()` method.
+-   Added support for iconify icons in `mili.icon`.
+-   Added the `mili.ParentCache` object.
+-   Added the `layout` element style.
+-   Added the `first_center` and `last_center` options for the grid_align element style.
+-   Added the `register_prefab`, `prefab` and `image_layer_renderer` methods to the `MILI` class.
+-   Added the `pad`, `padx`, `pady` styles to the `line` and `polygon` components.
+-   Added the `transparent_rect`, `vline`, `hline` component shortcut along with their `*_element` version.
+
+### Enhancements
+
+-   `MILI.id_checkpoint` can now raise `MILIStatusError` (check the guide).
+
+### Fixes
+
+-   Fixed the handling of update ids of scrollbars. There was never a bar update, and now `Scrollbar.update` uses the same update id of the scroll object. The scrollbar style has been updated to fix it aswell.
+-   Fixed the handling of the `<br>` and `<hr>` markdown tags.
+
+### API-Breaking
+
+-   Renamed `MILI.reset_style` to `MILI.reset_default_styles`.
+
+### Behaviour-Changing:
+
+-   Removed the `X_style` styles of markdown. Use context styles instead.
+-   Removed the `X_draw_func` element styles. Use custom components instead.
+-   Removed the `image_layer_cache` element style. Use the available component instead.
+-   When a parent's end() is called components will be added to it.
+
 # 1.0.5
 
 ### New API

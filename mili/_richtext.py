@@ -61,8 +61,7 @@ def _md_ui_element(
     if element.indent > 0 and do_conts:
         mili.begin(
             None,
-            style["element_style"]
-            | {
+            {
                 "resizey": True,
                 "pad": 0,
                 "fillx": True,
@@ -76,8 +75,7 @@ def _md_ui_element(
         )
         inner = mili.begin(
             None,
-            style["element_style"]
-            | {
+            {
                 "fillx": True,
                 "resizey": True,
                 "pad": 0,
@@ -128,13 +126,11 @@ def _md_ui_table(
         }[style["table_alignx"]]
         with mili.begin(
             None,
-            style["element_style"]
-            | {"fillx": True, "resizey": True, "padx": 0, "pady": 0, "spacing": 0},
+            {"fillx": True, "resizey": True, "padx": 0, "pady": 0, "spacing": 0},
         ) as it:
             if style["table_bg_color"] is not None:
                 mili.rect(
-                    style["rect_style"]
-                    | {
+                    {
                         "color": style["table_bg_color"],
                         "border_radius": style["table_border_radius"],
                     }
@@ -142,8 +138,7 @@ def _md_ui_table(
             tos = style["table_outline_size"]
             if tos > 0:
                 mili.rect(
-                    style["rect_style"]
-                    | {
+                    {
                         "color": style["line_break_color"],
                         "border_radius": style["table_border_radius"],
                         "outline": tos,
@@ -154,8 +149,7 @@ def _md_ui_table(
                 if ri > 0:
                     mili.line_element(
                         [("-50", 0), ("50", 0)],
-                        style["line_style"]
-                        | {
+                        {
                             "size": style["line_break_size"],
                             "color": style["line_break_color"],
                         },
@@ -164,8 +158,7 @@ def _md_ui_table(
                     )
                 with mili.begin(
                     None,
-                    style["element_style"]
-                    | {
+                    {
                         "fillx": True,
                         "padx": 0,
                         "pady": 0,
@@ -183,8 +176,7 @@ def _md_ui_table(
                         if ci > 0:
                             mili.line_element(
                                 [(0, "-50"), (0, "50")],
-                                style["line_style"]
-                                | {
+                                {
                                     "size": style["line_break_size"],
                                     "color": style["line_break_color"],
                                 },
@@ -197,8 +189,7 @@ def _md_ui_table(
                             align = tab_align
                         with mili.begin(
                             None,
-                            style["element_style"]
-                            | {
+                            {
                                 "padx": 0,
                                 "pady": 0,
                                 "fillx": True,
@@ -320,7 +311,7 @@ def _md_ui_image(
                 real_w = real_h * oratio
         it = mili.image_element(
             surface,
-            style["image_style"] | {"cache": element.image_cache},
+            {"cache": element.image_cache},
             (0, 0, real_w, real_h),
             {"blocking": click is not None},
         )
@@ -349,8 +340,7 @@ def _md_ui_bullet_list(
     if do_conts:
         mili.begin(
             None,
-            style["element_style"]
-            | {
+            {
                 "resizey": True,
                 "pad": 0,
                 "fillx": True,
@@ -381,8 +371,7 @@ def _md_ui_bullet_list(
 
         inner = mili.begin(
             None,
-            style["element_style"]
-            | {
+            {
                 "fillx": True,
                 "resizey": True,
                 "pad": 0,
@@ -420,8 +409,7 @@ def _md_ui_quote(
     if do_conts:
         mili.begin(
             None,
-            style["element_style"]
-            | {
+            {
                 "resizey": True,
                 "pad": 0,
                 "fillx": True,
@@ -455,8 +443,7 @@ def _md_ui_quote(
         mili.end()
         inner = mili.begin(
             None,
-            style["element_style"]
-            | {"fillx": True, "resizey": True, "pad": 0, "blocking": False},
+            {"fillx": True, "resizey": True, "pad": 0, "blocking": False},
         )
     _md_ui_element(
         mili,
@@ -487,7 +474,7 @@ def _md_ui_paragraph(
         it = mili.element((0, 0, 0, h), {"blocking": False})
     else:
         it = mili.element(None, {"blocking": False})
-        tstyle = style["text_style"] | {
+        tstyle = {
             "growx": True,
             "growy": True,
             "rich": True,
@@ -531,15 +518,13 @@ def _md_ui_code_block(
         outside = it.data.absolute_rect.bottom < 0
         if not state["skiph"] and not outside:
             mili.rect(
-                style["rect_style"]
-                | {
+                {
                     "color": style["code_bg_color"],
                     "border_radius": style["code_border_radius"],
                 }
             )
             mili.rect(
-                style["rect_style"]
-                | {
+                {
                     "color": style["code_outline_color"],
                     "border_radius": style["code_border_radius"],
                     "outline": 1,
@@ -551,8 +536,7 @@ def _md_ui_code_block(
         mili.element(None, {"offset": element.scroll.get_offset()})
         mili.text(
             element.content,
-            style["text_style"]
-            | {
+            {
                 "growx": True,
                 "growy": True,
                 "rich": True,
@@ -595,8 +579,7 @@ def _md_ui_code_block(
                 bar = sbc["bar_color"]
                 if bar:
                     mili.rect(
-                        style["rect_style"]
-                        | {"color": bar, "border_radius": sbc["border_radius"]}
+                        {"color": bar, "border_radius": sbc["border_radius"]}
                     )
                 hit = mili.element(
                     element.scrollbar.handle_rect, element.scrollbar.handle_style
@@ -607,8 +590,7 @@ def _md_ui_code_block(
                 handle = _get_color(hit, sbc["handle_color"])
                 if handle:
                     mili.rect(
-                        style["rect_style"]
-                        | {"color": handle, "border_radius": sbc["border_radius"]}
+                        {"color": handle, "border_radius": sbc["border_radius"]}
                     )
         else:
             for i in range(2):
@@ -643,8 +625,7 @@ def _md_ui_title(
         it = mili.element(None, {"blocking": False})
         mili.text(
             f"<b>{element.content.content}</b>",
-            style["text_style"]
-            | {
+            {
                 "growx": True,
                 "growy": True,
                 "rich": True,
@@ -674,8 +655,7 @@ def _md_ui_line_break(mili, style, state):
     if not outside and not state["skiph"]:
         mili.line(
             [("-50", 0), ("50", 0)],
-            style["line_style"]
-            | {"size": style["line_break_size"], "color": style["line_break_color"]},
+            {"size": style["line_break_size"], "color": style["line_break_color"]},
         )
     _md_update_state(it, mili, state)
 
@@ -695,7 +675,7 @@ def _markdown_parse(source: str, markdown: "MarkDown"):
     global ScrollClass, ScrollbarClass
     if not source:
         return None
-    source = source.replace("<br>", "\n\n").replace("<hr>", "\n---\n")
+    #source = source.replace("<br>", "\n\n").replace("<hr>", "\n---\n")
     style = markdown.style["code_scrollbar_style"]
     if style is None:
         style = {}
@@ -790,6 +770,9 @@ class _MarkDownParser:
         self.last_paragraph: _MDElement | None = None
         self.ignore_start = False
         self.d_n_b = False
+        self.trail = ""
+        self.inside_code = False
+        self.inside_cblock = False
 
     def _advance(self):
         self.idx += 1
@@ -802,6 +785,16 @@ class _MarkDownParser:
         self.last_last_char = self.last_char
         self.last_char = self.char
         self.char = self.source[self.idx]
+        if self.char == "`":
+            self.inside_code = not self.inside_code
+        self.trail += self.char
+        if len(self.trail) > 4:
+            self.trail = self.trail[1:]
+        if not self.inside_code and not self.inside_cblock:
+            if self.trail == "<br>":
+                self.source = self.source[:self.idx+1]+"\n"+self.source[self.idx+1:]
+            elif self.trail == "<hr>":
+                self.source = self.source[:self.idx+1]+"\n---\n"+self.source[self.idx+1:]
 
     def _start_paragraph_or_append(self, buffer, add_newline=True):
         if self.last_paragraph is not None:
@@ -1099,23 +1092,27 @@ class _MarkDownParser:
     def _parse_code_block(self, start_buf, indent, d_n_b):
         buf = start_buf
         buf += self.char
+        self.inside_cblock = True
         if cr := self._advance_newline_check(buf):
+            self.inside_cblock = False
             return cr
         for _ in range(2):
             if self.eof:
+                self.inside_cblock = False
                 return self._start_paragraph_or_append(buf)
             buf += self.char
             if self._advance():
+                self.inside_cblock = False
                 return self._start_paragraph_or_append(buf)
             if self.last_char != "`":
+                self.inside_cblock = False
                 return self._keep_parsing_as_paragraph(buf, d_n_b=d_n_b)
-
         count = 0
         while self.char != "\n":
             buf += self.char
             count += 1
-
             if self._advance():
+                self.inside_cblock = False
                 return self._start_paragraph_or_append(buf)
         if (
             count > 0
@@ -1123,9 +1120,11 @@ class _MarkDownParser:
             and self.last_last_char == "`"
             and self.last_last_last_char == "`"
         ):
+            self.inside_cblock = False
             return self._keep_parsing_as_paragraph(buf, d_n_b=d_n_b)
         buf += self.char
         if self._advance():
+            self.inside_cblock = False
             return self._start_paragraph_or_append(buf)
         content = ""
         while (
@@ -1134,6 +1133,7 @@ class _MarkDownParser:
             content += self.char
             buf += self.char
             if self._advance():
+                self.inside_cblock = False
                 return self._start_paragraph_or_append(buf)
         content = content[:-2]
         buf += self.char
@@ -1142,6 +1142,7 @@ class _MarkDownParser:
         self.ignore_start = False
         if self.char == "\n":
             self._advance()
+        self.inside_cblock = False
         return _MDElement(
             "code-block",
             content.replace("<", "&lt;").replace(">", "&gt;"),
@@ -1744,11 +1745,11 @@ def _comp_init(ctx, raw_text: str, style: dict, cache: "TextCache", user_size):
     else:
         if (
             (diff_txt := cache._rich["raw_text"] != raw_text)
-            or cache._rich["user_style"] != style
+            or (diff_style:=cache._rich["user_style"] != style)
             or cache._rich["conds_changed"]
         ):
             rebuild = True
-            parse_html = diff_txt or cache._rich["conds_changed"]
+            parse_html = diff_txt or diff_style or cache._rich["conds_changed"]
             if diff_txt:
                 cache._rich["active_tags"] = set()
         if not rebuild:

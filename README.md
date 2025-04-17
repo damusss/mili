@@ -1,4 +1,4 @@
-# MILI <small>1.0.5</small>
+# MILI <small>1.0.6</small>
 
 Minimal immediate-mode python user interface library.
 

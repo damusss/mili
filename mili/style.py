@@ -1,7 +1,6 @@
 import typing
 import pygame
 import functools
-import copy
 
 from mili import _core
 from mili import error as _error
@@ -23,6 +22,7 @@ __all__ = (
     "CENTER",
     "PADLESS",
     "FLOATING",
+    "SPACELESS",
 )
 
 
@@ -112,37 +112,6 @@ class StyleStatus:
     get_image = functools.partialmethod(get, "image")
 
 
-class DefaultStyle:
-    def __init__(
-        self, style: Style | None = None, **types_styles: _typing.AnyStyleLike
-    ):
-        if style is None:
-            style = Style(**types_styles)  # type: ignore
-        else:
-            style = Style(**style.styles)
-            style.sets(**types_styles)
-        self.style = style
-        self._previous = None
-        self._mili: "_MILI|None" = None
-
-    def __enter__(self):
-        mili = _core._globalctx._mili
-        if mili is None:
-            raise _error.MILIStatusError(
-                "Can only use the default style context manager after calling MILI.start()"
-            )
-        self._mili = None
-        self._previous = copy.deepcopy(mili._ctx._default_styles)
-        for name, style in self.style.styles.items():
-            mili._ctx._default_styles[name].update(style)
-
-    def __exit__(self, *args, **kwargs):
-        if self._mili is None or self._previous is None:
-            return
-        self._mili._ctx._default_styles = self._previous
-        self._previous = self._mili = None
-
-
 def conditional[TK, TV](
     interaction: _data.Interaction,
     base: dict[TK, TV] | None = None,
@@ -224,6 +193,7 @@ def outline(color, size=1):
 RESIZE = {"resizex": True, "resizey": True}
 FILL = {"fillx": True, "filly": True}
 PADLESS = {"padx": 0, "pady": 0}
+SPACELESS = {"spacing": 0, "grid_spacex": 0, "grid_spacy": 0}
 X = {"axis": "x"}
 CENTER = {
     "grid_align": "center",

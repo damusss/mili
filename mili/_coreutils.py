@@ -9,7 +9,9 @@ if typing.TYPE_CHECKING:
 
 __all__ = ()
 
-_VALID_ALIGN = set(["first", "last", "center", "max_spacing"])
+_VALID_ALIGN = set(["first", "last", "center"])
+_VALID_ANCHOR = set(["first", "last", "center", "max_spacing"])
+_VALID_ALIGN_GRID = set(["first", "last", "center", "first_center", "last_center"])
 
 
 def _render_layer_cache(self: _data.ImageLayerCache, canva: pygame.Surface | None):
@@ -47,7 +49,7 @@ def _abs_perc(val, dim) -> float:
         val = val.strip()
         sign = 1
         if val.startswith("-"):
-            val = val.replace("-", "")
+            val = val.removeprefix("-")
             sign = -1
         if val.endswith("%"):
             val = val.removesuffix("%")
@@ -251,7 +253,32 @@ def _align_rect(align, rect: pygame.Rect, padx, pady):
 
 def _check_align(align):
     if align not in _VALID_ALIGN:
-        raise error.MILIValueError(f"Invalid alignment/anchoring '{align}'")
+        didyoumean = ""
+        if align == "left" or align == "top":
+            didyoumean = ". Did you mean 'first'?"
+        elif align == "right" or align == "bottom":
+            didyoumean = ". Did you mean 'last'?"
+        raise error.MILIValueError(f"Invalid alignment '{align}'{didyoumean}")
+
+
+def _check_anchor(align):
+    if align not in _VALID_ANCHOR:
+        didyoumean = ""
+        if align == "left" or align == "top":
+            didyoumean = ". Did you mean 'first'?"
+        elif align == "right" or align == "bottom":
+            didyoumean = ". Did you mean 'last'?"
+        raise error.MILIValueError(f"Invalid anchoring '{align}'{didyoumean}")
+
+
+def _check_align_grid(align):
+    if align not in _VALID_ALIGN_GRID:
+        didyoumean = ""
+        if align == "left" or align == "top":
+            didyoumean = ". Did you mean 'first'?"
+        elif align == "right" or align == "bottom":
+            didyoumean = ". Did you mean 'last'?"
+        raise error.MILIValueError(f"Invalid grid alignment '{align}'{didyoumean}")
 
 
 def _partial_interaction(ctx, element, absolute_hover):

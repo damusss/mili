@@ -105,9 +105,9 @@ You can specify the axis and a few styling parameters in the style of the constr
 Note that this utility cannot create the scrollbar nor the handle elements, you need to create them, but you can use the `bar_rect`, ○
 `bar_style`, `handle_rect`, `handle_style` attributes to simplify the process. They will only work if the handle is a children of the scrollbar.
 
-To update the scroll you need to use the associated `Scroll` object and call `Scrollbar.scroll_moved` immediately after.
+To update the scroll you need to use the associated `Scroll` object and calling `Scrollbar.scroll_moved` is NOT necessary (Scroll does it automatically).
 
-To update the scrollbar either use the **update ID system** or you need to call `Scrollbar.update` passing the target container's interaction or element data (the same one you pass to `Scroll.update`, also required) and you then need to call `Scrollbar.update_handle` passing the handle's interaction.
+To update the scrollbar either use the **update ID system** or you need to call `Scrollbar.update` passing the target container's interaction or element data (the same one you pass to `Scroll.update`, also required) and you then need to call `Scrollbar.update_handle` passing the handle's interaction. If using the update ID system, `Scrollbar.update` will be associated to the same ID used in the Scroll object.
 
 The `needed` property signals you if the container needs to be scrolled or if the children fit inside.
 
@@ -137,7 +137,6 @@ with my_mili.begin((0, 0, 500, 500)) as container:
 # event loop
 if event.type == pygame.MOUSEWHEEL:
     scroll.scroll(event.x*2, event.y*2)
-    scrollbar.scroll_moved()
 ```
 
 ## `Slider`
@@ -296,9 +295,18 @@ mili.InteractionCursor.apply()
 
 An object utility that implements window resizing and dragging for a borderless window. Every non-private attribute can be changed at any moment.
 
-After constructing the object, the `update()` method must be called every frame. Callbacks, flags, and attributes are modified in this method, meaning any logic relying on them should be added after. It is advised to call the `update` method before drawing the UI, to stop interactions while the window is resizing or being moved.
+After constructing the object, the `update()` method must be called every frame. Callbacks, flags, and attributes are modified in this method, meaning any logic relying on them should be added after. It is advised to call the `update` method before drawing the UI, to stop interactions while the window is resizing or being moved. The best way to avoid interactions during dragging/resizing is like follows:
 
-When the user hovers over the allowed sides or corners or titlebar, it will be able to resize the window or move it. Optionally the cursor will be changed. The `update` method will return a `bool` indicating if the cursor has been changed by the utility.
+```py
+def can_interact(self):
+    return self.window.focused and self.borders.cumulative_relative.length() == 0
+
+# somewhere in the UI loop
+if interaction.left_clicked and self.can_interact():
+    ...
+```
+
+When the user hovers over the allowed sides or corners or titlebar, it will be able to resize the window or move it. Optionally the cursor will be changed. The `update` method will return a `bool` indicating if the cursor has been changed by the utility. If the cursor is modified, `InteractionCursor.apply` will not change the cursor (window resizing/dragging takes priority) so you don't need to block it manually.
 
 ### Construction Parameters
 
@@ -315,12 +323,49 @@ When the user hovers over the allowed sides or corners or titlebar, it will be a
 
 ### Utility Attributes
 
+-   `active`: Wether the window can be moved or resized.
+-   `active_drag`, `active_resize`: Wether dragging or resizing is enabled.
 -   `dragging`: Wether the window is being dragged.
 -   `resizing`: Wether the window is being resized.
 -   `relative`: The current frame's relative value (for example the relative size compared to the last frame). The same attribute is used for moving and resizing.
 -   `cumulative_relative`: The relative value from the moment the action started (for example the relative size compared to the moment the user started resizing). The same attribute is used for moving and resizing.
 
 The `relative` and `cumulative_relative` flags are always up-to-date when the callbacks are called.
+
+Finally, you can use the `mouse_changed()` method if you want to use `pygame.mouse.set_pos()` while the window is being dragged/resized without it glitching.
+
+## `CustomWindowBehavior`
+
+Other than losing the ability to be dragged or resized, borderless windows also loose convenience behaviors like maximizing, restoring, fullscreen, double clicking to maximize or snapping to the sides. This object utility is an extension to `CustomWindowBorders` that implements those exact features.
+
+This object solely works on state changes, meaning you don't need to call any update method. You can customize it in the costrcutor (or changing the associated non-private attributes/properties) like follows:
+
+-   `window`: The `pygame.Window` object to customize.
+-   `borders`: The independent `CustomWindowBorders` instance responsible for dragging and resizing. Note that some callbacks will be overridden by this utility.
+-   `display_size`: The size of the monitor the window is in, size that will be used for maximizing and snapping.
+-   `taskbar_size`: The height (or width, depending on orientation) of the taskbar that will be excluded from calculations.
+-   `taskbar_position`: The position of the taskbar, either `left`, `right`, `top` or `bottom` (most common).
+-   `double_click_cooldown`: The cooldown that allows the window to be maximized when double clicking the top portion. None means this feature is disabled.
+-   `snap_border_size`: The size of the areas that the mouse must collide with to trigger snapping in the left, right, top, bottom sides.
+-   `snap_corner_size`: The size of the areas that the mouse must collide with to trigger snapping in the topleft, topright, bottomleft, bottomright corners.
+-   `allow_snap`: Wether the window can be snapped to the sides of the monitors.
+-   `before_maximized_data`: A tuple of (size, position) before maximing. This is only useful if your app remembers the last window state and you want to restore it correctly. You can access this with the attribute if you want to save it to a file.
+
+The following additional properties are available (can also be set):
+
+-   `maximized`: Wether the window is maximized.
+-   `minimized`: Wether the window is minimized.
+-   `snapped`: Return the name of the snap position if it is snapped, otherwise None. If the window only has its height snapped, `height` is returned.
+-   `fullscreen`: Wether the window is in fullscreen mode.
+
+You can manually control the window state with the following methods:
+
+-   `maximize()`, `unmaximize()`, `toggle_maximize()`: Change the maximized status.
+-   `minimize()`, `unminimize()`, `toggle_minimize()`: Change the minimized status.
+-   `fullscreen_on()`, `fullscreen_off()`: `toggle_fullscreen()`: Change the fullscreen status. The borders will be deactivated while the fullscreen is on.
+-   `snap(position)`: Snap the window to an allowed position. Snapping to the top or bottom is the same as maximizing. `heigt` is allowed.
+-   `unsnap()`: Restore the window from a snapped position.
+-   `center()`: Center the window inside the display.
 
 ## `AdaptiveUIScaler`
 
