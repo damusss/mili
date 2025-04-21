@@ -193,6 +193,7 @@ class EntryLineStyleLike(typing.TypedDict):
     undo_key: int | None
     redo_key: int | None
     scroll: "utility.Scroll|None"
+    characters_limit: int|None
 
 
 class _ElementStyleLike(typing.TypedDict):

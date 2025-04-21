@@ -121,9 +121,9 @@ def _get_file_async(name):
 
 
 def _get_svg_file_async(name):
-    path = os.path.join(_settings["path"], f"{name}.png")
+    path = os.path.join(_settings["path"], f"{name}.svg")
     try:
-        image = pygame.image.load_sized_svg(path, _settings["svg_size"])
+        image = pygame.image.load_sized_svg(path, (_settings["svg_size"], _settings["svg_size"]))
         _fileicons[name] = image
     except Exception:
         _fileicons[name] = "error"
@@ -142,13 +142,13 @@ def _colorize_google(icon_name, color, key):
     return ret
 
 
-def _colorize_iconify(icon_key, icon, set_, color, key):
+def _colorize_iconify(icon_key, icon_name, set_, color, key):
     icon = _ify_svgs[icon_key]
     if icon == "loading":
         return _temp_surf
     elif icon == 404:
         raise NameError(
-            f"Iconify icon {icon} of set {set_} is not a valid icon, or the set is invalid"
+            f"Iconify icon {icon_name} of set {set_} is not a valid icon, or the set is invalid"
         )
     ret: pygame.Surface = icon.copy()
     if color is not None:
@@ -181,7 +181,7 @@ def setup(
     path: str,
     color: pygame.typing.ColorLike | None,
     source_color: typing.Literal["white", "black"] = "white",
-    svg_size: int = 24,
+    svg_size: int = 96,
     google_cache: bool = True,
     file_type: str = "png",
     iconify_default_set: str = "material-symbols",

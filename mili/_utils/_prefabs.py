@@ -59,7 +59,7 @@ class Dragger:
         self.changed: bool = False
         self.clamp_x: tuple[float, float] | None = None
         self.clamp_y: tuple[float, float] | None = None
-        self.style: _typing.ElementStyleLike = {"ignore_grid": True}
+        self.style: _typing.ElementStyleLike = {"ignore_grid": True, "update_id": update_id}
         self._before_update_pos = pygame.Vector2()
         _core._globalctx._register_update_id(update_id, self.update)
 
@@ -391,8 +391,8 @@ class Slider:
         self.handle_dragger: Dragger = Dragger()
         self.moved: bool = False
 
-        self.area_style: _typing.ElementStyleLike = {"clip_draw": False}
-        self.handle_style: _typing.ElementStyleLike = {"ignore_grid": True}
+        self.area_style: _typing.ElementStyleLike = {"clip_draw": False, "update_id": self.style["area_update_id"]}
+        self.handle_style: _typing.ElementStyleLike = {"ignore_grid": True, "update_id": self.style["handle_update_id"]}
         self.handle_rect: pygame.Rect = pygame.Rect()
 
         _core._globalctx._register_update_id(
@@ -410,7 +410,7 @@ class Slider:
     ):
         if style is None:
             style = {}
-        return cls({**style, "lock_x": axis == "x", "lock_y": axis == "y"})
+        return cls({**style, "lock_x": axis == "y", "lock_y": axis == "x"})
 
     def update_area[IT: _data.Interaction | _data.ElementData](
         self, area_element: IT
@@ -573,7 +573,7 @@ class DropMenu:
             "menu_update_id": style.get("menu_update_id", None),
         }
         self.topleft = pygame.Vector2(0, 0)
-        self.menu_style: _typing.ElementStyleLike = {"ignore_grid": True}
+        self.menu_style: _typing.ElementStyleLike = {"ignore_grid": True, "update_id": self.style["menu_update_id"]}
         self._menu_rect: pygame.Rect | None = None
         self._menu_parent_abspos = pygame.Vector2()
         self._option_i = 0
@@ -584,7 +584,9 @@ class DropMenu:
         _core._globalctx._register_update_id(
             self.style["option_update_id"], self.update_option
         )
-        _core._globalctx._register_update_id(self.style["menu_update_id"], self.update_menu)
+        _core._globalctx._register_update_id(
+            self.style["menu_update_id"], self.update_menu
+        )
 
     def show(self):
         self.shown = True
@@ -690,6 +692,7 @@ class EntryLine:
             "undo_key": style.get("undo_key", pygame.K_z),
             "history_limit": style.get("history_limit", 1000),
             "text_anchor": style.get("text_anchor", "left"),
+            "characters_limit": style.get("characters_limit", None),
         }
         self._text = str(text)
         self.cursor = len(self._text)
@@ -958,6 +961,9 @@ class EntryLine:
         if not self.focused:
             return
         if event.type == pygame.TEXTINPUT:
+            if (cl := self.style["characters_limit"]) is not None:
+                if len(self._text) >= cl:
+                    return
             text = event.text
             self.insert(text)
         if event.type == pygame.KEYDOWN:
@@ -977,6 +983,8 @@ class EntryLine:
                     text = pygame.scrap.get_text()
                     if self._selection_start is not None:
                         self.delete_selection()
+                    if (cl := self.style["characters_limit"]) is not None:
+                        text = text[: cl - len(self._text)]
                     self.insert(text)
                 if event.key == self.style["cut_key"]:
                     self._history_save()
