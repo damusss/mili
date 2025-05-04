@@ -163,7 +163,7 @@ class EntryLineStyleLike(typing.TypedDict):
     placeholder_color: pygame.typing.ColorLike
     text_filly: str
     text_style: "TextStyleLike"
-    text_anchor: typing.Literal["left", "right"]
+    text_anchor: typing.Literal["left", "right", "center"]
     bg_rect_style: "RectStyleLike|None"
     outline_rect_style: "RectStyleLike|None"
     selection_style: "RectStyleLike|None"

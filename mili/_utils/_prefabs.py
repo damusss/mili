@@ -59,7 +59,10 @@ class Dragger:
         self.changed: bool = False
         self.clamp_x: tuple[float, float] | None = None
         self.clamp_y: tuple[float, float] | None = None
-        self.style: _typing.ElementStyleLike = {"ignore_grid": True, "update_id": update_id}
+        self.style: _typing.ElementStyleLike = {
+            "ignore_grid": True,
+            "update_id": update_id,
+        }
         self._before_update_pos = pygame.Vector2()
         _core._globalctx._register_update_id(update_id, self.update)
 
@@ -391,8 +394,14 @@ class Slider:
         self.handle_dragger: Dragger = Dragger()
         self.moved: bool = False
 
-        self.area_style: _typing.ElementStyleLike = {"clip_draw": False, "update_id": self.style["area_update_id"]}
-        self.handle_style: _typing.ElementStyleLike = {"ignore_grid": True, "update_id": self.style["handle_update_id"]}
+        self.area_style: _typing.ElementStyleLike = {
+            "clip_draw": False,
+            "update_id": self.style["area_update_id"],
+        }
+        self.handle_style: _typing.ElementStyleLike = {
+            "ignore_grid": True,
+            "update_id": self.style["handle_update_id"],
+        }
         self.handle_rect: pygame.Rect = pygame.Rect()
 
         _core._globalctx._register_update_id(
@@ -573,7 +582,10 @@ class DropMenu:
             "menu_update_id": style.get("menu_update_id", None),
         }
         self.topleft = pygame.Vector2(0, 0)
-        self.menu_style: _typing.ElementStyleLike = {"ignore_grid": True, "update_id": self.style["menu_update_id"]}
+        self.menu_style: _typing.ElementStyleLike = {
+            "ignore_grid": True,
+            "update_id": self.style["menu_update_id"],
+        }
         self._menu_rect: pygame.Rect | None = None
         self._menu_parent_abspos = pygame.Vector2()
         self._option_i = 0
@@ -768,15 +780,14 @@ class EntryLine:
             self._cursor_on = False
         if self._press and (pygame.time.get_ticks() - self._press_time >= 80):
             self._set_cursor_on()
-            new_cursor, tocheck = self._cursor_from_pos(mposx, 1)
+            new_cursor, tocheck = self._cursor_from_pos(mposx)
             if (
                 new_cursor != self._press_cursor
-                and new_cursor - 1 != self._press_cursor
+                # and new_cursor - 1 != self._press_cursor
                 and self._selection_start is None
             ):
                 self._selection_start = self.cursor
-                if new_cursor < self._press_cursor:
-                    self._selection_start += 1
+                # if new_cursor < self._press_cursor:    self._selection_start += 1
             if tocheck:
                 self._check()
             self.cursor = new_cursor
@@ -828,13 +839,19 @@ class EntryLine:
         scrolloffset = pygame.Vector2()
         if self.style["scroll"] is not None:
             scrolloffset = self.style["scroll"].get_offset()
+        need_middle = self._rect.w < (self._cont_w - pad * 2)
         te = mili.element(
             None,
             {
                 "blocking": False,
                 "filly": self.style["text_filly"],
                 "offset": pygame.Vector2(-self._offset, 0) + scrolloffset,
-                "align": "first" if self.style["text_anchor"] == "left" else "last",
+                "align": "first"
+                if (
+                    self.style["text_anchor"] == "left"
+                    or (self.style["text_anchor"] == "center" and not need_middle)
+                )
+                else ("last" if self.style["text_anchor"] == "right" else "center"),
             },
         )
         self._rect = te.data.absolute_rect
@@ -868,6 +885,8 @@ class EntryLine:
         cursor_pos = pad + (self._size - self._offset)
         if self.style["text_anchor"] == "right":
             cursor_pos = self._cont_w - pad - self._size - self._offset
+        elif self.style["text_anchor"] == "center" and need_middle:
+            cursor_pos = self._cont_w / 2 + self._size - self._offset - self._rect.w / 2
         mili.element(
             (
                 cursor_pos,
@@ -881,7 +900,8 @@ class EntryLine:
             mili.rect(
                 {"color": self.style["cursor_color"], "border_radius": 0, "outline": 0},
             )
-        if container_element.left_just_pressed and self._rect.collidepoint(mpos):
+        if container_element.left_just_pressed:
+            self._focus_press = True
             self.focused = True
             self._press_time = pygame.time.get_ticks()
             if (
@@ -935,21 +955,11 @@ class EntryLine:
                     self._check()
                 self._press_cursor = self.cursor
             self._set_cursor_on()
-        if container_element.left_just_pressed:
-            self._focus_press = True
         if container_element.left_just_released:
             self.focused = True
             self._press = False
             self._set_cursor_on()
-            if self._rect.collidepoint(mpos):
-                self._release_time = pygame.time.get_ticks()
-            else:
-                if self.style["text_anchor"] == "right":
-                    self.cursor = 0
-                else:
-                    self.cursor = len(self._text)
-                self._set_cursor_on()
-                self.cancel_selection()
+            self._release_time = pygame.time.get_ticks()
 
     def event(self, event: pygame.Event):
         if event.type == pygame.MOUSEBUTTONUP and event.button == pygame.BUTTON_LEFT:
@@ -995,42 +1005,36 @@ class EntryLine:
                     self.undo()
                 if event.key == self.style["redo_key"]:
                     self.redo()
-                if event.key == pygame.K_LEFT:
-                    self.cursor = 0
-                    self._set_cursor_on()
-                if event.key == pygame.K_RIGHT:
-                    self.cursor = len(self._text)
-                    self._set_cursor_on()
-                return
             moved = False
+            control = event.mod & pygame.KMOD_CTRL
             if event.mod & pygame.KMOD_SHIFT:
                 if event.key == pygame.K_LEFT:
                     if self._selection_start is None:
                         self._selection_start = self.cursor
-                    self.move_cursor(-1)
+                    self.move_cursor(self._get_move_amount(control, -1))
                     self._set_cursor_on()
                     moved = True
                 if event.key == pygame.K_RIGHT:
                     if self._selection_start is None:
                         self._selection_start = self.cursor
-                    self.move_cursor(1)
+                    self.move_cursor(self._get_move_amount(control, 1))
                     self._set_cursor_on()
                     moved = True
             if event.key == pygame.K_LEFT and not moved:
                 if self._selection_start is not None:
                     if self.cursor == self._selection_start:
-                        self.move_cursor(-1)
+                        self.move_cursor(self._get_move_amount(control, -1))
                     self.cancel_selection()
                 else:
-                    self.move_cursor(-1)
+                    self.move_cursor(self._get_move_amount(control, -1))
                 self._set_cursor_on()
             if event.key == pygame.K_RIGHT and not moved:
                 if self._selection_start is not None:
                     if self.cursor == self._selection_start:
-                        self.move_cursor(1)
+                        self.move_cursor(self._get_move_amount(control, 1))
                     self.cancel_selection()
                 else:
-                    self.move_cursor(1)
+                    self.move_cursor(self._get_move_amount(control, 1))
                 self._set_cursor_on()
             if event.key == pygame.K_BACKSPACE:
                 if self._selection_start is not None:
@@ -1142,6 +1146,33 @@ class EntryLine:
         self.focused = False
         self.cancel_selection()
 
+    def _get_move_amount(self, control, direction):
+        if not control:
+            return direction
+        amount = 0
+        if direction == 1:
+            if self.cursor >= len(self._text) - 1:
+                return direction
+            nextchar = self._text[self.cursor]
+            startchar = nextchar
+            while nextchar == " " if startchar == " " else nextchar != " ":
+                amount += 1
+                if self.cursor + amount >= len(self._text):
+                    return amount
+                nextchar = self._text[self.cursor + amount]
+            return amount
+        else:
+            if self.cursor == 0:
+                return direction
+            curchar = self._text[self.cursor - 1]
+            startchar = curchar
+            while curchar == " " if startchar == " " else curchar != " ":
+                amount -= 1
+                if self.cursor + amount <= 0:
+                    return amount
+                curchar = self._text[self.cursor + amount]
+            return amount + 1
+
     def _set_cursor_on(self):
         self._cursor_on = True
         self._cursor_time = pygame.time.get_ticks()
@@ -1175,6 +1206,10 @@ class EntryLine:
                 self._offset = self._size - (self._cont_w - self._pad * 2)
             if cursorpos < 0:
                 self._offset = self._size
+            if self.style["text_anchor"] == "center" and self._rect.w < (
+                self._cont_w - self._pad * 2
+            ):
+                self._offset = 0
         else:
             cursorpos = self._cont_w - self._pad * 2 - self._size - self._offset
             if cursorpos > self._cont_w - self._pad * 2:

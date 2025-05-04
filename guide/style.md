@@ -443,6 +443,7 @@ A modified version of the regular scrollbar style (always horizontal).
 | number_min | `number/None` | _when the target is a number specify the minum allowed value_ | `None` |
 | number_max | `number/None` | _when the target is a number specify the maximum allowed value_ | `None` |
 | number_integer | `True/False` | _when the target is a number control if it is supposed to be a whole integer_ | `False` |
+| characters_limit | `integer/None` | _the maximum amount of characters or None for no limits_ | `None` |
 | enable_history | `True/False` | _enable or disable action history_ | `True` |
 | history_limit | `integer/None` | _control the maximum amount of actions that can be saved to history_ | `1000` |
 | keymod | `pygame kmod constant` | _control the key modifier to access keyboard shortcuts on the entryline_ | `pygame.KMOD_CTRL` |

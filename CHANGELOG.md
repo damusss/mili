@@ -1,16 +1,8 @@
 # 1.0.6
 
-# TODO
-textbox w command pattern
-more shortcuts to entryline/textbox
-table organization
-support entryline with right insertion
-vline, hline, with padding possibly smh
-transparent simple rect
-
 ### Deprecation
 
--   Element style `grid` has been deprecated. Use the new layout style and set it to grid. The old will work for this version and won't in the next version.
+-   Element style `grid` has been deprecated. Use the new layout style and set it to grid. The old will work for a few versions.
 
 ### New API
 
@@ -27,7 +19,8 @@ transparent simple rect
 -   Added the `first_center` and `last_center` options for the grid_align element style.
 -   Added the `register_prefab`, `prefab` and `image_layer_renderer` methods to the `MILI` class.
 -   Added the `pad`, `padx`, `pady` styles to the `line` and `polygon` components.
--   Added the `transparent_rect`, `vline`, `hline` component shortcut along with their `*_element` version.
+-   Added the `transparent_rect`, `vline`, `hline` component shortcuts along with their `*_element` version.
+-   Added the `characters_limit` and `text_anchor` styles to `mili.Entryline`.
 
 ### Enhancements
 
