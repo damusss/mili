@@ -1,39 +1,69 @@
 [<- BACK](https://github.com/damusss/mili/blob/main/guide/guide.md)
 
+NOTE: _some_ of the contents of this section are slightly outdated. it is being updated as we speak.
+
 # MILI Utilities Guide
 
 The `mili.utility` module contains functions and classes to simplify managing elements while still being independent. Everything from this module is also exported to the `mili` package. Utilities that have a style argument in their constructor have the style explained in the style guide.
+
+Index:
+
+-   [Functions](#functions)
+-   [GIF](#gif)
+-   [Dragger](#dragger)
+-   [Selectable](#selectable)
+-   [GenericApp](#genericapp)
+-   [UIApp](#uiapp)
+-   [Scroll](#scroll)
+-   [Scrollbar](#scrollbar)
+-   [Slider](#slider)
+-   [DropMenu](#dropmenu)
+-   [EntryLine](#entryline)
+-   [InteractionSound](#interactionsound)
+-   [InteractionCursor](#interactioncursor)
+-   [CustomWindowBorders](#customwindowborders)
+-   [CustomWindowBehavior](#customwindowbehavior)
+-   [AdaptiveUIScaler](#adaptiveuiscaler)
 
 ## Functions
 
 -   `mili.percentage`: Calculates the percentage of a value and returns it. The same calculation is used internally for percentage strings.
 -   `mili.fit_image`: Return a surface that is constrained inside the provided rectangle plus extra applied styles which are the same that you would provide to an image component and work the same.
+-   `mili.round_image_borders`: Return a new Surface that has the corners cut by a radius (similar to the border radius argument of pygame.draw.rect). The border radius can be a single value or a sequence of four values representing the Surface corners. Additionally, the value can be a number or a smart/percentage string.
+-   `mili.round_image`: Return a new Surface that is cut by a circle, making it round. The antialias argument controls the smoothness of the mask's edge. If the surface's width and height don't make a square, the `allow_ellipse` parameter controls whether the mask should be a centered circle or a stretched ellipse.
+-   `mili.dict_push`: Meant to be used with a context manager, overrides the provided dictionary with the override data and when the context is closed or when the `revert()` method on the return value is called the dict is restored to the previous state. Useful to change values and revert them without knowing what they were before, also saving lines of code. Very useful to temporarily change the styles of the utilities, similar to `MILI.push_styles`.
 
 Keep in mind that to make gray colors (generally to repeat a value in a tuple) you can use the multiply operator. `(50,) * 3` -> `(50, 50, 50)`
+
+## `GIF`
+
+The GIF class is a very compact utility for animated images. It is made from a list of frames where each frame is a tuple with the Surface and the delay (the duration before the next frame in milliseconds). To create a GIF from a file using `pygame.image.load_animation` pass None to the frames and provide a file like object to the file argument.
+
+All you need to do is call `get_frame()` and pass the returned Surface to an image component. Being compact, the frames will advance automatically with no additional methods.
+
+The `playing` attribute (can also be changed with `play()` and `pause()`) controls if the animation is playing. When it is false, the current frame will be returned until the gif is resumed. You should still call `get_frame` even when the GIF is paused, that way when it is resumed it will pick up from the right moment in the animation.
+
+You can access the frames with the `frames` property but you can only change them with `set_frames()` since additional operations are required. The `sync()` method is needed to sync the current gif playback to the playback of another gif. If the gifs have the same frames, they will play simoultanely and remove any lag. Use the `playback` property to get or manually control the playback time of the gif. Finally, the `duration` property will return how much time it takes for the gif to complete one cycle.
 
 ## `Dragger`
 
 An object that changes the position attribute when an element is dragged around. You can use the position in the element rect to see the position. It's advised to set the ignore grid style to True. You can use the shortcut `Dragger.style` attribute for it.
 
-You can use the following methods to make the dragger work:
-
--   `Dragger.update`: Responsible for moving the element, the input is returned as output. Can be avoided using the **update ID system**.
--   `Dragger.clamp`: Clamp the position. You can provide new clamp values or use the previously stored ones
-
-If you don't use the **update ID system**, update must always be called after the element creation:
+Use the `Dragger.clamp` method to clamp the position (you can provide new clamp values or use the previously stored ones). You can make the Dragger work by providing an update ID to its constructor and using that ID as the element's update ID. If you don't do that, you need to manually call the `Dragger.update` method.
 
 ```py
-interaction = mili.element((dragger.position, size), style)
-dragger.update(interaction) # or use the update ID system
+dragger = mili.Dragger(update_id="dragger1")
+interaction = mili.element((dragger.position, size), {..., "update_id": "dragger1"}) # or do dragger.update(interaction)
 ```
 
-Since the update function returns the element as output, the flag stating if the position changed or not is stored in `Dragger.changed`. You can also lock the x or y axis to restrict the position even more.
+Since the update function returns the element as output, the flag stating if the position changed or not is stored in `Dragger.changed`.
+You can also lock the x or y axis to restrict the position even more.
 
 ## `Selectable`
 
-An object that checks an element interaction and sets the `selected` flag appropriately, working like a checkbox. You can then modify the styles if the object is selected. Similarly to the dragger object, you need to call `update` passing the target element's interaction object to it or use the **update ID system**.
+An object that checks an element interaction and sets the `selected` flag appropriately, working like a checkbox. You can then modify the styles if the object is selected. Similarly to the Dragger object, you can setup an update ID that you later use on your element.
 
-You can also provide a list of `Selectable` instances to the update method, and they will be organized in a way where only one object in the list is allowed to be selected at any time. If the `can_deselect_group` flag is True, the user will be able to deselect all selectables.
+You can also provide a list of `Selectable` instances to the update method (you can't use the update ID for this feature), and they will be organized in a way where only one object in the list is allowed to be selected at any time. If the `can_deselect_group` flag is True, the user will be able to deselect all selectables.
 
 ## `GenericApp`
 
@@ -68,6 +98,22 @@ class MyApp(mili.GenericApp):
 if __name__ == "__main__":
     MyApp().run()
 ```
+
+## `UIApp`
+
+The UIApp utility is a progression from the `GenericApp`. While the generic one is only responsible for creating a MILI context and a game loop, the UIApp is intended to be the quickest way of creating all the objects and setup needed to start working on an application. Unlike the other, it takes over some things by, for example, providing a fully functional title bar and window buttons. For that reason, it is mainly meant to be used with a frameless window. Below are the list of actions and objects that the utility makes sure to setup (keep reading this guide to understand all the objects mentioned):
+
+-   call `pygame.init`
+-   create a clock and a MILI context like `GenericApp`
+-   create and setup a `CustomWindowBorders` and a `CustomWindowBehavior` objects in the respective `win_borders` and `win_behavior` attributes. The `pygame.display.get_desktop_sizes()[0]` monitor sizes are used.
+-   create and setup an `AdaptiveUIScaler` object in the `adaptive_scaler` attribute. The window size at init time is used as the relative size. The `adaptive_scaler.scale` method is also added as an UIApp `scale` attribute for quicker access.
+-   The `InteractionCursor` utility is setup with the `update_id` parameter set to `"cursor"`. Use this update ID to automatically change the cursor for interactive elements.
+-   Set `'s'` as a number modifier key for the `AdaptiveUIScaler.scale` modifier (to be used as `"s20"` for example)
+-   If the `"use_appdata_folder"` style is set to True, setup the icon module to use the `./appdata` folder to store icons.
+
+For the buttons to work, icons will be used and it is best to allow it to cache them. Since a lot of things can be customized, this utility also uses a style dictionary. Remember that while most of the entries in the dictionary can be changed safely, no entry shall ever be removed or `KeyError`s will randomly occur.
+When running, all the child objects are updated (the interaction cursor is applied. `mili.animation.update_all` is also called here) and the UI is run for the title bar to be properly displayed. Some ui methods can be overridden to add elements on the title bar while it is being built.
+The methods you can override to customize your UI are similar to the ones of `GenericApp`.
 
 ## `Scroll`
 
@@ -258,9 +304,10 @@ for i in range(30):
 
 This utility static class makes the process of changing cursor based on interaction easier. This class is not supposed to be instantiated, as every method is static. The class exports the following static methods:
 
--   `setup()`: Change the default cursors with custom values.
+-   `setup()`: Change the default cursors with custom values. The default update ID is `"cursor"`
 -   `update()`: Should be called for every element that should change cursor based on interaction or you can use the **update ID system**. The disabled flag will select the disabled cursor appropriately. For special elements each cursor can be overridden using keyword arguments that match the class variable names.
 -   `apply()`: Must be called at the end of the UI loop, after all the update calls have been made. This method is responsible for changing the cursor. It will return the cursor that has been applied or `None` if the cursor was left unchanged.
+-   `set_status(status)/set_cursor(cursor)`: Use this to notify the class that you something that is not a UI element should trigger a different cursor.
 
 The following cursors can be customized, each having less priority than the previous one. A value of `None` will signal the specified cursor is disabled.
 
@@ -282,11 +329,11 @@ mili.InteractionCursor.setup(
 
 # UI loop
 for i in range(30):
-    if interaction:=self.mili.element(rect, style):
+    if interaction:=self.mili.element(rect):
         self.mili.rect({"color": (50,) * 3})
         self.mili.text(f"button {i}")
         self.mili.rect({"color": (80,) * 3, "outline": 1})
-        mili.InteractionCursor.update(interaction, disabled=i%2==0)
+        mili.InteractionCursor.update(interaction, disabled=i%2==0) # use {"update_id": "cursor"} if you don't need special conditions!
 
 mili.InteractionCursor.apply()
 ```
@@ -382,3 +429,4 @@ You can customize the scaler in the constructor as follows:
 -   `width_weight`, `height_weight`: Control how much the container dimentions weight on the multiplier. It depends on the dominant dimention of your application.
 -   `min_value`: The minimum value that a scaled size can have. This defaults to `1`, and it is generally suggested not to set it to 0 to avoid errors if the window has zero dimentions. This value can be overridden for each `scale` call.
 -   `int_func`: A function that converts a floating point number to an integer. Defaults to the builtin `int` type. Good alternative candidates are: `round`, `math.floor`, `math.ceil` depending on your preference.
+-   `extra_scale`: A value that will be used as an extra scaling factor if you need one.

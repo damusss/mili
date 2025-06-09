@@ -3,11 +3,20 @@ import os
 import io
 import threading
 import typing
+import functools
 import urllib.request
 import urllib.error
 from concurrent.futures import ThreadPoolExecutor
 
-__all__ = ("get", "get_google", "preload", "preload_google", "setup")
+__all__ = (
+    "get",
+    "get_google",
+    "preload",
+    "preload_google",
+    "setup",
+    "lazy",
+    "lazy_colored",
+)
 
 _temp_surf = pygame.Surface((10, 10), pygame.SRCALPHA)
 _gmi_svgs = {}
@@ -123,7 +132,9 @@ def _get_file_async(name):
 def _get_svg_file_async(name):
     path = os.path.join(_settings["path"], f"{name}.svg")
     try:
-        image = pygame.image.load_sized_svg(path, (_settings["svg_size"], _settings["svg_size"]))
+        image = pygame.image.load_sized_svg(
+            path, (_settings["svg_size"], _settings["svg_size"])
+        )
         _fileicons[name] = image
     except Exception:
         _fileicons[name] = "error"
@@ -179,7 +190,7 @@ def _colorize_file(icon_name, color, key):
 
 def setup(
     path: str,
-    color: pygame.typing.ColorLike | None,
+    color: pygame.typing.ColorLike | None = "white",
     source_color: typing.Literal["white", "black"] = "white",
     svg_size: int = 96,
     google_cache: bool = True,
@@ -286,7 +297,9 @@ def get(
 
 
 def get_svg(
-    icon_name: str, color: pygame.typing.ColorLike | None = "default", do_async: bool = True
+    icon_name: str,
+    color: pygame.typing.ColorLike | None = "default",
+    do_async: bool = True,
 ):
     return get(icon_name, color, do_async, True)
 
@@ -347,3 +360,50 @@ def preload(*icon_names: str, do_async: bool = True, svg: bool = False):
                 _get_file_async(icon)
             if _fileicons[icon] == "error":
                 raise IOError(f"File icon {icon} wasn't found/could not be loaded")
+
+
+def lazy_colored(
+    icon_func: typing.Callable | typing.Literal["google", "svg", "file", "iconify"],
+    *args,
+    **kwargs,
+) -> functools.partial:
+    if callable(icon_func):
+        return functools.partial(icon_func, *args, **kwargs)
+    return functools.partial(
+        {"google": get_google, "svg": get_svg, "file": get, "iconify": get_iconify}[
+            icon_func
+        ],
+        *args,
+        **kwargs,
+    )
+
+
+def lazy(
+    icon_func: typing.Callable | typing.Literal["google", "svg", "file", "iconify"],
+    *name_args,
+):
+    if isinstance(icon_func, str):
+        icon_func = {
+            "google": get_google,
+            "svg": get_svg,
+            "file": get,
+            "iconify": get_iconify,
+        }[icon_func]
+
+    def wrapper(color="default"):
+        return icon_func(*name_args, color=color)  # type: ignore
+
+    return wrapper
+
+
+def _get_icon(icon_like, color=None):
+    if isinstance(icon_like, pygame.Surface):
+        return icon_like
+    if isinstance(icon_like, str):
+        return get_google(icon_like)
+    if callable(icon_like):
+        try:
+            return icon_like(color)
+        except TypeError:
+            return icon_like()
+    return icon_like

@@ -5,8 +5,17 @@ from .mili import (
     pack_component,
     get_font_cache,
     clear_font_cache,
+    set_number_modifier,
+    smart_number,
 )
-from .data import ElementData, Interaction, ImageCache, TextCache, ImageLayerCache, ParentCache
+from .data import (
+    ElementData,
+    Interaction,
+    ImageCache,
+    TextCache,
+    ImageLayerCache,
+    ParentCache,
+)
 from .style import RESIZE, X, CENTER, PADLESS, FLOATING, FILL, SPACELESS
 from .utility import (
     Selectable,
@@ -16,6 +25,8 @@ from .utility import (
     Slider,
     DropMenu,
     EntryLine,
+    TextBox,
+    ContextMenu,
     GenericApp,
     UIApp,
     AdaptiveUIScaler,
@@ -23,8 +34,12 @@ from .utility import (
     InteractionCursor,
     CustomWindowBorders,
     CustomWindowBehavior,
+    GIF,
     percentage,
     fit_image,
+    round_image_borders,
+    round_image,
+    dict_push,
 )
 from . import error
 from . import style
@@ -34,7 +49,8 @@ from . import animation
 from . import icon
 
 from collections import namedtuple
-# explain UIApp in guide
+
+# explain ContextMenu in guide. Add those XStyleLike to the style guide (uiapp, contextmenu)
 VERSION = namedtuple("VersionInfo", "major minor micro")(1, 0, 6)
 VERSION_STR = f"{VERSION.major}.{VERSION.minor}.{VERSION.micro}"
 del namedtuple
@@ -48,6 +64,7 @@ __all__ = (
     "TextCache",
     "ImageLayerCache",
     "ParentCache",
+    "GIF",
     "Selectable",
     "Dragger",
     "Scroll",
@@ -55,6 +72,8 @@ __all__ = (
     "Slider",
     "DropMenu",
     "EntryLine",
+    "TextBox",
+    "ContextMenu",
     "GenericApp",
     "UIApp",
     "AdaptiveUIScaler",
@@ -64,10 +83,15 @@ __all__ = (
     "CustomWindowBehavior",
     "percentage",
     "fit_image",
+    "round_image_borders",
+    "round_image",
+    "dict_push",
     "register_custom_component",
     "pack_component",
     "get_font_cache",
     "clear_font_cache",
+    "set_number_modifier",
+    "smart_number",
     "RESIZE",
     "X",
     "CENTER",

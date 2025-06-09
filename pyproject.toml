@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mili-ui"
-version = "1.0.6"
+version = "1.0.7"
 authors = [{ name = "damusss" }]
 description = "Minimal immediate-mode python user interface library"
 readme = "README.md"
@@ -23,5 +23,8 @@ Homepage = "https://github.com/damusss/mili"
 Issues = "https://github.com/damusss/mili/issues"
 Documentation = "https://github.com/damusss/mili/blob/main/guide/guide.md"
 
+[project.scripts]
+mili-demo = "mili.demo.demo:main"
+
 [tool.setuptools]
-packages = ['mili', 'mili._utils']
+packages = ['mili', 'mili._utils', 'mili.demo']

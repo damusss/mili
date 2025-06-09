@@ -8,7 +8,29 @@ To specify percentage use a string. The value to apply the percentage to is chos
 
 padx of value `"20%"` will result in padding x which is 20% of the element width while pady of `"20%"` results in padding y which is 20% of the element height.
 
+A smart number is a number that is allowed to be a string. The string can start with a special character that has been registered as a key with `mili.set_number_modifier`. When that happens, the given number is going to be passed to the callable associated with that key and the result is used as a value. Percentage strings are automatically also smart strings.
+
 Available bounding alignment values are: `center`, `topleft`, `bottomleft`, `topright`, `bottomright`, `midleft`/`left`, `midright`/`right`, `midtop`/`top`, `midbottom`/`bottom`.
+
+Index:
+-   [Style Methods](#mili-style-methods)
+-   [Style Resolution](#style-resolution-method)
+-   [Element Style](#element-style)
+-   [Common Component Styles](#common-component-styles)
+-   [Rect Style](#rect-style)
+-   [Circle Style](#circle-style)
+-   [Text Style](#text-style)
+-   [Image Style](#image-style)
+-   [Transparent Rect Style](#transparent-rect-style)
+-   [Line Style](#line-style)
+-   [Polygon Style](#polygon-style)
+-   [Markdown Style](#markdown-style)
+-   [Utility Styles](#utility-styles)
+-   [mili.Scrollbar Style](#miliscrollbar)
+-   [mili.Slider Style](#milislider)
+-   [mili.DropMenu Style](#milidropmenu)
+-   [mili.EntryLine Style](#milientryline)
+-   [Style Helpers](#style-helpers)
 
 ## MILI style methods
 MILI has a few methods related to styling:
@@ -75,7 +97,7 @@ The following styles apply to the current element.
 | Name | Type/Value | Description | Default |
 | ------------------- | ------------------- | :------------------- | ------------------- |
 | resizex, resizey | `True/False` | _control if the element should resize to be the right size to exactly fit all children inside_ (**children with fillx or filly won't have any space. incompatible with fillx and filly**) | same as `resize` |
-| fillx, filly | `True/False/number/percentage` | _control if the element should resize to fill all the space possible in the parent or the space defined by the percentage (`True` is 100% and `False` is disabled). The actual space occupied is scaled based on the amount of elements with fillx and filly_ (**incompatible with resizex and resizey. elements without fillx and filly have priority. ineffective if the parent is a grid**) | same as `fill` |
+| fillx, filly | `True/False/smart number/percentage` | _control if the element should resize to fill all the space possible in the parent or the space defined by the percentage (`True` is 100% and `False` is disabled). The actual space occupied is scaled based on the amount of elements with fillx and filly_ (**incompatible with resizex and resizey. elements without fillx and filly have priority. ineffective if the parent is a grid**) | same as `fill` |
 | size_clamp | `dict[min/max: (number/None, number/None)]/None` | _control the minimum and maximum sizes the element can be resized to within fillx/y or resizex/y operations_ | `None` |
 | blocking | `True/False/None` | _control wether the element can be interacted by the mouse pointer. if set to the sentinel None, the element will be blocking but no interaction will be calculated (if blocking is False or None only one interaction object is shared between all elements, so the data will only be reliable immediately after the element is created)_ | `True` |
 | ignore_grid | `True/False` | _control wether this element should not be moved or resized by the parent layout_ | `False` |
@@ -94,14 +116,14 @@ The following styles only apply to the children of this element.
 | Name | Type/Value | Description | Default |
 | ------------------- | ------------------- | :------------------- | ------------------- |
 | axis | `x/y` | _control the axis along where children are placed_ | `y` |
-| spacing | `number/percentage` | _control the space between children_ | `3` |
-| pad | `number/percentage` | _control the space between the children and the element borders in both directions_ | `5` |
-| padx, pady | `number/percentage` | _control the space between the children and the element borders_ | same as `pad` |
+| spacing | `smart number/percentage` | _control the space between children_ | `3` |
+| pad | `smart number/percentage` | _control the space between the children and the element borders in both directions_ | `5` |
+| padx, pady | `smart number/percentage` | _control the space between the children and the element borders_ | same as `pad` |
 | anchor | `first/center/last/max_spacing` | _control how children are aligned along the element axis_ | `first` |
 | default_align | `first/center/last` | _control the default opposite axis alignment of every children_ | `first` |
 | layout | `stack/grid/table` | _control the algorithm organizing the children. see below for detailed information_ | `stack` |
 | grid_align | `first/center/last/max_spacing/first_center/last_center` | _control how children are aligned along the rows of the element axis, while the anchor controls the alignement of the rows themselves_ (**only effective if the element is a grid**) | `first` |
-| grid_spacex, grid_spacey | `number/percentage` | _control the space between children along the row and between the rows depending on the axis separately_ (**only effective if the element is a grid**) | same as `spacing` |
+| grid_spacex, grid_spacey | `smart number/percentage` | _control the space between children along the row and between the rows depending on the axis separately_ (**only effective if the element is a grid**) | same as `spacing` |
 
 ### Layout
 
@@ -152,15 +174,15 @@ The following styles modify the appearance of the rect component (draws using `p
 
 | Name | Type/Value | Description | Default |
 | ------------------- | ------------------- | :------------------- | ------------------- |
-| pad | `number/percentage` | _control the space between the drawn rect and the element borders in both directions_ | `0` |
-| padx, pady | `number/percentage` | _control the space between the drawn rect and the element borders_ | same as `pad` |
-| outline | `number/percentage` | _control the size of the outline. 0 means no outline_ | `0` |
-| border_radius | `number/percentage/[number/percentage x4]` | _control how round are the corners. an iterable value controls each corner separately_ | `0` |
+| pad | `smart number/percentage` | _control the space between the drawn rect and the element borders in both directions_ | `0` |
+| padx, pady | `smart number/percentage` | _control the space between the drawn rect and the element borders_ | same as `pad` |
+| outline | `smart number/percentage` | _control the size of the outline. 0 means no outline_ | `0` |
+| border_radius | `smart number/percentage/[smart number/percentage x4]` | _control how round are the corners. an iterable value controls each corner separately_ | `0` |
 | color | `color value` | _control the rect color_ | `black` |
 | aspect_ratio | `float/None` | _forces the aspect ratio on the rect instead of filling the available area_ | `None` |
 | align | `bounding alignment` | _control how the rect is aligned inside the element when the aspect ratio is specified_ | `center` |
-| dash_size | `number/percentage/[number/percentage x2]/None` | _enables the dashed style. a single value or an iterable for fill and space segment sizes can be provided. the percentage will be relative to the rect permiter._ (**border radius will be ignored. outline must be > 0**) | `None` |
-| dash_offset | `number/percentage` | _when the style is dashed, controls the offset after which to draw the first segment. the percentage will be relative to the rect perimeter_ | `0` |
+| dash_size | `smart number/percentage/[smart number/percentage x2]/None` | _enables the dashed style. a single value or an iterable for fill and space segment sizes can be provided. the percentage will be relative to the rect permiter._ (**border radius will be ignored. outline must be > 0**) | `None` |
+| dash_offset | `smart number/percentage` | _when the style is dashed, controls the offset after which to draw the first segment. the percentage will be relative to the rect perimeter_ | `0` |
 | ready_rect | `pygame.typing.RectLike/None` | _ignores padding and the element hitbox and uses directly the provided rect (assumed with absolute position)_ | `None` |
 
 
@@ -171,9 +193,9 @@ An ellipse is drawn when the calculated bounding area of the circle is not a squ
 
 | Name | Type/Value | Description | Default |
 | ------------------- | ------------------- | :------------------- | ------------------- |
-| pad | `number/percentage` | _control the space between the circle and the element borders in both directions_ | `0` |
-| padx, pady | `number/percentage` | _control the space between the circle and the element borders_ | same as `pad` |
-| outline | `number/percentage` | _control the size of the outline. 0 means no outline_ | same as `pad` |
+| pad | `smart number/percentage` | _control the space between the circle and the element borders in both directions_ | `0` |
+| padx, pady | `smart number/percentage` | _control the space between the circle and the element borders_ | same as `pad` |
+| outline | `smart number/percentage` | _control the size of the outline. 0 means no outline_ | same as `pad` |
 | color | `color value` | _control the circle color_ | `black` |
 | antialias | `True/False` | _wether the circle is antialiased. currently not supported for ellipse_ | `False` |
 | aspect_ratio | `float/None` | _forces the aspect ratio on the circle instead of filling the available area_ | `None` |
@@ -192,9 +214,10 @@ For every combination of font name and size a font object is created and cached.
 | ------------------- | ------------------- | :------------------- | ------------------- |
 | cache | `mili.TextCache/None/"auto"` | _provides a text cache to speed up text rendering. Setting it to auto will automatically call `mili.TextCache.get_next_cache()` (**can be only set as a default style if it is set to auto**)_ | `None` |
 | name | `string/None` | _control the font name or path_ (**system fonts only work with the sysfont style `True`**) | `None` |
-| size | `integer` | _control the font size_ | `20` |
+| size | `smart number` | _control the font size_ | `20` |
 | align | `bounding alignment` | _control how the drawn text is aligned inside the element_ | `center` |
-| font_align | `pygame.FONT_*` | _control the font alignment_ | `pygame.FONT_CENTER` |
+| font_align | `pygame.FONT_*` or `left/center/right` | _control the font alignment_ | `pygame.FONT_CENTER` |
+| font_direction | `pygame.DIRECTION_*` or `ltr/rtl/btt/ttb` | _control the script alignment of the font_ | `pygame.DIRECTION_LTR` |
 | bold | `True/False` | _control the font bold style_ | `False` |
 | italic | `True/False` | _control the font italic style_ | `False` |
 | underline | `True/False` | _control the font underline style_ | `False` |
@@ -202,15 +225,16 @@ For every combination of font name and size a font object is created and cached.
 | antialias | `True/False` | _control the antialiasing of the font, pixel fonts should set this to `False`_ | `True` |
 | color | `color value` | _control the text color_ | `black` |
 | bg_color | `color value/None` | _control the color behind the text. `None` disables this_ | `None` |
+| outline_color | `color value/None` | _if a color is provided, a one-pixel outline is drawn around the text. keep in mind it will blit the same text 9 times, making it much slower._ | `None` |
 | growx, growy | `True/False` | _control whether the element size can grow if the rendered text is bigger than the element_ | `False`, `True` |
-| padx, pady | `number/percentage` | _control the space between the text and the element borders_ | `5/3` |
-| pad | `number/percentage/None` | _override the space between the text and the element borders for both directions_ | `None` |
-| wraplen | `number/percentage` | _manually control the maximum width the text can have. 0 means the text is not restricted_ | `0` |
+| padx, pady | `smart number/percentage` | _control the space between the text and the element borders_ | `5/3` |
+| pad | `smart number/percentage/None` | _override the space between the text and the element borders for both directions_ | `None` |
+| wraplen | `smart number/percentage` | _manually control the maximum width the text can have. 0 means the text is not restricted_ | `0` |
 | blit_flags | `integer` | _flags passed to the special\_flags parameter of Surface.blit to control blending_ | `0` |
 | slow_grow | `True/False` | _temporary style, since Font.size() does not implement wrapline or newlines, if slow\_grow is set to True Font.render will be used (which is slower)._ **incompatible with growx, ignored with rich text** | `False` |
 | rich | `True/False` | _enables rich text (subset of html), handling text processing, wrapping and rendering to a custom implementation. Other styles are used as a default style in addition to html tags_ | `False` |
 | rich_aligny | `top/center/bottom` | _with rich text, controls the alignment of text of different sizes on the same line_ | `center` |
-| rich_linespace | `number/percentage` | _with rich text, controls the extra space between lines_ | `0` |
+| rich_linespace | `smart number/percentage` | _with rich text, controls the extra space between lines_ | `0` |
 | rich_actions | `dict[name: function(data)]` | _with rich text, provides the functions corresponding to the actions so they can be triggered_ | `{}` |
 | rich_link_color | `color value` | _with rich text, controls the color of emulated links_ | `(144, 154, 255)` |
 | rich_markdown | `True/False` | _with rich text, mardown styling (bold, italic, spoiler, link, inline codeblock, etc) is converted to HTML tags_ | `False` |
@@ -227,7 +251,7 @@ For every combination of font name and size a font object is created and cached.
 
 ### Rich Text
 
-NOTE: Rich text is many times less performant than normal text, especially when the text changes or when the element resizes.
+NOTE: Rich text is many times less performant than normal text, especially when the text changes or when the element resizes. Font direction is not supported with rich text.
 
 Rich text consists of a subset of html. The MILI rich text parser supports the following basic tags:
 - `<b> </b>`: Bold text
@@ -236,8 +260,8 @@ Rich text consists of a subset of html. The MILI rich text parser supports the f
 - `<s> </s>`: Text with striketrough
 
 Adding the attribute 'null' to the above tags will apply them as false instead of true.
-- `<font name="Name/Path" size="30" sysfont antialias> </font>`: Control text font (name, size, sysfont (true), antialias (true))
-- `<color fg="green" bg="black"> </color>`: Control text color (foreground, background)
+- `<font name="Name/Path" size="30" sysfont antialias> </font>`: Control text font (name, size, sysfont (true), antialias (true)). Do not use smart numbers as they won't trigger redraws correctly.
+- `<color fg="green" bg="black" outline="red"> </color>`: Control text color (foreground, background, one-pixel outline)
 
 Providing a value of 'null' to sysfont, antialias or bg will apply them as False, False, None
 - `<a href="DATA"> </a>`: Text looks like a link (check below for more details, not a basic tag)
@@ -276,18 +300,41 @@ By default the surface keeps its aspect ratio while fitting in the element area.
 | ------------------- | ------------------- | :------------------- | ------------------- |
 | cache | `ImageCache/None/"auto"` | _provides an `ImageCache` to massively speed up image rendering. Setting it to auto will automatically call `mili.ImageCache.get_next_cache()`_ ((**can be only set as a default style if it is set to auto**)) | `None` |
 | layer_cache | `ImageLayerCache/None` | _provides an `ImageLayerCache` to speed up special cases of concurrent image rendering_ (**cannot be set as a default style. requires a valid `ImageCache` object aswell**) | `None` |
-| pad | `number/percentage` | _control the space between the image and the element borders in both directions_ | `0` |
-| padx, pady | `number/percentage` | _control the space between the image and the element borders_ | same as `pad` |
+| pad | `smart number/percentage` | _control the space between the image and the element borders in both directions_ | `0` |
+| padx, pady | `smart number/percentage` | _control the space between the image and the element borders_ | same as `pad` |
 | fill | `True/False` | _control whether the image should be cropped/scaled to match the aspect ratio of the element while keeping its own aspect ratio_ | `False` |
 | stretchx, stretchy | `True/False` | _control whether the image should loose its aspect ratio and be resized to match the aspect ratio of the element_ | `False` |
 | fill_color | `color value/None` | _if not `None`, fill the surface with this color_ | `None` |
-| smoothscale | `True/False` | _control the scale backend to use_ | `False` |
-| border_radius | `number/percentage` | _control how rounded are the corners of the surface_ | `0` |
-| ready_border_radius | `number/percentage` | _control how rounded are the corners of the surface (the rounding is applied before the image is resized)_ | `0` |
+| smoothscale | `True/False` | _control the scale backend to use. smoothscaling is not recommended for pixel art games_ | `True` |
+| border_radius | `smart number/percentage/[smart number/percentage*4]` | _control how rounded are the corners of the surface. Individual corners can be controlled if a sequence is passed_ | `0` |
 | alpha | `integer 0-255` | _control the surface alpha_ | `255` |
-| blit_flags | `integer` | _flags passed to the special\_flags parameter of Surface.blit to control blending_ | `0` |
-| ninepatch_size | `number/percentage` | _if > 0, the surface will be scaled to fit the element but the 4 corners of the specified size will be preserved_ (**incompatible with fill, stretchx, and stretchy**) | `0` |
+| blit_flags | `pygame integer blit flag constant` | _flags passed to the special\_flags parameter of Surface.blit to control blending_ | `0` |
+| ninepatch_size | `smart number/percentage` | _if > 0, the surface will be scaled to fit the element but the 4 corners of the specified size will be preserved_ (**incompatible with fill, stretchx, and stretchy**) | `0` |
 | ready | `True/False` | _if true, mili will assume the image was already modified and scaled to be inside the element by the user so no operations and useless checks will be performed. useful when combining mili.fit\_image and multithreading_ | `False` |
+| transforms | `sequence of transforms/None` | _an optional sequence of transforms that will be applied (called) to the Surface before any operation is performed on it. The Surface passed as argument will be the source Surface so it's advised not to modify it and return a new one_ | `None` |
+| filters | `sequence of filters/None` | _an optional sequence of filters that will be applied (called) to the Surface after it has been resized and modified. It is strongly recommended to return a Surface with the same dimensions so it fits properly_ | `None` |
+
+Transforms and filters are represented by the same thing: A callable (function) that takes a Surface and optional extra parameters and returns a modified Surface. When providing the transforms/filters, they can either be plain functions (that only need a Surface) or a sequence where the first item is the callable and the other items are the parameters of the callable. As an example:
+```py
+my_mili.image(surface, {
+  "transforms": [
+    (pygame.transform.box_blur, 5),
+    (pygame.transform.flip, True, True),
+  ],
+  "filters": [
+    pygame.transform.grayscale
+  ]
+})
+```
+Most common transform/filters are highly optimized functions from `pygame.transform`.
+
+### Transparent Rect Style
+
+A transparent rect actually uses the image component. The styles are restricted to the following:
+-   `border_radius`
+-   `color` (acts as `fill_color`)
+-   `alpha`
+And behave the same was as described above for the image.
 
 ## Line Style
 
@@ -297,13 +344,13 @@ The start_end should be a sequence of 2 sequences where the x and y values can b
 
 | Name | Type/Value | Description | Default |
 | ------------------- | ------------------- | :------------------- | ------------------- |
-| size | `number/percentage` | _control the size the line_ | `1` |
+| size | `smart number/percentage` | _control the size the line_ | `1` |
 | color | `color value` | _control the line color_ | `black` |
-| antialias | `True/False` | _wether the line is antialiased. currently not supported for sizes different from 1_ | `False` |
-| dash_size | `number/percentage/[number/percentage x2]/None` | _enables the dashed style. a single value or an iterable for fill and space segment sizes can be provided. the percentage will be relative to the line length_ | `None` |
-| dash_offset | `number/percentage` | _when the style is dashed, controls the offset after which to draw the first segment. the percentage will be relative to the line length_ | `0` |
-| pad | `number/percentage` | _clamp the points of the line so they don't exceed the specified distance from the borders in both directions_ | `0` |
-| padx, pady | `number/percentage` | _clamp the points of the line so they don't exceed the specified distance from the borders of a specific axis_ | same as `pad` |
+| antialias | `True/False` | _wether the line is antialiased. only supported for sizes > 1 starting from pygame 2.5.6_ | `False` |
+| dash_size | `smart number/percentage/[smart number/percentage x2]/None` | _enables the dashed style. a single value or an iterable for fill and space segment sizes can be provided. the percentage will be relative to the line length_ | `None` |
+| dash_offset | `smart number/percentage` | _when the style is dashed, controls the offset after which to draw the first segment. the percentage will be relative to the line length_ | `0` |
+| pad | `smart number/percentage` | _clamp the points of the line so they don't exceed the specified distance from the borders in both directions_ | `0` |
+| padx, pady | `smart number/percentage` | _clamp the points of the line so they don't exceed the specified distance from the borders of a specific axis_ | same as `pad` |
 
 ## Polygon Style
 
@@ -313,10 +360,18 @@ The points should be a sequence of at least 2 sequences where the x and y values
 
 | Name | Type/Value | Description | Default |
 | ------------------- | ------------------- | :------------------- | ------------------- |
-| outline | `number/percentage` | _control the size of the outline. 0 means no outline_ | `0` |
+| outline | `smart number/percentage` | _control the size of the outline. 0 means no outline_ | `0` |
 | color | `color value` | _control the polygon color_ | `black` |
-| pad | `number/percentage` | _clamp the points of the polygon so they don't exceed the specified distance from the borders in both directions_ | `0` |
-| padx, pady | `number/percentage` | _clamp the points of the polygon so they don't exceed the specified distance from the borders of a specific axis_ | same as `pad` |
+| pad | `smart number/percentage` | _clamp the points of the polygon so they don't exceed the specified distance from the borders in both directions_ | `0` |
+| padx, pady | `smart number/percentage` | _clamp the points of the polygon so they don't exceed the specified distance from the borders of a specific axis_ | same as `pad` |
+
+### Conditional Color Style
+
+| Name | Type/Value | Description | Default |
+| ------------------- | ------------------- | :------------------- | ------------------- |
+| default | `color value/None` | _The color when the element is not hovered nor pressed. None usually means the component is disabled_ | must be set |
+| hover | `color value/None` | _The color when the element is hovered. None usually means the component is disabled_ | must be set |
+| press | `color value/None` | _The color when the element is pressed. None usually means the component is disabled_ | must be set |
 
 ## Markdown Style
 
@@ -348,7 +403,7 @@ Some styles are going to override the values of X_style to ensure markdown rende
 | allow_image_link | `True/False` | _control wether images can be loaded from https urls_ | `True` |
 | change_cursor | `True/False` | _control wether or not the cursor can become an hand when a link is hovered_ | `True` |
 | load_images_async | `True/False` | _control wether images should be loaded with threads or not_ | `True` |
-| open_links_in_browser | `True/False` | _control wether or not links should be opened in the browser when clicked_ | `True` |
+| link_handler | `Callable[string]` | _a callable that takes a link string and handles it when a link is clicked. Will open in the browser by default. Use None to disable it_ | `webbrowser.open` |
 | parse_async | `True/False` | _control wether or not the source should be parsed in threads_ | `True` |
 
 ### Mardown Code Copy Style
@@ -358,6 +413,7 @@ Some styles are going to override the values of X_style to ensure markdown rende
 | size | `number` | _The size of the copy button_ | `26` |
 | icon_pad | `number/percentage` | _The padding of the icon image_ | `10%` |
 | icon_color | `conditional color style` | _The colors of the icon when hovered, pressed or neither_ | `default: (120, 120, 120), hover: (180, 180, 180), press: (100, 100, 100)` |
+| icon | `IconLike` | _The icon for the copy button. Check the typehint guide to know what values are allowed_ | `mili.icon.lazy("google", "content_copy")` |
 
 ### Markdown Code Scrollbar Style
 
@@ -371,14 +427,6 @@ A modified version of the regular scrollbar style (always horizontal).
 | height | `number` | _The height of the scrollbar_ | `7` |
 | bar_color | `color value/None` | _The color of the bar of the scrollbar. None means invisible_ | `(30, 30, 30)` |
 | handle_color | `conditional color style` | _The colors of the handle when hovered, pressed or neither_ | `default: (50, 50, 50), hover: (60, 60, 60), press: (50, 50, 50)` |
-
-### Conditional Color Style
-
-| Name | Type/Value | Description | Default |
-| ------------------- | ------------------- | :------------------- | ------------------- |
-| default | `color value/None` | _The color when the element is not hovered nor pressed. None means the component is disabled_ | must be set |
-| hover | `color value/None` | _The color when the element is hovered. None means the component is disabled_ | must be set |
-| press | `color value/None` | _The color when the element is pressed. None means the component is disabled_ | must be set |
 
 ## Utility Styles
 
@@ -416,6 +464,25 @@ A modified version of the regular scrollbar style (always horizontal).
 | menu_update_id | `str/None` | _the update ID to assign to the menu container to automatically update it_ | `None` |
 | option_update_id | `str/None` | _the same update ID to assign to each option of the drop menu to automatically update them_ | `None` |
 
+### Style for mili.DropMenu.ui
+
+The UI shortcut for the DropMenu uses an _additional_ style to customize the appearance of the drop menu. The drop menu will always use the regular style.
+
+| Name | Type/Value | Description | Default |
+| ------------------- | ------------------- | :------------------- | ------------------- |
+| border_radius | `smart number/percentage` | _the border radius of the selected option and the menu_ | `7` |
+| option_border_radius | `smart number/percentage` | _the border radius of each option_ | `7` |
+| bg_color | `color value` | _the background color of the menu_ | `(24, 24, 24)` |
+| outline_color | `color value` | _the outline color of the selected option and the menu_ | `(40, 40, 40)` |
+| hover_color | `color value` | _the color for hovered options or the selected option_ | `(40, 40, 40)` |
+| option_color | `conditional color value` | _the color of each option_ | `default: None, hover: (40, 40, 40), press: (40, 40, 40)` |
+| selected_option_color | `conditional color value` | _the color of the selected option_ | `default: (24, 24, 24), hover: (40, 40, 40), press: (40, 40, 40)` |
+| menu_style | `ElementStyleLike` | _the additional style for the menu element_ | `pad: 3, spacing: 0` |
+| text_style | `TextStyleLike` | _the additional style of the text of the selected option_ | `align: left` |
+| option_text_style | `TextStyleLike` | _the additional style of the text of each option_ | `align: left` |
+| icon_arrow_down | `IconLike` | _the icon of the arrow down_ | `arrow_drop_down` |
+| icon_arrow_up | `IconLike` | _the icon of the arrow up_ | `arrow_drop_up` |
+
 ### mili.EntryLine
 
 | Name | Type/Value | Description | Default |
@@ -423,7 +490,7 @@ A modified version of the regular scrollbar style (always horizontal).
 | placeholder | `string` | _the text to display when the entryline is empty_ | `Enter text...` |
 | placeholder_color | `color value` | _the color of the placeholder text_ | `(180, 180, 180)` |
 | text_anchor | `left/right` | _the side that the text is attached to_ | `left` |
-| text_filly | `True/False/number/percentage` | _the filly style for the text element_ | `"100"` |
+| text_filly | `True/False/smart number/percentage` | _the filly style for the text element_ | `"100"` |
 | text_style | `text style dict` | _additional style for the text (f.e. text size or font)_ | `{}` |
 | bg_rect_style | `rect style dict/None` | _if not None, provide the style for a rect background shortcut_ | `None` |
 | outline_rect_style | `rect style dict/None` | _if not None, provide the style for a rect outline shortcut_ | `None` |

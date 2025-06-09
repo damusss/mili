@@ -12,6 +12,29 @@ __all__ = ()
 _VALID_ALIGN = set(["first", "last", "center"])
 _VALID_ANCHOR = set(["first", "last", "center", "max_spacing"])
 _VALID_ALIGN_GRID = set(["first", "last", "center", "first_center", "last_center"])
+_OUTLINE_OFFSETS = [(0, 0), (2, 0), (0, 2), (2, 2), (1, 0), (1, 2), (0, 1), (2, 1)]
+_OUTLINE_OFFSETS_CENTERED = [
+    (offset[0] - 1, offset[1] - 1) for offset in _OUTLINE_OFFSETS
+]
+_FONT_ALIGNS = {
+    "left": pygame.FONT_LEFT,
+    "center": pygame.FONT_CENTER,
+    "right": pygame.FONT_RIGHT,
+    pygame.FONT_LEFT: pygame.FONT_LEFT,
+    pygame.FONT_CENTER: pygame.FONT_CENTER,
+    pygame.FONT_RIGHT: pygame.FONT_RIGHT,
+}
+_FONT_DIRS = {
+    "ltr": pygame.DIRECTION_LTR,
+    "rtl": pygame.DIRECTION_RTL,
+    "ttb": pygame.DIRECTION_TTB,
+    "btt": pygame.DIRECTION_BTT,
+    pygame.DIRECTION_LTR: pygame.DIRECTION_LTR,
+    pygame.DIRECTION_RTL: pygame.DIRECTION_RTL,
+    pygame.DIRECTION_TTB: pygame.DIRECTION_TTB,
+    pygame.DIRECTION_BTT: pygame.DIRECTION_BTT,
+}
+_number_mods = {}
 
 
 def _render_layer_cache(self: _data.ImageLayerCache, canva: pygame.Surface | None):
@@ -53,11 +76,42 @@ def _abs_perc(val, dim) -> float:
             sign = -1
         if val.endswith("%"):
             val = val.removesuffix("%")
+        elif not (key := val[0]).isnumeric():
+            if key in _number_mods:
+                number = float(val.removeprefix(key))
+                return _number_mods[key](number) * sign
+            else:
+                raise error.MILIValueError(
+                    f"The character prefix '{key}' of the value '{val}' is not registered as a number modifier and cannot be evaluated"
+                )
         try:
             val = float(val)
         except ValueError:
             raise error.MILIValueError(f"Invalid percentage value '{val}'")
         return ((dim * float(val)) / 100) * sign
+    return val
+
+
+def _abs_mod(val) -> float:
+    if isinstance(val, str):
+        val = val.strip()
+        sign = 1
+        if val.startswith("-"):
+            val = val.removeprefix("-")
+            sign = -1
+        if not (key := val[0]).isnumeric():
+            if key in _number_mods:
+                number = float(val.removeprefix(key))
+                return _number_mods[key](number) * sign
+            else:
+                raise error.MILIValueError(
+                    f"The character prefix '{key}' of the value '{val}' is not registered as a number modifier and cannot be evaluated"
+                )
+        try:
+            val = float(val)
+        except ValueError:
+            raise error.MILIValueError(f"Invalid number in string '{val}'")
+        return val * sign
     return val
 
 
@@ -105,6 +159,7 @@ def _render_text(
     data,
     font: pygame.Font,
     fontalign,
+    fontdir,
     antialias,
     color,
     bg_color,
@@ -113,13 +168,25 @@ def _render_text(
     underline,
     strikethrough,
     wraplen,
+    outline_color,
 ):
     font.align = fontalign
     font.bold = bold
     font.italic = italic
     font.underline = underline
     font.strikethrough = strikethrough
-    return font.render(str(data), antialias, color, bg_color, max(0, int(wraplen)))
+    font.set_direction(fontdir)
+    if outline_color is None:
+        return font.render(str(data), antialias, color, bg_color, max(0, int(wraplen)))
+    middle = font.render(str(data), antialias, color, None, max(0, int(wraplen)))
+    outline = font.render(
+        str(data), antialias, outline_color, bg_color, max(0, int(wraplen))
+    )
+    output = pygame.Surface((middle.width + 2, middle.height + 2), pygame.SRCALPHA)
+    for offset in _OUTLINE_OFFSETS:
+        output.blit(outline, offset)
+    output.blit(middle, (1, 1))
+    return output
 
 
 def _get_image(
@@ -135,22 +202,23 @@ def _get_image(
     alpha,
     smoothscale,
     nine_patch,
-    ready_border_radius,
+    transforms,
+    filters,
 ) -> pygame.Surface:
+    if transforms is not None:
+        for transform in transforms:
+            if callable(transform):
+                res = transform(data)
+            else:
+                func, *args = transform
+                res = func(data, *args)
+            if not isinstance(res, pygame.Surface):
+                raise error.MILIValueError(
+                    "Image transform must return a new Surface or the same Surface"
+                )
+            data = res
     iw, ih = data.size
     tw, th = max(rect.w - padx * 2, 1), max(rect.h - pady * 2, 1)
-
-    if ready_border_radius > 0:
-        mask_surf = pygame.Surface((iw, ih), pygame.SRCALPHA)
-        newdata = pygame.Surface((iw, ih), pygame.SRCALPHA)
-        newdata.blit(data)
-        mask_surf.fill(0)
-        pygame.draw.rect(
-            mask_surf, (255, 255, 255, 255), (0, 0, iw, ih), 0, int(ready_border_radius)
-        )
-        newdata.blit(mask_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-        data = newdata
-        border_radius = 0
     if nine_patch == 0:
         if not do_fill:
             w = tw
@@ -184,15 +252,42 @@ def _get_image(
     w, h = image.size
     if fill_color is not None:
         image.fill(fill_color)
-    if border_radius > 0:
+    if not isinstance(border_radius, float | int) or border_radius > 0:
         mask_surf = pygame.Surface((w, h), pygame.SRCALPHA)
-        mask_surf.fill(0)
-        pygame.draw.rect(
-            mask_surf, (255, 255, 255, 255), (0, 0, w, h), 0, int(border_radius)
-        )
+        if isinstance(border_radius, float | int):
+            border_radius = int(border_radius)
+            if w == h and border_radius == w // 2:
+                if smoothscale:
+                    pygame.draw.aacircle(
+                        mask_surf, (255, 255, 255, 255), (w // 2, h // 2), w // 2
+                    )
+                else:
+                    pygame.draw.circle(
+                        mask_surf, (255, 255, 255, 255), (w // 2, h // 2), w // 2
+                    )
+            else:
+                pygame.draw.rect(
+                    mask_surf, (255, 255, 255, 255), (0, 0, w, h), 0, border_radius
+                )
+        else:
+            pygame.draw.rect(
+                mask_surf, (255, 255, 255, 255), (0, 0, w, h), 0, 0, *border_radius
+            )
         image.blit(mask_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
     if alpha != 255:
         image.set_alpha(alpha)
+    if filters is not None:
+        for ifilter in filters:
+            if callable(ifilter):
+                res = ifilter(image)
+            else:
+                func, *args = ifilter
+                res = func(image, *args)
+            if not isinstance(res, pygame.Surface):
+                raise error.MILIValueError(
+                    "Image filter must return a new Surface or the same Surface"
+                )
+            image = res
     return image
 
 
@@ -358,15 +453,39 @@ def _total_interaction(ctx, element, absolute_hover, hovered, unhovered, old_el)
     return i
 
 
+def _border_radius(style, w, h):
+    if isinstance(style, (int, float, str)):
+        return int(_abs_perc(style, min(w, h)))
+    else:
+        return [int(_abs_perc(br, min(w, h))) for br in style]
+
+
+def _get_conditional_color(it, color):
+    if it.left_pressed:
+        return color["press"]
+    if it.hovered:
+        return color["hover"]
+    return color["default"]
+
+
 def _draw_line(canva, antialias, width, color, points, dash_size, dash_offset):
     if dash_size is None:
-        if antialias and width == 1:
-            pygame.draw.aaline(
-                canva,
-                color,
-                points[0],
-                points[1],
-            )
+        if antialias and (width == 1 or pygame.vernum >= (2, 5, 6)):
+            if pygame.vernum >= (2, 5, 6):
+                pygame.draw.aaline(
+                    canva,
+                    color,
+                    points[0],
+                    points[1],
+                    width,
+                )
+            else:
+                pygame.draw.aaline(
+                    canva,
+                    color,
+                    points[0],
+                    points[1],
+                )
         else:
             pygame.draw.line(canva, color, points[0], points[1], width)
     else:
@@ -391,6 +510,8 @@ def _draw_line(canva, antialias, width, color, points, dash_size, dash_offset):
         do_fill = True
         cur_size = fill_size
         while True:
+            if cur_size == 0:
+                break
             do_break = False
             next_point = cur_point + cur_size * direction
             next_len = p1.distance_to(next_point)
@@ -398,8 +519,11 @@ def _draw_line(canva, antialias, width, color, points, dash_size, dash_offset):
                 next_point = p2.copy()
                 do_break = True
             if do_fill:
-                if antialias and width == 1:
-                    pygame.draw.aaline(canva, color, cur_point, next_point)
+                if antialias and (width == 1 or pygame.vernum >= (2, 5, 6)):
+                    if pygame.vernum >= (2, 5, 6):
+                        pygame.draw.aaline(canva, color, cur_point, next_point, width)
+                    else:
+                        pygame.draw.aaline(canva, color, cur_point, next_point)
                 else:
                     pygame.draw.line(canva, color, cur_point, next_point, width)
                 do_fill = False
@@ -459,6 +583,8 @@ def _draw_circle(
         do_fill = True
         cur_size = fill_size
         while True:
+            if cur_size == 0:
+                break
             do_break = False
             next_ang = cur_ang + cur_size
             if next_ang >= real_end:
@@ -523,8 +649,9 @@ def _draw_rect(canva, color, base_rect, outline, border_radius, dash_size, dash_
         cur_len = dash_offset
         do_draw = True
         step_len = fill_size
+        i = 0
 
-        while True:
+        while i < perimeter + 1:
             do_break = False
             next_len = cur_len + step_len
             if next_len > perimeter + dash_offset:
@@ -541,6 +668,7 @@ def _draw_rect(canva, color, base_rect, outline, border_radius, dash_size, dash_
                 step_len = fill_size
                 do_draw = True
             cur_len = next_len
+            i += 1
             if do_break:
                 break
 

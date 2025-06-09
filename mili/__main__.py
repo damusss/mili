@@ -23,12 +23,13 @@ def main():
         not in [
             "guide",
             "changelog",
+            "demo",
         ]
         + help_cmds
         + version_cmds
     ):
         print(
-            f"ERROR: wrong command '{sys.argv[1]}', expected one of the following: 'guide', 'changelog', 'help'"
+            f"ERROR: wrong command '{sys.argv[1]}', expected one of the following: 'guide', 'changelog', 'demo', 'help', 'version'"
         )
         return
 
@@ -40,6 +41,10 @@ def main():
         url = "https://github.com/damusss/mili/blob/main/CHANGELOG.md"
         print(f"Opening changelog at '{url}'")
         webbrowser.open(url)
+    elif command == "demo":
+        from mili.demo import demo
+
+        demo.main()
     elif command in version_cmds:
         import mili
 

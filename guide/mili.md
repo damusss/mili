@@ -1,5 +1,13 @@
 [<- BACK](https://github.com/damusss/mili/blob/main/guide/guide.md)
 
+Index:
+-   [MILI](#mili-class-guide)
+-   [Element Structure](#element-structure)
+-   [Update ID System](#update-id-system)
+-   [Components](#components)
+-   [Markdown](#markdown)
+-   [Advanced Usage](#advanced-usage)
+
 # MILI Class Guide
 
 The MILI class is the UI manager.
@@ -153,7 +161,7 @@ For text specifically there are also the utilities `MILI.text_size` and `MILI.te
 
 ## Markdown
 
-MILI supports rendering markdown with a built in renderer that converts markdown text to MILI native calls. To use it you firstly need to store a `mili.MarkDown` object permanently, to which you give the markdown source and the style (more info in the style guide). Then, in your UI loop just call `MILI.markdown(markdown)`. The markdown will be rendered inside the parent at the time of calling MILI.markdown(). If the style allows it, this method will return a boolean signaling if the cursor was changed to a hand or not.
+MILI supports rendering markdown with a built in renderer that converts markdown text to MILI native calls. To use it you firstly need to store a `mili.MarkDown` object permanently, to which you give the markdown source and the style (more info in the style guide). Then, in your UI loop just call `MILI.markdown(markdown)`. The markdown will be rendered inside the parent at the time of calling MILI.markdown(). If the style allows it the cursor is changed using the `InteractionCursor` utility. Call `InteractionCursor.apply` to apply the cursor.
 
 You can change the style fields but not remove any field. To apply some style changes you might have to call `mili.MarkDown.rebuild()`.
 
@@ -188,6 +196,8 @@ You can manage the font cache with the provided functions. A font instance will 
 
 -   `mili.get_font_cache()`
 -   `mili.clear_font_cache()`
+
+With the `mili.set_number_modifier` you can register callables as number modifier keys to be used in some of the styles, as explained in the style guide. Use the `mili.smart_number` function to calculate the value of a smart string based on the registered modifiers.
 
 MILI instances have a couple advanced properties and methods:
 

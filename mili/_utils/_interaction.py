@@ -1,4 +1,5 @@
 import pygame
+import typing
 from mili import _core
 from mili import data as _data
 
@@ -76,7 +77,7 @@ class InteractionCursor:
         | None
         | dict[int, int | pygame.Cursor | None] = pygame.SYSTEM_CURSOR_HAND,
         disabled_cursor: int | pygame.Cursor | None = pygame.SYSTEM_CURSOR_NO,
-        update_id: str | None = None,
+        update_id: str | None = "cursor",
     ):
         cls._cursor_stolen = None
         cls.idle_cursor = idle_cursor
@@ -104,6 +105,27 @@ class InteractionCursor:
             return cursor_ret
         cls._cursor_stolen = None
         return None
+
+    @classmethod
+    def set_status(cls, status: typing.Literal["hover", "press", "disabled", "idle"]):
+        match status:
+            case "hover":
+                cls._cursor_stolen = cls.hover_cursor
+            case "press":
+                if isinstance(cls.press_cursor, dict):
+                    cls._cursor_stolen = cls.press_cursor[
+                        list(cls.press_cursor.keys())[0]
+                    ]
+                else:
+                    cls._cursor_stolen = cls.press_cursor
+            case "disabled":
+                cls._cursor_stolen = cls.disabled_cursor
+            case "idle":
+                cls._cursor_stolen = None
+
+    @classmethod
+    def set_cursor(cls, cursor):
+        cls._cursor_stolen = cursor
 
     @classmethod
     def update(

@@ -4,6 +4,7 @@ from mili import _core
 from mili import data as _data
 from mili import typing as _typing
 from mili import error as _error
+from mili import icon as _icon
 
 
 class Selectable:
@@ -137,7 +138,7 @@ class Scroll:
             constrain_rect is None
             or pygame.Rect(constrain_rect).collidepoint(pygame.mouse.get_pos())
         ):
-            x, y = -event.x * multiplier, -event.y * multiplier
+            x, y = event.x * multiplier, -event.y * multiplier
             if (
                 axis_invert_kmod is not None
                 and pygame.key.get_mods() & axis_invert_kmod
@@ -566,9 +567,12 @@ class DropMenu:
         options: typing.Sequence[typing.Any],
         selected: typing.Any,
         style: _typing.DropMenuStyleLike | dict | None = None,
+        ui_style: _typing.DropMenuUIStyleLike | dict | None = None,
     ):
         if style is None:
             style = {}
+        if ui_style is None:
+            ui_style = {}
         self.options = list(options)
         self.selected = selected
         self.just_selected: bool = False
@@ -580,6 +584,29 @@ class DropMenu:
             "selected_update_id": style.get("selected_update_id", None),
             "option_update_id": style.get("option_update_id", None),
             "menu_update_id": style.get("menu_update_id", None),
+        }
+        opt_cols = ui_style.get("option_colors", {})
+        selopt_cols = ui_style.get("selected_option_colors", {})
+        self.ui_style: _typing.DropMenuUIStyleLike = {
+            "bg_color": ui_style.get("bg_color", (24, 24, 24)),
+            "border_radius": ui_style.get("border_radius", 7),
+            "option_border_radius": ui_style.get("option_border_radius", 7),
+            "option_color": {
+                "default": opt_cols.get("default", None),
+                "hover": opt_cols.get("hover", (40, 40, 40)),
+                "press": opt_cols.get("press", (40, 40, 40)),
+            },
+            "selected_option_color": {
+                "default": selopt_cols.get("default", (24, 24, 24)),
+                "hover": selopt_cols.get("hover", (40, 40, 40)),
+                "press": selopt_cols.get("press", (40, 40, 40)),
+            },
+            "outline_color": ui_style.get("outline_color", (40, 40, 40)),
+            "menu_style": ui_style.get("menu_style", {"pad": 3, "spacing": 0}),
+            "text_style": ui_style.get("text_style", {"align": "left"}),
+            "icon_arrow_down": ui_style.get("icon_arrow_down", "arrow_drop_down"),
+            "icon_arrow_up": ui_style.get("icon_arrow_up", "arrow_drop_up"),
+            "option_text_style": ui_style.get("option_text_style", {"align": "left"}),
         }
         self.topleft = pygame.Vector2(0, 0)
         self.menu_style: _typing.ElementStyleLike = {
@@ -615,7 +642,7 @@ class DropMenu:
             self.__just_open = True
         else:
             self.__just_open = False
-        if self._menu_rect is None:
+        if self._menu_rect is None or self._menu_rect.h == 0:
             return selected_element
         menur = self._menu_rect
         selr = selected_element.data.absolute_rect
@@ -638,11 +665,18 @@ class DropMenu:
             self.topleft.y = (
                 selr.top - menur.h - self.style["padding"] - self._menu_parent_abspos.y
             )
+        if not self.shown and _core._globalctx._mili is not None:
+            parent = _core._globalctx._mili.data_from_id(
+                selected_element.data.parent_id
+            )
+            if parent is not None:
+                self._menu_parent_abspos = pygame.Vector2(parent.absolute_rect.topleft)
         return selected_element
 
     def update_menu(self, menu_element: _data.Interaction) -> _data.Interaction:
         self._option_i = 0
-        self._menu_rect = menu_element.data.rect
+        if menu_element.data.rect.h != 0:
+            self._menu_rect = menu_element.data.rect
         if _core._globalctx._mili is None:
             self._menu_parent_abspos = pygame.Vector2(0, 0)
             return menu_element
@@ -662,630 +696,122 @@ class DropMenu:
         self._option_i += 1
         return option_element
 
-
-class EntryLine:
-    def __init__(
-        self, text: str, style: _typing.EntryLineStyleLike | dict | None = None
+    def ui(
+        self,
+        selected_rect: pygame.typing.RectLike | None,
+        selected_style: _typing.ElementStyleLike | None,
     ):
-        if style is None:
-            style = {}
-        self.style: _typing.EntryLineStyleLike = {
-            "blink_interval": style.get("blink_interval", 350),
-            "cursor_color": style.get("cursor_color", "white"),
-            "cursor_width": style.get("cursor_width", 2),
-            "error_color": style.get("error_color", "red"),
-            "input_validator": style.get("input_validator", None),
-            "number_integer": style.get("number_integer", False),
-            "number_max": style.get("number_max", None),
-            "number_min": style.get("number_min", None),
-            "placeholder": style.get("placeholder", "Enter text..."),
-            "placeholder_color": style.get("placeholder_color", (180,) * 3),
-            "selection_color": style.get("selection_color", (20, 80, 225)),
-            "target_number": style.get("target_number", False),
-            "text_style": style.get("text_style", {}),
-            "text_validator": style.get("text_validator", None),
-            "validator_lowercase": style.get("validator_lowercase", False),
-            "validator_uppercase": style.get("validator_uppercase", False),
-            "validator_windows_path": style.get("validator_windows_path", False),
-            "copy_key": style.get("copy_key", pygame.K_c),
-            "keymod": style.get("keymod", pygame.KMOD_CTRL),
-            "paste_key": style.get("paste_key", pygame.K_v),
-            "select_all_key": style.get("select_all_key", pygame.K_a),
-            "delete_all_key": style.get("delete_all_key", pygame.K_BACKSPACE),
-            "scroll": style.get("scroll", None),
-            "bg_rect_style": style.get("bg_rect_style", None),
-            "outline_rect_style": style.get("outline_rect_style", None),
-            "text_filly": style.get("text_filly", "100"),
-            "selection_style": style.get("selection_style", None),
-            "double_click_interval": style.get("double_click_interval", 250),
-            "cut_key": style.get("cut_key", pygame.K_x),
-            "enable_history": style.get("enable_history", True),
-            "redo_key": style.get("redo_key", pygame.K_y),
-            "undo_key": style.get("undo_key", pygame.K_z),
-            "history_limit": style.get("history_limit", 1000),
-            "text_anchor": style.get("text_anchor", "left"),
-            "characters_limit": style.get("characters_limit", None),
-        }
-        self._text = str(text)
-        self.cursor = len(self._text)
-        self.focused = False
-        self._error = False
-        self._cursor_on = True
-        self._cursor_time = pygame.time.get_ticks()
-        self._selection_start = None
-        self._offset = 0
-        self._size = 0
-        self._cont_w = 0
-        self._pad = 0
-        self._just_checked = False
-        self._rect = pygame.Rect()
-        self._press = False
-        self._focus_press = False
-        self._press_cursor = 0
-        self._press_time = pygame.time.get_ticks()
-        self._release_time = pygame.time.get_ticks()
-        self._press_count = 0
-        self._font = None
-        self._cont_rect = pygame.Rect()
-        self._history = []
-        self._history_index = -1
-
-    @property
-    def text(self):
-        return self._text
-
-    @text.setter
-    def text(self, v):
-        self._text = str(v)
-        self.cursor = len(self._text)
-
-    @property
-    def text_strip(self):
-        return self._text.strip()
-
-    @property
-    def text_as_number(self) -> float:
-        try:
-            text = self.text
-            if text.startswith("0x") or text.startswith("0o"):
-                number = eval(text)
-            else:
-                number = float(text)
-            prev = number
-            number = pygame.math.clamp(
-                number,
-                self.style["number_min"] if self.style["number_min"] else float("-inf"),
-                self.style["number_max"] if self.style["number_max"] else float("inf"),
-            )
-            if prev != number:
-                self._error = True
-            if self.style["number_integer"]:
-                number = int(number)
-        except (ValueError, SyntaxError):
-            number = (
-                self.style["number_min"] if self.style["number_min"] else float("nan")
-            )
-            if number != float("nan") and self.style["number_integer"]:
-                number = int(number)
-            self._error = True
-        return number
-
-    def ui(self, container_element: _data.Interaction):
-        mpos = pygame.mouse.get_pos()
-        mposx = mpos[0]
-        if pygame.time.get_ticks() - self._cursor_time >= self.style["blink_interval"]:
-            self._cursor_on = not self._cursor_on
-            self._cursor_time = pygame.time.get_ticks()
-        if not self.focused:
-            self._cursor_on = False
-        if self._press and (pygame.time.get_ticks() - self._press_time >= 80):
-            self._set_cursor_on()
-            new_cursor, tocheck = self._cursor_from_pos(mposx)
-            if (
-                new_cursor != self._press_cursor
-                # and new_cursor - 1 != self._press_cursor
-                and self._selection_start is None
-            ):
-                self._selection_start = self.cursor
-                # if new_cursor < self._press_cursor:    self._selection_start += 1
-            if tocheck:
-                self._check()
-            self.cursor = new_cursor
-        mili = _core._globalctx._mili
-        if mili is None:
-            return None
-        if mili._ctx._parent["id"] != container_element.data.id:
-            raise _error.MILIStatusError(
-                "Entryline's container element must be created as a parent"
-            )
-        if self.style["bg_rect_style"] is not None:
-            mili.rect(self.style["bg_rect_style"])
-        if self.style["outline_rect_style"] is not None:
-            mili.rect(self.style["outline_rect_style"])
-        color = self.style["text_style"].get("color", "white")
-        text = self._text
-        if len(self._text) <= 0 and not self.focused:
-            text = self.style["placeholder"]
-            color = self.style["placeholder_color"]
-        if self._error:
-            color = self.style["error_color"]
-
-        style = (
-            {"growy": False}
-            | self.style["text_style"]
-            | {
-                "growx": True,
-                "color": color,
-                "padx": 0,
-                "pady": 0,
-            }
+        upicon, downicon = (
+            _icon._get_icon(self.ui_style["icon_arrow_up"]),
+            _icon._get_icon(self.ui_style["icon_arrow_down"]),
         )
-        pad = container_element.data.grid.padx
-        self._cont_rect = container_element.data.absolute_rect
-        self._font = mili.text_font(style)
-        fonth = self._font.get_height()
-        if self.style["text_anchor"] != "right":
-            text_to_cursor = self._text[: self.cursor]
-            size = mili.text_size(text_to_cursor, style)
-        else:
-            text_from_cursor = self._text[self.cursor :]
-            size = mili.text_size(text_from_cursor, style)
-        self._size = size.x
-        self._pad = pad
-        self._cont_w = container_element.data.rect.w
-        if self._just_checked:
-            self._check()
-            self._just_checked = False
-        scrolloffset = pygame.Vector2()
-        if self.style["scroll"] is not None:
-            scrolloffset = self.style["scroll"].get_offset()
-        need_middle = self._rect.w < (self._cont_w - pad * 2)
-        te = mili.element(
-            None,
-            {
-                "blocking": False,
-                "filly": self.style["text_filly"],
-                "offset": pygame.Vector2(-self._offset, 0) + scrolloffset,
-                "align": "first"
-                if (
-                    self.style["text_anchor"] == "left"
-                    or (self.style["text_anchor"] == "center" and not need_middle)
+        _mili = _core._globalctx._mili
+        if _mili is None:
+            raise _error.MILIStatusError(
+                "A MILI instance must be started to use this utility method"
+            )
+        with _mili.begin(
+            selected_rect,
+            {"pad": 0, "spacing": 0, "update_id": "cursor"}
+            | (selected_style if selected_style else {})
+            | {"axis": "x"},
+        ) as selected:
+            _mili.rect(
+                {
+                    "color": _core._coreutils._get_conditional_color(
+                        selected, self.ui_style["selected_option_color"]
+                    ),
+                    "border_radius": self.ui_style["border_radius"],
+                }
+            )
+            _mili.rect(
+                {
+                    "color": self.ui_style["outline_color"],
+                    "border_radius": self.ui_style["border_radius"],
+                    "outline": 1,
+                    "draw_above": True,
+                }
+            )
+            _mili.text_element(
+                self.selected,
+                {"growx": False} | self.ui_style["text_style"],
+                None,
+                {"fillx": True, "filly": True, "blocking": False},
+            )
+            surf = (
+                (upicon if self.shown else downicon)
+                if self.style["direction"] == "down"
+                else (downicon if self.shown else upicon)
+            )
+            if surf:
+                height = selected.data.rect.h
+                ratio = surf.width / surf.height
+                width = height * ratio
+                _mili.image_element(
+                    surf, None, (0, 0, width, height), {"blocking": False}
                 )
-                else ("last" if self.style["text_anchor"] == "right" else "center"),
-            },
-        )
-        self._rect = te.data.absolute_rect
-        if self._selection_start is not None and self.cursor != self._selection_start:
-            start, end = (
-                min(self.cursor, self._selection_start),
-                max(self.cursor, self._selection_start),
-            )
-            text_to_start = self.text[:start]
-            text_to_end = self.text[:end]
-            size_start = mili.text_size(text_to_start, style).x
-            size_end = mili.text_size(text_to_end, style).x
-            extra_style = {}
-            if self.style["selection_style"] is not None:
-                extra_style = self.style["selection_style"]
-            sel_rect = pygame.Rect(
-                size_start - scrolloffset[0] + te.data.absolute_rect.x,
-                te.data.rect.h
-                - te.data.rect.h / 2
-                - fonth / 2
-                - scrolloffset[1]
-                + te.data.absolute_rect.y,
-                size_end - size_start,
-                fonth,
-            )
-            mili.rect(
-                extra_style
-                | {"ready_rect": sel_rect, "color": self.style["selection_color"]}
-            )
-        mili.text(text, style)
-        cursor_pos = pad + (self._size - self._offset)
-        if self.style["text_anchor"] == "right":
-            cursor_pos = self._cont_w - pad - self._size - self._offset
-        elif self.style["text_anchor"] == "center" and need_middle:
-            cursor_pos = self._cont_w / 2 + self._size - self._offset - self._rect.w / 2
-        mili.element(
-            (
-                cursor_pos,
-                te.data.rect.bottom - te.data.rect.h / 2 - fonth / 2,
-                self.style["cursor_width"],
-                fonth,
-            ),
-            {"ignore_grid": True, "offset": scrolloffset, "blocking": False},
-        )
-        if self._cursor_on:
-            mili.rect(
-                {"color": self.style["cursor_color"], "border_radius": 0, "outline": 0},
-            )
-        if container_element.left_just_pressed:
-            self._focus_press = True
-            self.focused = True
-            self._press_time = pygame.time.get_ticks()
-            if (
-                pygame.time.get_ticks() - self._release_time
-                <= self.style["double_click_interval"]
-            ):
-                self._press_count += 1
-                if self._press_count == 1:
-                    checkspace = True
-                    try:
-                        if self._text[self.cursor] == " ":
-                            checkspace = False
-                    except IndexError:
-                        ...
-                    left, right = self._text[: self.cursor], self._text[self.cursor :]
-                    li = len(left) - 1
-                    while li >= 0:
-                        char = left[li]
-                        if (char == " " and checkspace) or (
-                            char != " " and not checkspace
-                        ):
-                            break
-                        li -= 1
-                    li += 1
-                    ri = 0
-                    while ri < len(right):
-                        char = right[ri]
-                        if (char == " " and checkspace) or (
-                            char != " " and not checkspace
-                        ):
-                            break
-                        ri += 1
-                    self._selection_start = self.cursor - (len(left) - li)
-                    self.cursor = self.cursor + ri
-                    self._check()
-                elif self._press_count == 2:
-                    self.cursor = len(self._text)
-                    self._selection_start = 0
-                    self._press_count = 0
-                    self._check()
-                else:
-                    self.cursor, tocheck = self._cursor_from_pos(mposx)
-                    if tocheck:
-                        self._check()
-            else:
-                self._press_count = 0
-                self._press = True
-                self.cancel_selection()
-                self.cursor, tocheck = self._cursor_from_pos(mposx)
-                if tocheck:
-                    self._check()
-                self._press_cursor = self.cursor
-            self._set_cursor_on()
-        if container_element.left_just_released:
-            self.focused = True
-            self._press = False
-            self._set_cursor_on()
-            self._release_time = pygame.time.get_ticks()
-
-    def event(self, event: pygame.Event):
-        if event.type == pygame.MOUSEBUTTONUP and event.button == pygame.BUTTON_LEFT:
-            self._press = False
-            self._press_cursor = 0
-            if not self._focus_press:
-                self.unfocus()
-            self._focus_press = False
-        if not self.focused:
-            return
-        if event.type == pygame.TEXTINPUT:
-            if (cl := self.style["characters_limit"]) is not None:
-                if len(self._text) >= cl:
-                    return
-            text = event.text
-            self.insert(text)
-        if event.type == pygame.KEYDOWN:
-            if event.mod & self.style["keymod"]:
-                if event.key == self.style["select_all_key"]:
-                    self.cursor = len(self._text)
-                    self._selection_start = 0
-                    self._set_cursor_on()
-                if event.key == self.style["delete_all_key"]:
-                    self._history_save()
-                    self.text = ""
-                    self.cursor = 0
-                if event.key == self.style["copy_key"]:
-                    text = self.get_selection()
-                    pygame.scrap.put_text(text)
-                if event.key == self.style["paste_key"]:
-                    text = pygame.scrap.get_text()
-                    if self._selection_start is not None:
-                        self.delete_selection()
-                    if (cl := self.style["characters_limit"]) is not None:
-                        text = text[: cl - len(self._text)]
-                    self.insert(text)
-                if event.key == self.style["cut_key"]:
-                    self._history_save()
-                    text = self.get_selection()
-                    pygame.scrap.put_text(text)
-                    self.delete_selection()
-                if event.key == self.style["undo_key"]:
-                    self.undo()
-                if event.key == self.style["redo_key"]:
-                    self.redo()
-            moved = False
-            control = event.mod & pygame.KMOD_CTRL
-            if event.mod & pygame.KMOD_SHIFT:
-                if event.key == pygame.K_LEFT:
-                    if self._selection_start is None:
-                        self._selection_start = self.cursor
-                    self.move_cursor(self._get_move_amount(control, -1))
-                    self._set_cursor_on()
-                    moved = True
-                if event.key == pygame.K_RIGHT:
-                    if self._selection_start is None:
-                        self._selection_start = self.cursor
-                    self.move_cursor(self._get_move_amount(control, 1))
-                    self._set_cursor_on()
-                    moved = True
-            if event.key == pygame.K_LEFT and not moved:
-                if self._selection_start is not None:
-                    if self.cursor == self._selection_start:
-                        self.move_cursor(self._get_move_amount(control, -1))
-                    self.cancel_selection()
-                else:
-                    self.move_cursor(self._get_move_amount(control, -1))
-                self._set_cursor_on()
-            if event.key == pygame.K_RIGHT and not moved:
-                if self._selection_start is not None:
-                    if self.cursor == self._selection_start:
-                        self.move_cursor(self._get_move_amount(control, 1))
-                    self.cancel_selection()
-                else:
-                    self.move_cursor(self._get_move_amount(control, 1))
-                self._set_cursor_on()
-            if event.key == pygame.K_BACKSPACE:
-                if self._selection_start is not None:
-                    self.delete_selection()
-                else:
-                    self.delete(-1)
-            if event.key == pygame.K_DELETE:
-                if self._selection_start is not None:
-                    self.delete_selection()
-                else:
-                    self.delete(1)
-            if event.key in [pygame.K_RETURN]:
-                if self.style["target_number"]:
-                    self._history_save()
-                    self.text = f"{self.text_as_number}"
-                    self._error = False
-
-    def clear_history(self):
-        self._history = []
-        self._history_index = -1
-
-    def undo(self):
-        if not self.style["enable_history"]:
-            return
-        if self._history_index <= 0:
-            return
-        self._history_index -= 1
-        self._history_apply()
-
-    def redo(self):
-        if not self.style["enable_history"]:
-            return
-        if self._history_index >= len(self._history) - 1:
-            return
-        self._history_index += 1
-        self._history_apply()
-
-    def insert(self, string: str):
-        self._history_save()
-        string = self._validate(string)
-        if self._selection_start is not None:
-            self.delete_selection()
-        left, right = self._text[: self.cursor], self._text[self.cursor :]
-        self._text = left + string + right
-        self.cursor += len(string)
-        self._check(True)
-
-    def move_cursor(self, amount: int):
-        self.cursor += amount
-        self._check()
-
-    def select(self, start: int, end: int):
-        self.cursor = max(start, end)
-        self._selection_start = min(start, end)
-
-    def cancel_selection(self):
-        self._selection_start = None
-
-    def delete(self, amount: int):
-        if amount == 0:
-            return
-        self._history_save()
-        left, right = self._text[: self.cursor], self._text[self.cursor :]
-        if amount > 0:
-            amount = abs(amount)
-            if amount > len(right):
-                amount = len(right)
-            newright = right[amount:]
-            self._text = left + newright
+            self.update_selected(selected)
+            sel_width = selected.data.rect.w
+        if self.shown:
+            with _mili.begin(
+                (self.topleft, (sel_width, 0)),
+                {"z": 99999}
+                | self.ui_style["menu_style"]
+                | {"resizey": True, "ignore_grid": True},
+            ) as menuel:
+                _mili.rect(
+                    {
+                        "color": self.ui_style["bg_color"],
+                        "border_radius": self.ui_style["border_radius"],
+                    }
+                )
+                _mili.rect(
+                    {
+                        "color": self.ui_style["outline_color"],
+                        "border_radius": self.ui_style["border_radius"],
+                        "outline": 1,
+                        "draw_above": True,
+                    }
+                )
+                self.update_menu(menuel)
+                for i, option in enumerate(self.options):
+                    br = self.ui_style["option_border_radius"]
+                    if i == 0:
+                        br = (
+                            self.ui_style["border_radius"],
+                            self.ui_style["border_radius"],
+                            br,
+                            br,
+                        )
+                    elif i == len(self.options) - 1:
+                        br = (
+                            br,
+                            br,
+                            self.ui_style["border_radius"],
+                            self.ui_style["border_radius"],
+                        )
+                    with _mili.element(
+                        None, {"fillx": True, "update_id": "cursor"}
+                    ) as optel:
+                        _mili.rect(
+                            {
+                                "color": _core._coreutils._get_conditional_color(
+                                    optel, self.ui_style["option_color"]
+                                ),
+                                "border_radius": br,
+                            }
+                        )
+                        _mili.text(
+                            option, {"growy": True} | self.ui_style["option_text_style"]
+                        )
+                        self.update_option(optel)
         else:
-            amount = abs(amount)
-            if amount > len(left):
-                amount = len(left)
-            newleft = left[: len(left) - amount]
-            self._text = newleft + right
-            self.cursor -= amount
-        self._check(True)
-
-    def delete_selection(self):
-        if self._selection_start is None:
-            raise _error.MILIStatusError(
-                "Cannot delete entryline selection with no active selection"
-            )
-        self._history_save()
-        start, end = (
-            min(self.cursor, self._selection_start),
-            max(self.cursor, self._selection_start),
-        )
-        self._text = self.text[:start] + self.text[end:]
-        self.cursor = start
-        self.cancel_selection()
-
-    def get_selection(self):
-        if self._selection_start is None:
-            raise _error.MILIStatusError(
-                "Cannot get entryline selection with no active selection"
-            )
-        start, end = (
-            min(self.cursor, self._selection_start),
-            max(self.cursor, self._selection_start),
-        )
-        return self.text[start:end]
-
-    def focus(self):
-        self.focused = True
-        self._set_cursor_on()
-
-    def unfocus(self):
-        self.focused = False
-        self.cancel_selection()
-
-    def _get_move_amount(self, control, direction):
-        if not control:
-            return direction
-        amount = 0
-        if direction == 1:
-            if self.cursor >= len(self._text) - 1:
-                return direction
-            nextchar = self._text[self.cursor]
-            startchar = nextchar
-            while nextchar == " " if startchar == " " else nextchar != " ":
-                amount += 1
-                if self.cursor + amount >= len(self._text):
-                    return amount
-                nextchar = self._text[self.cursor + amount]
-            return amount
-        else:
-            if self.cursor == 0:
-                return direction
-            curchar = self._text[self.cursor - 1]
-            startchar = curchar
-            while curchar == " " if startchar == " " else curchar != " ":
-                amount -= 1
-                if self.cursor + amount <= 0:
-                    return amount
-                curchar = self._text[self.cursor + amount]
-            return amount + 1
-
-    def _set_cursor_on(self):
-        self._cursor_on = True
-        self._cursor_time = pygame.time.get_ticks()
-
-    def _cursor_from_pos(self, posx, add=0):
-        tocheck = False
-        if posx < self._cont_rect.left or posx > self._cont_rect.right:
-            tocheck = True
-        if posx <= self._rect.left:
-            return 0, tocheck
-        if posx >= self._rect.right:
-            return len(self._text), tocheck
-        if self._font is None:
-            return 0, tocheck
-        dx = posx - self._rect.x
-        for i in range(len(self._text) + 1):
-            tw = self._font.size(self._text[:i])[0]
-            if tw >= dx:
-                return i - 1 + add, tocheck
-        return len(self._text), tocheck
-
-    def _check(self, edit=False):
-        self._just_checked = True
-        if self.cursor < 0:
-            self.cursor = 0
-        if self.cursor > len(self._text):
-            self.cursor = len(self._text)
-        if self.style["text_anchor"] != "right":
-            cursorpos = self._size - self._offset
-            if cursorpos > self._cont_w - self._pad * 2:
-                self._offset = self._size - (self._cont_w - self._pad * 2)
-            if cursorpos < 0:
-                self._offset = self._size
-            if self.style["text_anchor"] == "center" and self._rect.w < (
-                self._cont_w - self._pad * 2
-            ):
-                self._offset = 0
-        else:
-            cursorpos = self._cont_w - self._pad * 2 - self._size - self._offset
-            if cursorpos > self._cont_w - self._pad * 2:
-                self._offset = -self._size
-            if cursorpos < 0:
-                self._offset = -(self._size - (self._cont_w - self._pad * 2))
-        if self.style["scroll"] is not None:
-            self.style["scroll"].scroll_offset.x = 0
-        if edit:
-            self._set_cursor_on()
-            self._error = False
-            if self.style["text_validator"]:
-                result = self.style["text_validator"](self.text)
-                self._text, self._error = result[0], not result[1]
-            if self.style["target_number"]:
-                self.text_as_number
-
-    def _validate(self, text):
-        text = text.replace("\n", "")
-        if self.style["validator_lowercase"]:
-            text = text.lower()
-        if self.style["validator_uppercase"]:
-            text = text.upper()
-        if (
-            self.style["validator_windows_path"]
-            or self.style["input_validator"]
-            or self.style["target_number"]
-        ):
-            string = ""
-            for letter in text:
-                if self.style["target_number"]:
-                    if letter not in "-0123456789.exoabcdefABCDEF":
-                        continue
-                    if self.style["number_integer"] and letter == ".":
-                        continue
-                if self.style["validator_windows_path"] and letter in '<>:"/\\|?*':
-                    continue
-                if self.style["input_validator"]:
-                    res = self.style["input_validator"](letter)
-                    if res is None:
-                        continue
-                    string += res
-                else:
-                    string += letter
-            text = string
-        return text
-
-    def _history_save(self):
-        if not self.style["enable_history"]:
-            return
-        state = {
-            "text": self._text,
-            "cursor": self.cursor,
-            "selection": self._selection_start,
-            "error": self._error,
-            "offset": self._offset,
-        }
-        if len(self._history) <= 0:
-            self._history.append(state)
-            self._history_index = 0
-        else:
-            if self._history_index < len(self._history) - 1:
-                self._history = self._history[: self._history_index]
-            self._history.append(state)
-            self._history_index += 1
-        if self.style["history_limit"] is None:
-            return
-        if len(self._history) > abs(self.style["history_limit"]):
-            self._history = self._history[
-                len(self._history) - abs(self.style["history_limit"]) :
-            ]
-
-    def _history_apply(self):
-        state = self._history[self._history_index]
-        self._text = state["text"]
-        self.cursor = state["cursor"]
-        self._selection_start = state["selection"]
-        self._error = state["error"]
-        self._offset = state["offset"]
+            with _mili.begin(
+                (self.topleft, (sel_width, 0)),
+                {"z": 99999}
+                | self.ui_style["menu_style"]
+                | {"resizey": True, "ignore_grid": True, "pad": 0, "spacing": 0},
+            ) as menuel:
+                self.update_menu(menuel)
+                for opt in self.options:
+                    _mili.element(None)

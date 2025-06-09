@@ -25,3 +25,11 @@ MILI also provides useful utilities to manage elements and animations:
 Finally, there are common errors and typehints:
 
 ## [MILI Errors and Typehints](https://github.com/damusss/mili/blob/main/guide/extra.md)
+
+## MILI CLI
+Executing mili as a package (`py -m mili <command>`) also gives you the following commands:
+-   guide: open this guide on GitHub
+-   changelog: open the changelog on GitHub
+-   demo: run the demo program
+-   version (or similar alternatives): print the installed MILI version
+-   help: show the available commands

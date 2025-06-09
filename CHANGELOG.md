@@ -1,3 +1,47 @@
+# 1.0.7
+
+Missing styles: UIApp, DropMenuUI
+Need to add the demo to the CLI and package it
+Update the utilities guide
+slider: can slide in the area
+markdown: allow self-referencing links, and custom implemented links.
+
+### New API
+
+-   Added the `mili.GIF` utility.
+-   Added the `mili.ContextMenu` big UI utility and the relative `mili.typing.ContextMenuStyleLike` object.
+-   Added the `mili.dict_push` utility function.
+-   Added the `mili.image_border_radius` utility function.
+-   Added the `transforms` and `filters` image styles.
+-   Added the `InteractionCursor.set_status` and `InteractionCursor.set_cursor` methods.
+-   Added the `font_direction` and `outline_color` text styles.
+-   Added the `use_appdata_folder` style to `mili.UIApp`.
+-   Added the `mili.DropMenu.ui` method and a set of new styling for the class.
+-   Added the `mili.set_number_modifier` and `mili.smart_number` functions.
+-   Added the `mili.icon.lazy` and `mili.icon.lazy_colored` functions.
+-   Added the `mili.DropDown.ui` method and `mili.typing.DropMenuUIStyleLike` type hint.
+-   Added the `mili.typing.IconLike` typehint.
+-   Added the `link_handler` markdown style.
+
+### Enhancements
+
+-   Allow strings for `font_align` and `font_direction` text styles as well.
+-   Allow color to be None in rect, circle, line and polygon.
+-   If pygame 2.5.6 is used, antialiased lines can now use line thickness
+
+### Fixes
+
+-   Fixed broken rich text aligning
+
+### Behaviour-Changing
+
+-   The default value for image smoothscaling is now `True`.
+-   `MILI.markdown` does not return a boolean anymore and uses `InteractionCursor` to apply the cursor.
+-   `NumberOrPercentage` is now known as `SmartNumberOrPercentage` and `SmartNumber` also exists.
+-   The `ready_border_radius` image style no longer exist. Use the new `mili.image_border_radius` utility as an image transform.
+-   The icon styles for the `UIApp` buttons have changed to use the latest style utilities.
+-   Markdown style `open_links_in_browser` has no longer any effect. Use `link_handler` in its place.
+
 # 1.0.6
 
 ### Deprecation
@@ -40,7 +84,7 @@
 -   Removed the `X_style` styles of markdown. Use context styles instead.
 -   Removed the `X_draw_func` element styles. Use custom components instead.
 -   Removed the `image_layer_cache` element style. Use the available component instead.
--   When a parent's end() is called components will be added to it.
+-   When a parent's end() is called components will be added to it and not to the most recent child.
 
 # 1.0.5
 

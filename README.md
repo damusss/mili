@@ -1,4 +1,4 @@
-# MILI <small>1.0.6</small>
+# MILI <small>1.0.7</small>
 
 Minimal immediate-mode python user interface library.
 
@@ -20,4 +20,14 @@ After installing MILI you may also open the guide using the following command:
 
 ```sh
 py -m mili guide
+```
+
+# [<small>MILI Demo</small>](https://github.com/damusss/mili/blob/main/mili/demo/demo.py)
+
+A demo program exists to showcase what MILI can do. You can run it using one of the following commands:
+```sh
+mili-demo
+```
+```sh
+py -m mili demo
 ```

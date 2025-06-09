@@ -7,7 +7,8 @@ if typing.TYPE_CHECKING:
     from mili import utility
 
 __all__ = (
-    "NumberOrPercentage",
+    "SmartNumber",
+    "SmartNumberOrPercentage",
     "PointsLike",
     "AnimValueLike",
     "EasingLike",
@@ -25,9 +26,15 @@ __all__ = (
     "EntryLineStyleLike",
     "MarkDownStyleLike",
     "ComponentProtocol",
+    "IconLike",
+    "UIAppStyleLike",
+    "ContextMenuStyleLike",
+    "TransparentRectStyleLike",
+    "BoundingAlignLike",
 )
 
-type NumberOrPercentage = int | float | str
+type SmartNumber = int | float | str
+type SmartNumberOrPercentage = int | float | str
 type BoundingAlignLike = typing.Literal[
     "center",
     "topleft",
@@ -43,21 +50,28 @@ type BoundingAlignLike = typing.Literal[
     "midbottom",
     "bottom",
 ]
-type PointsLike = typing.Sequence[typing.Sequence[NumberOrPercentage]]
+type PointsLike = typing.Sequence[typing.Sequence[SmartNumberOrPercentage]]
 type AnimValueLike = float | pygame.Color | typing.Sequence[float]
 type EasingLike = typing.Callable[[float], float]
+type IconLike = (
+    pygame.Surface
+    | typing.Callable[[], pygame.Surface]
+    | typing.Callable[[typing.Optional[pygame.typing.ColorLike]], pygame.Surface]
+    | str
+)
 
 
 class _ConditionalColorStyleLike(typing.TypedDict):
     default: pygame.typing.ColorLike | None
     hover: pygame.typing.ColorLike | None
-    pressed: pygame.typing.ColorLike | None
+    press: pygame.typing.ColorLike | None
 
 
 class _MarkDownCodeCopyStyleLike(typing.TypedDict):
     size: float
     icon_color: _ConditionalColorStyleLike
-    icon_pad: NumberOrPercentage
+    icon_pad: SmartNumberOrPercentage
+    icon: IconLike
 
 
 class _MarkDownCodeScrollbarStyleLike(typing.TypedDict):
@@ -86,33 +100,26 @@ class MarkDownStyleLike(typing.TypedDict):
     quote_color: pygame.typing.ColorLike
     code_bg_color: pygame.typing.ColorLike
     code_outline_color: pygame.typing.ColorLike
-    code_border_radius: NumberOrPercentage
+    code_border_radius: SmartNumberOrPercentage
     code_copy_style: _MarkDownCodeCopyStyleLike
     code_scrollbar_style: _MarkDownCodeScrollbarStyleLike
-    title1_size: int
-    title2_size: int
-    title3_size: int
-    title4_size: int
-    title5_size: int
-    title6_size: int
+    title1_size: SmartNumber
+    title2_size: SmartNumber
+    title3_size: SmartNumber
+    title4_size: SmartNumber
+    title5_size: SmartNumber
+    title6_size: SmartNumber
     allow_image_link: bool
     change_cursor: bool
     load_images_async: bool
-    open_links_in_browser: bool
+    link_handler: typing.Callable[[str]]|None
     parse_async: bool
 
 
 class _UIAppButtonStyleLike(typing.TypedDict):
-    bg_default: pygame.typing.ColorLike
-    bg_hover: pygame.typing.ColorLike
-    bg_press: pygame.typing.ColorLike
-    icon_name: str
-    icon_set: str
-    icon_source: typing.Literal["google", "iconify", "file", "svg"]
-    icon_color: pygame.typing.ColorLike
-    alpha_default: float
-    alpha_hover: float
-    alpha_press: float
+    bg_color: _ConditionalColorStyleLike
+    icon: IconLike
+    alpha: _ConditionalColorStyleLike
 
 
 class UIAppStyleLike(typing.TypedDict):
@@ -129,6 +136,7 @@ class UIAppStyleLike(typing.TypedDict):
     minimize_button: _UIAppButtonStyleLike
     maximize_button: _UIAppButtonStyleLike
     close_button: _UIAppButtonStyleLike
+    use_appdata_folder: bool
 
 
 class ScrollbarStyleLike(typing.TypedDict):
@@ -156,6 +164,20 @@ class DropMenuStyleLike(typing.TypedDict):
     selected_update_id: str | None
     option_update_id: str | None
     menu_update_id: str | None
+
+
+class DropMenuUIStyleLike(typing.TypedDict):
+    border_radius: SmartNumberOrPercentage
+    option_border_radius: SmartNumberOrPercentage
+    bg_color: pygame.typing.ColorLike
+    outline_color: pygame.typing.ColorLike
+    selected_option_color: _ConditionalColorStyleLike
+    option_color: _ConditionalColorStyleLike
+    menu_style: "ElementStyleLike"
+    text_style: "TextStyleLike"
+    option_text_style: "TextStyleLike"
+    icon_arrow_down: IconLike
+    icon_arrow_up: IconLike
 
 
 class EntryLineStyleLike(typing.TypedDict):
@@ -193,14 +215,51 @@ class EntryLineStyleLike(typing.TypedDict):
     undo_key: int | None
     redo_key: int | None
     scroll: "utility.Scroll|None"
-    characters_limit: int|None
+    characters_limit: int | None
+
+
+class _TextBoxScrollbarStyleLike(typing.TypedDict):
+    short_size: float
+    border_dist: float
+    padding: float
+
+
+class _ContextMenuDefaultIconsStyleLike(typing.TypedDict):
+    arrow_left: IconLike
+    arrow_right: IconLike
+    checkbox_empty: IconLike
+    checkbox_full: IconLike
+
+
+class ContextMenuStyleLike(typing.TypedDict):
+    bg_color: pygame.typing.ColorLike
+    outline_color: pygame.typing.ColorLike
+    hover_color: pygame.typing.ColorLike
+    google_icon_color: pygame.typing.ColorLike | typing.Literal["default"] | None
+    item_bg_color: pygame.typing.ColorLike | None
+    shadow_color: pygame.typing.ColorLike | None
+    text_style: "TextStyleLike"
+    icon_style: "ImageStyleLike"
+    menu_style: "ElementStyleLike"
+    row_style: "ElementStyleLike"
+    separator_style: "LineStyleLike"
+    label_height: float | None
+    icon_height: float
+    items_update_id: str | None
+    menu_border_radius: SmartNumberOrPercentage
+    hover_border_radius: SmartNumberOrPercentage
+    menu_width: float
+    menu_dist: float
+    default_icons: _ContextMenuDefaultIconsStyleLike
+    submenu_on_hover: bool
+    clamp_size: pygame.typing.Point | None
 
 
 class _ElementStyleLike(typing.TypedDict):
     resizex: bool
     resizey: bool
-    fillx: bool | NumberOrPercentage
-    filly: bool | NumberOrPercentage
+    fillx: bool | SmartNumberOrPercentage
+    filly: bool | SmartNumberOrPercentage
     size_clamp: (
         dict[typing.Literal["min", "max"], tuple[float | None, float | None]] | None
     )
@@ -217,18 +276,18 @@ class _ElementStyleLike(typing.TypedDict):
     cache: _data.ParentCache | None
 
     axis: typing.Literal["x", "y"]
-    spacing: NumberOrPercentage
-    pad: NumberOrPercentage
-    padx: NumberOrPercentage
-    pady: NumberOrPercentage
+    spacing: SmartNumberOrPercentage
+    pad: SmartNumberOrPercentage
+    padx: SmartNumberOrPercentage
+    pady: SmartNumberOrPercentage
     anchor: typing.Literal["first", "center", "last", "max_spacing"]
     default_align: typing.Literal["first", "center", "last"]
     layout: typing.Literal["stack", "grid", "table"]
     grid_align: typing.Literal[
         "first", "center", "last", "max_spacing", "first_center", "last_center"
     ]
-    grid_spacex: NumberOrPercentage
-    grid_spacey: NumberOrPercentage
+    grid_spacex: SmartNumberOrPercentage
+    grid_spacey: SmartNumberOrPercentage
 
 
 type ElementStyleLike = _ElementStyleLike | dict[str, typing.Any]
@@ -237,19 +296,19 @@ type ElementStyleLike = _ElementStyleLike | dict[str, typing.Any]
 class _ComponentStyleLike(typing.TypedDict):
     draw_above: bool
     element_id: int
-    pad: NumberOrPercentage
-    padx: NumberOrPercentage
-    pady: NumberOrPercentage
+    pad: SmartNumberOrPercentage
+    padx: SmartNumberOrPercentage
+    pady: SmartNumberOrPercentage
 
 
 class _RectStyleLike(_ComponentStyleLike):
-    outline: NumberOrPercentage
-    border_radius: NumberOrPercentage | typing.Iterable[NumberOrPercentage]
-    color: pygame.typing.ColorLike
+    outline: SmartNumberOrPercentage
+    border_radius: SmartNumberOrPercentage | typing.Iterable[SmartNumberOrPercentage]
+    color: pygame.typing.ColorLike|None
     aspect_ratio: float | None
     align: BoundingAlignLike
-    dash_size: NumberOrPercentage | typing.Iterable[NumberOrPercentage] | None
-    dash_offset: NumberOrPercentage
+    dash_size: SmartNumberOrPercentage | typing.Iterable[SmartNumberOrPercentage] | None
+    dash_offset: SmartNumberOrPercentage
     ready_rect: pygame.typing.RectLike | None
 
 
@@ -257,7 +316,7 @@ type RectStyleLike = _RectStyleLike | dict[str, typing.Any]
 
 
 class _TransparentRectStyleLike(_ComponentStyleLike):
-    border_radius: NumberOrPercentage
+    border_radius: SmartNumberOrPercentage|pygame.typing.SequenceLike[SmartNumberOrPercentage]
     color: pygame.typing.ColorLike
     alpha: int
 
@@ -266,8 +325,8 @@ type TransparentRectStyleLike = _TransparentRectStyleLike | dict[str, typing.Any
 
 
 class _CircleStyleLike(_ComponentStyleLike):
-    outline: NumberOrPercentage
-    color: pygame.typing.ColorLike
+    outline: SmartNumberOrPercentage
+    color: pygame.typing.ColorLike|None
     antialias: bool
     aspect_ratio: float | None
     align: BoundingAlignLike
@@ -280,19 +339,19 @@ type CircleStyleLike = _CircleStyleLike | dict[str, typing.Any]
 
 
 class _LineStyleLike(_ComponentStyleLike):
-    size: NumberOrPercentage
-    color: pygame.typing.ColorLike
+    size: SmartNumberOrPercentage
+    color: pygame.typing.ColorLike|None
     antialias: bool
-    dash_size: NumberOrPercentage | typing.Iterable[NumberOrPercentage]
-    dash_offset: NumberOrPercentage
+    dash_size: SmartNumberOrPercentage | typing.Iterable[SmartNumberOrPercentage]
+    dash_offset: SmartNumberOrPercentage
 
 
 type LineStyleLike = _LineStyleLike | dict[str, typing.Any]
 
 
 class _PolygonStyleLike(_ComponentStyleLike):
-    outline: NumberOrPercentage
-    color: pygame.typing.ColorLike
+    outline: SmartNumberOrPercentage
+    color: pygame.typing.ColorLike|None
 
 
 type PolygonStyleLike = _PolygonStyleLike | dict[str, typing.Any]
@@ -309,10 +368,11 @@ class _TextRichMarkdownStyleLike(typing.TypedDict):
 class _TextStyleLike(_ComponentStyleLike):
     cache: _data.TextCache | None
     name: str | None
-    size: int
+    size: SmartNumber
     sysfont: bool
     align: BoundingAlignLike
     font_align: int
+    font_direction: int
     bold: bool
     italic: bool
     underline: bool
@@ -320,9 +380,10 @@ class _TextStyleLike(_ComponentStyleLike):
     antialias: bool
     color: pygame.typing.ColorLike
     bg_color: pygame.typing.ColorLike
+    outline_color: pygame.typing.ColorLike
     growx: bool
     growy: bool
-    wraplen: NumberOrPercentage
+    wraplen: SmartNumberOrPercentage
     slow_grow: bool
     rich: bool
     rich_aligny: typing.Literal["top", "center", "bottom"]
@@ -344,11 +405,19 @@ class _ImageStyleLike(_ComponentStyleLike):
     stretchy: bool
     fill_color: pygame.typing.ColorLike
     smoothscale: bool
-    ready_border_radius: NumberOrPercentage
-    border_radius: NumberOrPercentage
+    ready_border_radius: SmartNumberOrPercentage
+    border_radius: (
+        SmartNumberOrPercentage | pygame.typing.SequenceLike[SmartNumberOrPercentage]
+    )
     alpha: int
-    ninepatch_size: NumberOrPercentage
+    ninepatch_size: SmartNumberOrPercentage
     ready: bool
+    transforms: (
+        pygame.typing.SequenceLike[typing.Callable | pygame.typing.SequenceLike] | None
+    )
+    filters: (
+        pygame.typing.SequenceLike[typing.Callable | pygame.typing.SequenceLike] | None
+    )
 
 
 type ImageStyleLike = _ImageStyleLike | dict[str, typing.Any]
@@ -382,3 +451,7 @@ class ComponentProtocol(typing.Protocol):
         style: dict[str, typing.Any],
         element: dict[str, typing.Any],
     ): ...
+
+
+# deprecated. will be removed in 1.0.8
+type NumberOrPercentage = SmartNumberOrPercentage

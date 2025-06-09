@@ -5,7 +5,14 @@ from dataclasses import dataclass
 if typing.TYPE_CHECKING:
     from mili import MILI as _MILI
 
-__all__ = ("ImageCache", "TextCache", "ParentCache", "ImageLayerCache", "Interaction", "ElementData")
+__all__ = (
+    "ImageCache",
+    "TextCache",
+    "ParentCache",
+    "ImageLayerCache",
+    "Interaction",
+    "ElementData",
+)
 
 
 class ParentCache:

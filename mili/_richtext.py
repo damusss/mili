@@ -556,14 +556,14 @@ def _md_ui_code_block(
                 ),
                 {"ignore_grid": True},
             )
-            icon = _get_color(bit, bs["icon_color"])
-            if icon:
-                mili.image(
-                    mili_icon.get_google(
-                        "content_copy", icon, style["load_images_async"], False
-                    ),
-                    {"cache": element.image_cache, "pad": bs["icon_pad"]},
-                )
+            icon_col = _coreutils._get_conditional_color(bit, bs["icon_color"])
+            if icon_col:
+                icon = mili_icon._get_icon(bs["icon"], icon_col)
+                if icon:
+                    mili.image(
+                        icon,
+                        {"cache": element.image_cache, "pad": bs["icon_pad"]},
+                    )
             if bit.hovered:
                 state["actions"]["link_hover"](None)
             if bit.left_just_released:
@@ -578,20 +578,16 @@ def _md_ui_code_block(
             with mili.begin(element.scrollbar.bar_rect, element.scrollbar.bar_style):
                 bar = sbc["bar_color"]
                 if bar:
-                    mili.rect(
-                        {"color": bar, "border_radius": sbc["border_radius"]}
-                    )
+                    mili.rect({"color": bar, "border_radius": sbc["border_radius"]})
                 hit = mili.element(
                     element.scrollbar.handle_rect, element.scrollbar.handle_style
                 )
                 element.scrollbar.update_handle(hit)
                 if hit.hovered or hit.left_pressed:
                     state["actions"]["link_hover"](None)
-                handle = _get_color(hit, sbc["handle_color"])
+                handle = _coreutils._get_conditional_color(hit, sbc["handle_color"])
                 if handle:
-                    mili.rect(
-                        {"color": handle, "border_radius": sbc["border_radius"]}
-                    )
+                    mili.rect({"color": handle, "border_radius": sbc["border_radius"]})
         else:
             for i in range(2):
                 mili.element(None, {"blocking": False, "ignore_grid": True})
@@ -601,12 +597,7 @@ def _md_ui_code_block(
     _md_update_state(it, mili, state)
 
 
-def _get_color(it, color):
-    if it.left_pressed:
-        return color["press"]
-    if it.hovered:
-        return color["hover"]
-    return color["default"]
+
 
 
 def _md_ui_title(
@@ -675,7 +666,7 @@ def _markdown_parse(source: str, markdown: "MarkDown"):
     global ScrollClass, ScrollbarClass
     if not source:
         return None
-    #source = source.replace("<br>", "\n\n").replace("<hr>", "\n---\n")
+    # source = source.replace("<br>", "\n\n").replace("<hr>", "\n---\n")
     style = markdown.style["code_scrollbar_style"]
     if style is None:
         style = {}
@@ -792,9 +783,15 @@ class _MarkDownParser:
             self.trail = self.trail[1:]
         if not self.inside_code and not self.inside_cblock:
             if self.trail == "<br>":
-                self.source = self.source[:self.idx+1]+"\n"+self.source[self.idx+1:]
+                self.source = (
+                    self.source[: self.idx + 1] + "\n" + self.source[self.idx + 1 :]
+                )
             elif self.trail == "<hr>":
-                self.source = self.source[:self.idx+1]+"\n---\n"+self.source[self.idx+1:]
+                self.source = (
+                    self.source[: self.idx + 1]
+                    + "\n---\n"
+                    + self.source[self.idx + 1 :]
+                )
 
     def _start_paragraph_or_append(self, buffer, add_newline=True):
         if self.last_paragraph is not None:
@@ -1738,18 +1735,27 @@ def _comp_init(ctx, raw_text: str, style: dict, cache: "TextCache", user_size):
     )
     if "wraplen" in style:
         style.pop("wraplen")
+    default_text = ctx._default_styles["text"]
     if cache._rich is None:
         rebuild = True
         parse_html = True
-        cache._rich = {"active_tags": set(), "wraplen": wraplen, "wrap_overflow": False}
+        cache._rich = {
+            "active_tags": set(),
+            "wraplen": wraplen,
+            "wrap_overflow": False,
+            "default_style": default_text.copy(),
+        }
     else:
         if (
             (diff_txt := cache._rich["raw_text"] != raw_text)
-            or (diff_style:=cache._rich["user_style"] != style)
+            or (diff_style := cache._rich["user_style"] != style)
+            or (diff_def_style := cache._rich["default_style"] != default_text)
             or cache._rich["conds_changed"]
         ):
             rebuild = True
-            parse_html = diff_txt or diff_style or cache._rich["conds_changed"]
+            parse_html = (
+                diff_txt or diff_style or diff_def_style or cache._rich["conds_changed"]
+            )
             if diff_txt:
                 cache._rich["active_tags"] = set()
         if not rebuild:
@@ -1766,6 +1772,7 @@ def _comp_init(ctx, raw_text: str, style: dict, cache: "TextCache", user_size):
         cache._rich["user_style"] = style
         cache._rich["user_size"] = user_size
         cache._rich["wraplen"] = wraplen
+        cache._rich["default_style"] = default_text.copy()
         _process(ctx, raw_text, style, cache, user_size[1], parse_html, wraplen)
 
 
@@ -1787,8 +1794,11 @@ def _process(
         markdown,
         markdown_style,
         default_mods,
+        textbox,
     ) = _process_styles(ctx, style, uh)
     if parse_html:
+        if textbox:
+            raw_text = raw_text.replace("<", "&lt;").replace(">", "&gt;")
         if markdown:
             raw_text = _markdown_to_html(raw_text, markdown_style)
         clean_text, chars_mods, any_tag = _RICH_TEXT_PARSER.rich_text_parse(
@@ -1799,7 +1809,7 @@ def _process(
         if not any_tag and line_space == 0:
             rich["render_full"] = True
             rich["full_surf"], rich["size"] = _process_render_full(
-                ctx, clean_text, default_mods, wraplen
+                ctx, clean_text, default_mods, wraplen, fontalign
             )
             return
     clean_text, chars_mods = rich["clean_text"], rich["chars_mods"]
@@ -1809,27 +1819,41 @@ def _process(
     lines_data, longest_line = _process_lines_blocks(
         lines, ctx, chars_mods, default_mods
     )
+    if default_mods["oc"] is not None:
+        longest_line += 1
     output_blocks, total_h = _process_block_rects(
-        lines_data, longest_line, fontalign, y_align, line_space
+        lines_data, longest_line, fontalign, y_align, line_space, default_mods["oc"] is not None
     )
     rich["wrap_overflow"] = overflow
     rich["size"] = (longest_line, total_h)
     rich["blocks"] = output_blocks
 
 
-def _process_render_full(ctx, txt, mods, wraplen):
+def _process_render_full(ctx, txt, mods, wraplen, fontalign):
     font = ctx._get_font_from(mods["fn"], mods["fs"], mods["sf"])
+    font.align = fontalign
     font.bold = mods["b"]
     font.italic = mods["i"]
     font.underline = mods["u"]
     font.strikethrough = mods["s"]
-    surf = font.render(txt, mods["fa"], mods["fc"], mods["bc"], max(0, wraplen))
-    return surf, surf.size
+    oc = mods["oc"]
+    size = font.render(txt, mods["fa"], "white").size
+    wraplen = min(max(0, int(wraplen)), int(size[0] * 1.1))
+    surf = font.render(
+        txt, mods["fa"], mods["fc"], mods["bc"] if oc is None else None, int(wraplen)
+    )
+    size = surf.size
+    if oc is not None:
+        surf2 = font.render(txt, mods["fa"], oc, mods["bc"], int(wraplen))
+        surf = (surf2, surf)
+    return surf, size
 
 
 def _process_styles(ctx, style, uh):
     _style_val = ctx._style_val
-    fontalign = _style_val(style, "text", "font_align", pygame.FONT_CENTER)
+    fontalign = _coreutils._FONT_ALIGNS[
+        _style_val(style, "text", "font_align", pygame.FONT_CENTER)
+    ]
     y_align = _style_val(style, "text", "rich_aligny", "center")
     line_space = _coreutils._abs_perc(
         _style_val(style, "text", "rich_linespace", 0), uh
@@ -1856,14 +1880,15 @@ def _process_styles(ctx, style, uh):
         markdown,
         markdown_style,
         default_mods,
+        _style_val(style, "text", "_textbox", False),
     )
 
 
-def _process_block_rects(lines_data, longest_line, fontalign, y_align, line_space):
+def _process_block_rects(lines_data, longest_line, fontalign, y_align, line_space, outlined):
     output_blocks = []
-    cur_h = 0
+    cur_h = int(outlined)
     for line in lines_data:
-        cur_w = 0
+        cur_w = int(outlined)
         for block in line["blocks"]:
             posx = cur_w
             if fontalign == pygame.FONT_RIGHT:
@@ -1887,7 +1912,7 @@ def _process_block_rects(lines_data, longest_line, fontalign, y_align, line_spac
             cur_w += block["w"]
         cur_h += line["h"] + line_space
     cur_h -= line_space
-    return output_blocks, cur_h
+    return output_blocks, cur_h+2*outlined
 
 
 def _process_lines_blocks(
@@ -2071,6 +2096,7 @@ def _process_default_mods(ctx, style):
         "fa": _style_val(style, "text", "antialias", True),
         "fc": _style_val(style, "text", "color", "white"),
         "bc": _style_val(style, "text", "bg_color", None),
+        "oc": _style_val(style, "text", "outline_color", None),
         "fn": _style_val(style, "text", "name", None),
         "fs": _style_val(style, "text", "size", 20),
         "sf": _style_val(style, "text", "sysfont", False),
@@ -2087,8 +2113,18 @@ def _render(
         return
     if rich["render_full"]:
         surf = rich["full_surf"]
-        rect = surf.get_rect(**_coreutils._align_rect(align, absr, padx, pady))
-        ctx._canva.blit(surf, rect, special_flags=blit_flags)
+        if isinstance(surf, pygame.Surface):
+            rect = surf.get_rect(**_coreutils._align_rect(align, absr, padx, pady))
+            ctx._canva.blit(surf, rect, special_flags=blit_flags)
+        else:
+            rect = surf[1].get_rect(**_coreutils._align_rect(align, absr, padx, pady))
+            for direction in _coreutils._OUTLINE_OFFSETS_CENTERED:
+                ctx._canva.blit(
+                    surf[0],
+                    (rect.x + direction[0], rect.y + direction[1]),
+                    special_flags=blit_flags,
+                )
+            ctx._canva.blit(surf[1], rect, special_flags=blit_flags)
         return
     clip = ctx._canva.get_clip()
     full_rect = pygame.Rect((0, 0), rich["size"]).move_to(
@@ -2123,9 +2159,29 @@ def _render(
             font.italic = mods["i"]
             font.underline = mods["u"]
             font.strikethrough = mods["s"]
-            surface = font.render(block["text"], mods["fa"], mods["fc"], mods["bc"])
+            outline_col = mods["oc"]
+            surface = font.render(
+                block["text"],
+                mods["fa"],
+                mods["fc"],
+                mods["bc"] if outline_col is None else None,
+            )
+            if outline_col is not None:
+                outline_surf = font.render(
+                    block["text"], mods["fa"], outline_col, mods["bc"]
+                )
+                surface = (outline_surf, surface)
             render_data[i] = surface
-        ctx._canva.blit(surface, rect, special_flags=blit_flags)
+        if isinstance(surface, pygame.Surface):
+            ctx._canva.blit(surface, rect, special_flags=blit_flags)
+        else:
+            for direction in _coreutils._OUTLINE_OFFSETS_CENTERED:
+                ctx._canva.blit(
+                    surface[0],
+                    (rect.x + direction[0], rect.y + direction[1]),
+                    special_flags=blit_flags,
+                )
+            ctx._canva.blit(surface[1], rect, special_flags=blit_flags)
         hovered = rect.collidepoint(mpos)
         for tagid, condition in mods["conds"].items():
             if tagid not in tags_stats:
@@ -2210,6 +2266,7 @@ class _RichTextParser(html.parser.HTMLParser):
             "fa",
             "fc",
             "bc",
+            "oc",
             "fn",
             "fs",
             "sf",
@@ -2317,11 +2374,17 @@ class _RichTextParser(html.parser.HTMLParser):
         elif tag == "color":
             color = True
             for aname, aval in attrs:
-                if aname in ["fg", "bg"] and aval is not None:
+                if aname in ["fg", "bg", "outline"] and aval is not None:
                     key = aname.replace("g", "c")
+                    if key == "outline":
+                        key = "oc"
                     if aval == "null" and key == "bc":
                         keys.append("bc")
                         values["bc"] = None
+                        continue
+                    elif aval == "null" and key == "oc":
+                        keys.append("oc")
+                        values["oc"] = None
                         continue
                     try:
                         value = eval(f"pygame.Color({aval})", {"pygame": pygame})

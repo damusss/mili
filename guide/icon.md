@@ -17,6 +17,9 @@ With this function you setup default arguments for using icons. The customizable
 -   `iconify_default_set`: the default icon set to use for iconify icons. Defaults to `material-symbols`.
 -   `iconify_cache`: wether to save the downloaded iconify icons to the path for faster next loads or not.
 
+The `mili.icon.lazy_colored` function is a quick shortcut to `functools.partial`, saving the function and the arguments as a callable that will retrieve the icon when called. As an extra shortcut, instead of a callable one between the strings: `google`, `svg`, `file`, `iconify` can be provided which will pick the right function automatically.
+The `mili.icon.lazy` function is almost the same but it returns a callable that optionally accepts a color.
+
 ## File Icons
 
 Using `mili.icon.get`, `mili.icon.get_svg` and `mili.icon.preload` will work with icons that are already existing as files. The icon name must be the name of the file. You can customize the output color and weather to load it asyncronously (in that case a dummy surface will be returned until it is loaded). `mili.icon.get_svg` is a shortcut for `mili.icon.get` with svg set to True. `mili.icon.preload` will load/start loading a batch of icons at the same time.

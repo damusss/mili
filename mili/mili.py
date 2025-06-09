@@ -5,10 +5,13 @@ import webbrowser
 import copy
 
 from mili import _core
+from mili import icon as _icon
+from mili import _coreutils
 from mili import _richtext
 from mili import error as _error
 from mili import data as _data
 from mili import typing as _typing
+from mili._utils._interaction import InteractionCursor as _InteractionCursor
 
 
 __all__ = (
@@ -18,7 +21,27 @@ __all__ = (
     "pack_component",
     "get_font_cache",
     "clear_font_cache",
+    "set_number_modifier",
+    "smart_number",
 )
+
+
+def set_number_modifier(
+    key_char: str, modifier: typing.Callable[[float], float] | None
+):
+    if modifier is None:
+        if key_char in _coreutils._number_mods:
+            del _coreutils._number_mods[key_char]
+        return
+    if len(key_char) > 1:
+        raise _error.MILIValueError(
+            "The number modifier character must be a string containing only one character"
+        )
+    _coreutils._number_mods[key_char] = modifier
+
+
+def smart_number(smart_number: _typing.SmartNumber):
+    return _coreutils._abs_mod(smart_number)
 
 
 def register_custom_component(name: str, component_type: _typing.ComponentProtocol):
@@ -81,6 +104,7 @@ class MarkDown:
                     {"default": (120,) * 3, "hover": (180,) * 3, "press": (100,) * 3},
                 ),
                 "icon_pad": "10",
+                "icon": copy.get("icon", _icon.lazy("google", "content_copy")),
             },
             "code_scrollbar_style": {
                 "height": sbar.get("height", 7),
@@ -106,7 +130,7 @@ class MarkDown:
             "allow_image_link": style.get("allow_image_link", True),
             "change_cursor": style.get("change_cursor", True),
             "load_images_async": style.get("load_images_async", True),
-            "open_links_in_browser": style.get("open_links_in_browser", True),
+            "link_handler": style.get("link_handler", webbrowser.open),
             "parse_async": style.get("parse_async", True),
         }
         self.rebuild()
@@ -138,8 +162,10 @@ class MarkDown:
         self._any_hover = True
 
     def _link_click(self, dt):
-        if self.style["open_links_in_browser"]:
-            webbrowser.open(str(dt))
+        handler = self.style["link_handler"]
+        if handler is None:
+            return
+        handler(str(dt))
 
 
 class MILI:
@@ -281,15 +307,12 @@ class MILI:
         if self._ctx._cleared > 0:
             self._ctx._cleared -= 1
 
-    def markdown(self, markdown: MarkDown) -> bool:
-        changed = False
+    def markdown(self, markdown: MarkDown):
         if markdown.style["change_cursor"]:
             if markdown._any_hover:
-                pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
-                changed = True
+                _InteractionCursor.set_cursor(pygame.SYSTEM_CURSOR_HAND)
             markdown._any_hover = False
         _richtext._markdown_ui(self, markdown)
-        return changed
 
     def element(
         self,

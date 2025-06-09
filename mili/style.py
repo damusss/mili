@@ -120,6 +120,7 @@ def conditional[TK, TV](
     selected=False,
     press_button: int = pygame.BUTTON_LEFT,
     absolute_hover: bool = False,
+    force_hover: bool = False,
 ) -> dict[TK, TV]:
     if hover is None:
         hover = {}
@@ -129,7 +130,11 @@ def conditional[TK, TV](
         base = {}
     new_base = {}
     new_base.update(base)
-    if interaction.hovered or (absolute_hover and interaction.absolute_hover):
+    if (
+        interaction.hovered
+        or (absolute_hover and interaction.absolute_hover)
+        or force_hover
+    ):
         if selected or interaction.press_button == press_button:
             new_base.update(press)
         else:
@@ -149,10 +154,15 @@ def cond_value[TV](
     press_button: int = pygame.BUTTON_LEFT,
     absolute_hover: bool = False,
     repeat: int = 1,
+    force_hover: bool = False,
 ):
     if selected or interaction.press_button == press_button:
         return press if repeat <= 1 else (press,) * repeat
-    if interaction.hovered or (absolute_hover and interaction.absolute_hover):
+    if (
+        interaction.hovered
+        or (absolute_hover and interaction.absolute_hover)
+        or force_hover
+    ):
         return hover if repeat <= 1 else (hover,) * repeat
     return base if repeat <= 1 else (base,) * repeat
 

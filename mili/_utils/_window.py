@@ -5,6 +5,8 @@ from mili.mili import MILI as _MILI
 from mili._utils._interaction import InteractionCursor
 from mili import icon as _icon
 from mili import error as _error
+from mili import animation as _anim
+from mili import _coreutils
 
 
 class GenericApp:
@@ -61,21 +63,24 @@ class GenericApp:
 
 
 def _titlebar_button_style(
-    style, icon_name, bg_hover=(60, 60, 60)
+    style, icon, bg_hover=(60, 60, 60)
 ) -> _typing._UIAppButtonStyleLike:
     if style is None:
         style = {}
+    bg = style.get("bg_color", {})
+    alpha = style.get("alpha", {})
     return {
-        "bg_default": style.get("bg_default", (40, 40, 40)),
-        "bg_hover": style.get("bg_hover", bg_hover),
-        "bg_press": style.get("bg_press", (32, 32, 32)),
-        "icon_name": style.get("icon_name", icon_name),
-        "icon_set": style.get("icon_set", "material-symbols"),
-        "icon_source": style.get("icon_source", "iconify"),
-        "icon_color": style.get("icon_color", "white"),
-        "alpha_default": style.get("alpha_default", 180),
-        "alpha_hover": style.get("alpha_hover", 255),
-        "alpha_press": style.get("alpha_press", 150),
+        "bg_color": {
+            "default": bg.get("default", (40, 40, 40)),
+            "hover": bg.get("hover", bg_hover),
+            "press": bg.get("press", (32, 32, 32)),
+        },
+        "icon": style.get("icon", icon),
+        "alpha": {
+            "default": alpha.get("default", 180),
+            "hover": alpha.get("hover", 255),
+            "press": alpha.get("press", 150),
+        },
     }
 
 
@@ -103,14 +108,21 @@ class UIApp:
                 "title_style", {"size": 18, "color": (180, 180, 180)}
             ),
             "titlebar_color": style.get("titlebar_color", (40, 40, 40)),
+            "use_appdata_folder": style.get("use_appdata_folder", True),
             "minimize_button": _titlebar_button_style(
-                style.get("minimize_button", {}), "minimize"
+                style.get("minimize_button", {}),
+                _icon.lazy_colored("iconify", "minimize", "material-symbols", "white"),
             ),
             "maximize_button": _titlebar_button_style(
-                style.get("maximize_button", {}), "square-rounded"
+                style.get("maximize_button", {}),
+                _icon.lazy_colored(
+                    "iconify", "square-rounded", "material-symbols", "white"
+                ),
             ),
             "close_button": _titlebar_button_style(
-                style.get("close_button", {}), "close", "red"
+                style.get("close_button", {}),
+                _icon.lazy_colored("iconify", "close", "material-symbols", "white"),
+                "red",
             ),
         }
         self.clock = pygame.Clock()
@@ -124,6 +136,13 @@ class UIApp:
         self.scale = self.adaptive_scaler.scale
         self.running = True
         InteractionCursor.setup(update_id="cursor")
+        _coreutils._number_mods["s"] = self.adaptive_scaler.scale
+        if self.style["use_appdata_folder"]:
+            import os
+
+            if not os.path.exists("appdata"):
+                os.mkdir("appdata")
+            _icon.setup("appdata", "white")
 
     def update(self): ...
 
@@ -167,6 +186,7 @@ class UIApp:
             ccolor = self.style["clear_color"]
             self.win_borders.update()
             self.adaptive_scaler.update()
+            _anim.update_all()
             self.update()
             outline, outline_col = (
                 self.style["window_outline"],
@@ -176,7 +196,8 @@ class UIApp:
                 wsize = self.window.size
                 h = self.win_borders.titlebar_height
                 with self.mili.begin(
-                    (0, 0, wsize[0], h), {"axis": "x", "pad": 0, "spacing": 0}
+                    (0, 0, wsize[0], h),
+                    {"axis": "x", "pad": 0, "spacing": 0, "z": 9999},
                 ):
                     self.mili.rect(
                         {"color": self.style["titlebar_color"], "border_radius": 0}
@@ -200,37 +221,16 @@ class UIApp:
                     ]:
                         if button is None:
                             continue
-                        surf = None
-                        match button["icon_source"]:
-                            case "iconify":
-                                surf = _icon.get_iconify(
-                                    button["icon_name"],
-                                    button["icon_set"],
-                                    button["icon_color"],
-                                )
-                            case "google":
-                                surf = _icon.get_google(
-                                    button["icon_name"], button["icon_color"]
-                                )
-                            case "file":
-                                surf = _icon.get(
-                                    button["icon_name"], button["icon_color"]
-                                )
-                            case "svg":
-                                surf = _icon.get_svg(
-                                    button["icon_name"], button["icon_color"]
-                                )
+                        surf = _icon._get_icon(button["icon"])
                         if surf is None:
                             continue
                         with self.mili.element((0, 0, h, h)) as btn:
-                            bg = button["bg_default"]
-                            alpha = button["alpha_default"]
-                            if btn.hovered:
-                                bg = button["bg_hover"]
-                                alpha = button["alpha_hover"]
-                            if btn.left_pressed:
-                                bg = button["bg_press"]
-                                alpha = button["alpha_press"]
+                            bg = _coreutils._get_conditional_color(
+                                btn, button["bg_color"]
+                            )
+                            alpha = _coreutils._get_conditional_color(
+                                btn, button["alpha"]
+                            )
                             self.mili.rect({"color": bg, "border_radius": 0})
                             self.mili.image(surf, {"alpha": alpha, "smoothscale": True})
                             if btn.left_clicked and self.win_borders.can_interact():
@@ -306,6 +306,7 @@ class AdaptiveUIScaler:
         self.height_weight = height_weight
         self.min_value = min_value
         self.int_func = int_func
+        self.extra_scale: float = 1
         self._mult = 1
 
     def update(self):
@@ -327,7 +328,7 @@ class AdaptiveUIScaler:
         min_value = self.min_value
         if min_override is not None:
             min_value = min_override
-        scaled = value * self._mult
+        scaled = value * self._mult * self.extra_scale
         if min_value is not None and scaled < min_value:
             scaled = min_value
         return self.int_func(scaled)
@@ -336,7 +337,7 @@ class AdaptiveUIScaler:
         min_value = self.min_value
         if min_override is not None:
             min_value = min_override
-        scaled = value * self._mult
+        scaled = value * self._mult * self.extra_scale
         if min_value is not None and scaled < min_value:
             scaled = min_value
         return scaled
@@ -532,6 +533,7 @@ class CustomWindowBorders:
                 self.resizing = False
                 self._resize_handle = None
                 self.relative = pygame.Vector2()
+                self.cumulative_relative = pygame.Vector2()
 
         if self.resizing or tbar_rect.h <= 0:
             InteractionCursor._active = not modified_cursor
@@ -577,6 +579,7 @@ class CustomWindowBorders:
                         callback()
                 self.dragging = False
                 self.relative = pygame.Vector2()
+                self.cumulative_relative = pygame.Vector2()
         InteractionCursor._active = not modified_cursor
         return modified_cursor
 
