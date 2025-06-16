@@ -132,7 +132,7 @@ class MILIUIDemo(mili.UIApp):
         pygame.init()
         print("MILI " + mili.VERSION_STR)
         super().__init__(
-            pygame.Window("MILI-ui Demo", (1000, 850), borderless=True),
+            pygame.Window("MILI-ui Demo (incomplete)", (1000, 850), borderless=True),
             {
                 "start_style": {"pady": 0, "padx": 0, "spacing": 0},
                 "target_framerate": 120,
@@ -296,7 +296,7 @@ class MILIUIDemo(mili.UIApp):
                 },
             ):
                 self.mili.text_element(
-                    "MILI-ui Demo",
+                    "MILI-ui Demo (incomplete)",
                     {"size": "s35"},
                     None,
                     {"align": "center"},

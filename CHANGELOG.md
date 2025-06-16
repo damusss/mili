@@ -1,11 +1,5 @@
 # 1.0.7
 
-Missing styles: UIApp, DropMenuUI
-Need to add the demo to the CLI and package it
-Update the utilities guide
-slider: can slide in the area
-markdown: allow self-referencing links, and custom implemented links.
-
 ### New API
 
 -   Added the `mili.GIF` utility.
@@ -25,9 +19,12 @@ markdown: allow self-referencing links, and custom implemented links.
 
 ### Enhancements
 
+-   Added a Demo. It is still incomplete
 -   Allow strings for `font_align` and `font_direction` text styles as well.
 -   Allow color to be None in rect, circle, line and polygon.
--   If pygame 2.5.6 is used, antialiased lines can now use line thickness
+-   If pygame 2.5.6 is used, antialiased lines can now use line thickness.
+-   The sliders can now be dragged using the area.
+-   Percentage strings can have fixed additions (+10/-10 etc).
 
 ### Fixes
 
@@ -41,6 +38,10 @@ markdown: allow self-referencing links, and custom implemented links.
 -   The `ready_border_radius` image style no longer exist. Use the new `mili.image_border_radius` utility as an image transform.
 -   The icon styles for the `UIApp` buttons have changed to use the latest style utilities.
 -   Markdown style `open_links_in_browser` has no longer any effect. Use `link_handler` in its place.
+
+### API-Breaking
+
+-   The area_element argumet of the Slider.update_area can now only be an Interaction.
 
 # 1.0.6
 

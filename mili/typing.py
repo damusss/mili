@@ -112,7 +112,7 @@ class MarkDownStyleLike(typing.TypedDict):
     allow_image_link: bool
     change_cursor: bool
     load_images_async: bool
-    link_handler: typing.Callable[[str]]|None
+    link_handler: typing.Callable[[str], None]|None
     parse_async: bool
 
 
@@ -155,6 +155,7 @@ class SliderStyleLike(typing.TypedDict):
     strict_borders: bool
     area_update_id: str | None
     handle_update_id: str | None
+    drag_area: bool
 
 
 class DropMenuStyleLike(typing.TypedDict):

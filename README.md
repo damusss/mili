@@ -22,7 +22,9 @@ After installing MILI you may also open the guide using the following command:
 py -m mili guide
 ```
 
-# [<small>MILI Demo</small>](https://github.com/damusss/mili/blob/main/mili/demo/demo.py)
+# [<small>MILI Demo</small>](https://github.com/damusss/mili/blob/main/mili/demo/demo.py) (incomplete)
+
+NOTE: The demo is still incomplete. It will be completed by the next update.
 
 A demo program exists to showcase what MILI can do. You can run it using one of the following commands:
 ```sh

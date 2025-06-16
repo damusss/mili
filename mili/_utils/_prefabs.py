@@ -389,9 +389,11 @@ class Slider:
             "strict_borders": style.get("strict_borders", False),
             "area_update_id": style.get("area_update_id", None),
             "handle_update_id": style.get("handle_update_id", None),
+            "drag_area": style.get("drag_area", True),
         }
         self._area_data: _data.ElementData | None = None
         self._start_value: pygame.Vector2 | None = None
+        self.dragging_area = False
         self.handle_dragger: Dragger = Dragger()
         self.moved: bool = False
 
@@ -422,14 +424,9 @@ class Slider:
             style = {}
         return cls({**style, "lock_x": axis == "y", "lock_y": axis == "x"})
 
-    def update_area[IT: _data.Interaction | _data.ElementData](
-        self, area_element: IT
-    ) -> IT:
+    def update_area(self, area_element: _data.Interaction) -> _data.Interaction:
         previous = self.value
-        if isinstance(area_element, _data.ElementData):
-            self._area_data = area_element
-        else:
-            self._area_data = area_element.data
+        self._area_data = area_element.data
         if (
             self._area_data is not None
             and self._start_value is not None
@@ -440,19 +437,61 @@ class Slider:
         else:
             if self.value != previous:
                 self.value = previous
+        if self.style["drag_area"] and area_element.left_pressed:
+            before = self.handle_dragger.position.copy()
+            diff = (
+                pygame.Vector2(pygame.mouse.get_pos())
+                - self._area_data.absolute_rect.topleft
+            )
+            self.dragging_area = True
+            clamp_padx, clamp_pady = self._pre_update()
+            self.handle_dragger.position = diff
+            self._post_update(clamp_padx, clamp_pady)
+            self.moved = before != self.handle_dragger.position
+        else:
+            self.dragging_area = False
         return area_element
 
     def update_handle(self, handle_element: _data.Interaction) -> _data.Interaction:
+        if self.dragging_area:
+            return handle_element
         if self._area_data is None:
             raise _error.MILIStatusError(
                 "Slider.update_area must be called before Slider.update_handle"
             )
-        self.handle_dragger.lock_x = self.style["lock_x"]
-        self.handle_dragger.lock_y = self.style["lock_y"]
+        clamp_padx, clamp_pady = self._pre_update()
+        self.handle_dragger.update(
+            handle_element,
+        )
+        self._post_update(clamp_padx, clamp_pady)
+        self.moved = self.handle_dragger.changed
+        return handle_element
+
+    def _post_update(self, clamp_padx, clamp_pady):
+        if self._area_data is None:
+            raise
+        self.handle_dragger.clamp(
+            (0 + clamp_padx, self._area_data.rect.w - clamp_padx),
+            (0 + clamp_pady, self._area_data.rect.h - clamp_pady),
+            False,
+        )
         if self.style["lock_x"]:
             self.handle_dragger.position.x = self._area_data.rect.w / 2
         if self.style["lock_y"]:
             self.handle_dragger.position.y = self._area_data.rect.h / 2
+        self.handle_rect = pygame.Rect(
+            (
+                self.handle_dragger.position.x - self.style["handle_size"][0] / 2,
+                self.handle_dragger.position.y - self.style["handle_size"][1] / 2,
+            ),
+            self.style["handle_size"],
+        )
+
+    def _pre_update(self):
+        if self._area_data is None:
+            raise
+        self.handle_dragger.lock_x = self.style["lock_x"]
+        self.handle_dragger.lock_y = self.style["lock_y"]
         clamp_padx, clamp_pady = (
             self.style["handle_size"][0] / 2
             if self.style["strict_borders"]
@@ -463,23 +502,7 @@ class Slider:
             and self._area_data.rect.h >= self.style["handle_size"][1]
             else 0,
         )
-        self.handle_dragger.update(
-            handle_element,
-        )
-        self.handle_dragger.clamp(
-            (0 + clamp_padx, self._area_data.rect.w - clamp_padx),
-            (0 + clamp_pady, self._area_data.rect.h - clamp_pady),
-            False,
-        )
-        self.handle_rect = pygame.Rect(
-            (
-                self.handle_dragger.position.x - self.style["handle_size"][0] / 2,
-                self.handle_dragger.position.y - self.style["handle_size"][1] / 2,
-            ),
-            self.style["handle_size"],
-        )
-        self.moved = self.handle_dragger.changed
-        return handle_element
+        return clamp_padx, clamp_pady
 
     @property
     def value(self) -> pygame.Vector2:

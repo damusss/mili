@@ -10,6 +10,8 @@ padx of value `"20%"` will result in padding x which is 20% of the element width
 
 A smart number is a number that is allowed to be a string. The string can start with a special character that has been registered as a key with `mili.set_number_modifier`. When that happens, the given number is going to be passed to the callable associated with that key and the result is used as a value. Percentage strings are automatically also smart strings.
 
+If a percentage string contains a ``+`` or ``-`` in the middle, what comes after is considered a addition. A value of ``"100%-10"`` will be equal to 100% of the relative value minus 10.
+
 Available bounding alignment values are: `center`, `topleft`, `bottomleft`, `topright`, `bottomright`, `midleft`/`left`, `midright`/`right`, `midtop`/`top`, `midbottom`/`bottom`.
 
 Index:
@@ -451,6 +453,7 @@ A modified version of the regular scrollbar style (always horizontal).
 | strict_borders | `True/False` | _specify wether the handle can exceed the area borders by half its size or if it should be perfectly contained_ | `False` |
 | area_update_id | `str/None` | _the update ID to assign to the area of the slider to automatically update it_ | `None` |
 | handle_update_id | `str/None` | _the update ID to assign to the handle of the slider to automatically update it_ | `None` |
+| drag_area | `True/False` | _whether the slider can be dragged by pressing the area and not the handle only_ | `True` |
 
 
 ### mili.DropMenu

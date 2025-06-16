@@ -71,15 +71,29 @@ def _abs_perc(val, dim) -> float:
     if isinstance(val, str):
         val = val.strip()
         sign = 1
+        add = 0
+        addsign = 1
         if val.startswith("-"):
             val = val.removeprefix("-")
             sign = -1
+        for c in ["-", "+"]:
+            if c in val:
+                val, add = val.split(c)
+                val = val.strip()
+                add = add.strip()
+                try:
+                    add = float(add)
+                except ValueError:
+                    raise error.MILIValueError(
+                        f"Invalid percentage addition: '{c}{add}'"
+                    )
+                addsign = 1 if c == "+" else -1
         if val.endswith("%"):
             val = val.removesuffix("%")
         elif not (key := val[0]).isnumeric():
             if key in _number_mods:
                 number = float(val.removeprefix(key))
-                return _number_mods[key](number) * sign
+                return _number_mods[key](number) * sign + add * addsign
             else:
                 raise error.MILIValueError(
                     f"The character prefix '{key}' of the value '{val}' is not registered as a number modifier and cannot be evaluated"
@@ -88,7 +102,7 @@ def _abs_perc(val, dim) -> float:
             val = float(val)
         except ValueError:
             raise error.MILIValueError(f"Invalid percentage value '{val}'")
-        return ((dim * float(val)) / 100) * sign
+        return ((dim * float(val)) / 100) * sign + add * addsign
     return val
 
 

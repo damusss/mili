@@ -278,7 +278,7 @@ das dasdasdasgdjhsgahj dsad
         self._ui_prep(container)
         prev = self._scroll.scroll_offset.copy()
         self._scroll.update(container)
-        self._offset_change = self._scroll.scroll_offset.y-prev.y
+        self._offset_change = self._scroll.scroll_offset.y - prev.y
         self._ui_scrollbars(container)
         if self._cont_resizey:
             self._ui_lines_resizey()
@@ -307,8 +307,8 @@ das dasdasdasgdjhsgahj dsad
                 self.cursor = closest
             if before_mouse.x != clamped_mouse.x:
                 amount = math.copysign(
-                        self.style["scroll_drag_mult"], before_mouse.x - clamped_mouse.x
-                    )
+                    self.style["scroll_drag_mult"], before_mouse.x - clamped_mouse.x
+                )
                 self._scroll.scroll(
                     amount,
                     0,
@@ -316,8 +316,8 @@ das dasdasdasgdjhsgahj dsad
                 self._offset_change = amount
             if before_mouse.y != clamped_mouse.y:
                 amount = math.copysign(
-                        self.style["scroll_drag_mult"], before_mouse.y - clamped_mouse.y
-                    )
+                    self.style["scroll_drag_mult"], before_mouse.y - clamped_mouse.y
+                )
                 self._scroll.scroll(
                     0,
                     amount,
@@ -487,7 +487,7 @@ das dasdasdasgdjhsgahj dsad
                             }
                         )
                         sbar.update_handle(handle)
-        self._offset_change = self._scroll.scroll_offset.y-prev.y
+        self._offset_change = self._scroll.scroll_offset.y - prev.y
 
     def _ui_lines_resizey(self):
         sbar_style = self.style["scrollbar_style"]
@@ -574,7 +574,7 @@ das dasdasdasgdjhsgahj dsad
                     "blocking": False,
                     "offset": self._scroll.get_offset(),
                     "z": cur_line,
-                    #"clip_draw": False,
+                    # "clip_draw": False,
                 },
             )
         with self._mili.element(
@@ -679,7 +679,7 @@ das dasdasdasgdjhsgahj dsad
         self._scroll.wheel_event(
             event, self.style["scroll_wheel_mult"], self._cont_arect, pygame.KMOD_CTRL
         )
-        self._offset_change = self._scroll.scroll_offset.y-prev.y
+        self._offset_change = self._scroll.scroll_offset.y - prev.y
         if event.type == pygame.MOUSEBUTTONUP and event.button == pygame.BUTTON_LEFT:
             self._press = False
             self._press_cursor = 0

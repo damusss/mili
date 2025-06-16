@@ -1,7 +1,6 @@
 import pygame
 import typing
 from mili import _core
-from mili import typing as _typing
 from mili import _richtext
 from mili import error as _error
 from mili._utils._window import (
@@ -23,7 +22,7 @@ from mili._utils._prefabs import (
     Slider,
     DropMenu,
 )
-from mili._utils._entries import EntryLine, TextBox
+from mili._utils._entries import EntryLine#, TextBox
 from mili._utils._context_menu import ContextMenu
 
 __all__ = (
@@ -34,7 +33,7 @@ __all__ = (
     "Slider",
     "DropMenu",
     "EntryLine",
-    "TextBox",
+    #"TextBox",
     "ContextMenu",
     "GenericApp",
     "UIApp",
