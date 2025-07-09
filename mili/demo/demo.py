@@ -1,6 +1,7 @@
 import pygame
 import mili
 import os
+from pygame._sdl2 import video as pgvideo
 
 COL_DEFAULT = (30, 30, 30)
 COL_HOVER = (40, 40, 40)
@@ -131,12 +132,16 @@ class MILIUIDemo(mili.UIApp):
     def __init__(self):
         pygame.init()
         print("MILI " + mili.VERSION_STR)
+        win = pygame.Window("MILI-ui Demo (incomplete)", (1000, 850), borderless=True)
+        renderer = pgvideo.Renderer(win)
+        #renderer = None
         super().__init__(
-            pygame.Window("MILI-ui Demo (incomplete)", (1000, 850), borderless=True),
+            win,
             {
                 "start_style": {"pady": 0, "padx": 0, "spacing": 0},
                 "target_framerate": 120,
             },
+            canva=renderer
         )
         self.original_title = self.window.title
         self.window.minimum_size = (500, 300)
@@ -575,6 +580,18 @@ class MILIUIDemo(mili.UIApp):
         el = self.mili.line_element(
             [("-50", "50"), ("50", "-50")],
             {"size": 1, "color": "blue", "pady": 3, "antialias": True},
+            (0, 0, 0, 40),
+            {"fillx": True},
+        )
+        self.mili.line_element(
+            [("-50", "-50"), ("50", "50")],
+            {"size": 5, "color": "green", "pady": 3},
+            (0, 0, 0, 40),
+            {"fillx": True},
+        )
+        self.mili.line_element(
+            [("-50", "50"), ("50", "-50")],
+            {"size": 4, "color": "blue", "pady": 3, "antialias": True},
             (0, 0, 0, 40),
             {"fillx": True},
         )

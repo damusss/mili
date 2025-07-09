@@ -3,8 +3,10 @@ import typing
 import threading
 import webbrowser
 import copy
+from pygame._sdl2 import video as pgvideo
 
 from mili import _core
+from mili import canva as _canva
 from mili import icon as _icon
 from mili import _coreutils
 from mili import _richtext
@@ -170,11 +172,10 @@ class MarkDown:
 
 class MILI:
     def __init__(
-        self, canva: pygame.Surface | None = None, use_global_mouse: bool = False
+        self, canva: pygame.Surface | pgvideo.Renderer | _canva._AbstractCanva, use_global_mouse: bool = False
     ):
         self._ctx = _core._ctx(self)
-        if canva is not None:
-            self.canva = canva
+        self.canva =  canva
         self.use_global_mouse = use_global_mouse
         self.last_interaction: _data.Interaction | None = None
         self.current_parent_interaction: _data.Interaction | None = None
@@ -200,21 +201,16 @@ class MILI:
         return list(self._ctx._memory.keys())
 
     @property
-    def canva(self) -> pygame.Surface | None:
+    def canva(self) -> _canva.SurfaceCanva|_canva.RendererCanva|_canva._AbstractCanva:
         return self._ctx._canva
 
     @canva.setter
-    def canva(self, v: pygame.Surface):
+    def canva(self, v: pygame.Surface|pgvideo.Renderer|_canva._AbstractCanva):
+        if isinstance(v, pygame.Surface):
+            v = _canva.SurfaceCanva(v)
+        elif isinstance(v, pgvideo.Renderer):
+            v = _canva.RendererCanva(v)
         self._ctx._canva = v
-        self._ctx._canva_rect = v.get_rect()
-
-    @property
-    def canva_offset(self) -> pygame.Vector2:
-        return self._ctx._offset
-
-    @canva_offset.setter
-    def canva_offset(self, v: typing.Sequence[float]):
-        self._ctx._offset = pygame.Vector2(v)
 
     @property
     def use_global_mouse(self) -> bool:
@@ -293,8 +289,9 @@ class MILI:
         self._ctx._organize_element(self._ctx._stack)
         self._ctx._started = False
         self._ctx._draw_update_element(self._ctx._stack, (0, 0))
-        for layer_cache in self._ctx._image_layer_caches:
-            _core._coreutils._render_layer_cache(layer_cache, self._ctx._canva)
+        if self._ctx._canva.backend == "surface":
+            for layer_cache in self._ctx._image_layer_caches:
+                _core._coreutils._render_layer_cache(layer_cache, self._ctx._canva._surface)
         abs_hovered = sorted(self._ctx._abs_hovered, key=lambda e: e["z"], reverse=True)
         if len(abs_hovered) > 0:
             abs_hovered[0]["top"] = True
@@ -306,6 +303,7 @@ class MILI:
             _core._globalctx._mili = None
         if self._ctx._cleared > 0:
             self._ctx._cleared -= 1
+        self._ctx._canva._end()
 
     def markdown(self, markdown: MarkDown):
         if markdown.style["change_cursor"]:
@@ -565,20 +563,20 @@ class MILI:
         return self._ctx._get_font(style)
 
     def image(
-        self, surface: pygame.Surface, style: _typing.ImageStyleLike | None = None
+        self, image: pygame.Surface|pgvideo.Texture, style: _typing.ImageStyleLike | None = None
     ) -> typing.Self:
-        self._ctx._add_component("image", surface, style)
+        self._ctx._add_component("image", image, style)
         return self
 
     def image_element(
         self,
-        surface: pygame.Surface,
+        image: pygame.Surface|pgvideo.Texture,
         image_style: _typing.ImageStyleLike | None = None,
         element_rect: pygame.typing.RectLike | None = None,
         element_style: _typing.ElementStyleLike | None = None,
     ) -> _data.Interaction:
         data = self.element(element_rect, element_style)
-        self.image(surface, image_style)
+        self.image(image, image_style)
         return data
 
     def custom_component(

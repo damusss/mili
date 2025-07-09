@@ -41,12 +41,14 @@ from .utility import (
     round_image,
     dict_push,
 )
+from .canva import SurfaceCanva, RendererCanva
 from . import error
 from . import style
 from . import typing
 from . import data
 from . import animation
 from . import icon
+from . import canva
 
 from collections import namedtuple
 
@@ -57,6 +59,8 @@ del namedtuple
 
 __all__ = (
     "MILI",
+    "SurfaceCanva",
+    "RendererCanva",
     "MarkDown",
     "ElementData",
     "Interaction",
@@ -105,6 +109,7 @@ __all__ = (
     "data",
     "animation",
     "icon",
+    "canva",
     "VERSION",
     "VERSION_STR",
 )

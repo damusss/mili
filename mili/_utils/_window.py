@@ -1,4 +1,5 @@
 import pygame
+from pygame._sdl2 import video as pgvideo
 import typing
 from mili import typing as _typing
 from mili.mili import MILI as _MILI
@@ -7,6 +8,7 @@ from mili import icon as _icon
 from mili import error as _error
 from mili import animation as _anim
 from mili import _coreutils
+from mili import canva as _canva
 
 
 class GenericApp:
@@ -17,11 +19,16 @@ class GenericApp:
         clear_color: pygame.typing.ColorLike | None = 0,
         start_style: _typing.ElementStyleLike | None = None,
         use_global_mouse: bool = False,
+        canva: _canva._AbstractCanva | pygame.Surface | pgvideo.Renderer | None = None,
     ):
         self.window = window
         self.clock = pygame.Clock()
         self.target_framerate: int = target_framerate
-        self.mili = _MILI(self.window.get_surface(), use_global_mouse)
+        if canva is None:
+            mili_canva = self.window.get_surface()
+        else:
+            mili_canva = canva
+        self.mili = _MILI(mili_canva, use_global_mouse)
         self.clear_color: pygame.typing.ColorLike | None = clear_color
         self.start_style: _typing.ElementStyleLike | None = start_style
         self.delta_time: float = 0
@@ -52,13 +59,15 @@ class GenericApp:
                 else:
                     self.event(event)
 
+            if self.mili.canva.backend == "surface":
+                self.mili.canva.surface = self.window.get_surface()
             if self.clear_color is not None:
-                self.window.get_surface().fill(self.clear_color)
+                self.mili.canva._clear(self.clear_color, self.window)
             self.update()
             self.ui()
             self.mili.update_draw()
             self.post_draw()
-            self.window.flip()
+            self.mili.canva._flip(self.window)
             self.delta_time = self.clock.tick(self.target_framerate) / 1000
 
 
@@ -90,6 +99,7 @@ class UIApp:
         window: pygame.Window,
         style: _typing.UIAppStyleLike | dict | None = None,
         use_global_mouse: bool = False,
+        canva: _canva._AbstractCanva | pygame.Surface | pgvideo.Renderer | None = None,
     ):
         pygame.init()
         self.window = window
@@ -127,7 +137,11 @@ class UIApp:
         }
         self.clock = pygame.Clock()
         self.delta_time: float = 0
-        self.mili = _MILI(self.window.get_surface(), use_global_mouse)
+        if canva is None:
+            mili_canva = self.window.get_surface()
+        else:
+            mili_canva = canva
+        self.mili = _MILI(mili_canva, use_global_mouse)
         self.win_borders = CustomWindowBorders(self.window)
         self.win_behavior = CustomWindowBehavior(
             self.window, self.win_borders, pygame.display.get_desktop_sizes()[0]
@@ -165,6 +179,8 @@ class UIApp:
 
     def run(self):
         while self.running:
+            if self.mili.canva.backend == "surface":
+                self.mili.canva.surface = self.window.get_surface()
             style = self.style["start_style"]
             if self.window.borderless:
                 style = {"pad": 0, "spacing": 0}
@@ -280,7 +296,7 @@ class UIApp:
             InteractionCursor.apply()
             self.mili.update_draw()
             self.post_draw()
-            self.window.flip()
+            self.mili.canva._flip(self.window)
             self.delta_time = self.clock.tick(self.style["target_framerate"]) / 1000
 
 

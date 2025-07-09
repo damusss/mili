@@ -1,12 +1,14 @@
 [<- BACK](https://github.com/damusss/mili/blob/main/guide/guide.md)
 
 Index:
+
 -   [MILI](#mili-class-guide)
 -   [Element Structure](#element-structure)
 -   [Update ID System](#update-id-system)
 -   [Components](#components)
 -   [Markdown](#markdown)
 -   [Advanced Usage](#advanced-usage)
+-   [Renderer Canva](#renderer-canva)
 
 # MILI Class Guide
 
@@ -15,7 +17,7 @@ The MILI class is the UI manager.
 Each instance is independent and will manage its own elements.
 Each instance has an internal context instance.
 
-A MILI instance must be associated with a surface to draw on. You can retrieve it or change it with the `MILI.canva: Surface` property. If the canva isn't the screen and is not rendered at the topleft, you can seet the `MILI.canva_offset` property to the render position relative to the window so that the mouse clicks are registered correctly.
+A MILI instance requires a Canva to render. A canva is the rendering backend used. Currently, the supported backends are `mili.SurfaceCanva` and `mili.RendererCanva`. A Surface canva is the most common and uses regular pygame to work. A Renderer canva renders to a Renderer object. Within the canva you can also access the underlying Surface or Renderer objects. The canva also has a `offset` property, mainly used by the surface canva if you intend to render the surface at a position different from the window's topleft. When creating a MILI instance or when changing the `MILI.canva` property other than a canva instance you can also pass a `Surface` or a `Renderer`. In those cases the appropriate canva is selected automatically. Below you can find information about the Renderer canva compromises.
 
 MILI has 6 methods related to styling. Check the start of [style guide]() to learn about them.
 
@@ -130,6 +132,7 @@ Components are attached to the most recent element (unless overridden by a style
 You should change the style of components based on interaction for visual feeback.
 
 There are also three built-in shortcut components. They actually call existing components but make them easier for specific usecases. They are:
+
 -   `MILI.transparent_rect(style)` (uses an image component)
 -   `MILI.vline(style)`/`MILI.hline(style)` (inserts the start and ending points automatically for the most common lines)
 
@@ -243,3 +246,14 @@ You can then use the following functions:
 Interacting with the context object might be challenging as it's undocumented and not annotated.
 
 If you are extending mili, consider subclassing the MILI class adding a shortcut for your component.
+
+## Renderer Canva
+
+A RendererCanva must find compromises to be compatible with regular surface rendering. The highlights are as follow:
+
+-   Text and Surfaces will be converted to Textures, therefore it is a good idea to use Text and Image caches so that process happens less often.
+-   An image without smoothscale, filling or ninepatch won't be scaled with pygame.transform and will be rendered directly to the target resolution, levereging the GPU speed.
+-   The circle, ellipse, polygon and rect with rounded borders shapes do not have a Renderer equivalent, therefore are made with surfaces and converted to Textures. Those textures are cached and are reused when the same shape is requested frequently (if a shape is not requested for some time it is discarded to save memory)
+-   The canva offset cannot be edited manually, it is instead inferred automatically from the Renderer's viewport topleft location.
+-   If something that's not a Surface is tried to be rendered, the operation is cancelled. If a Texture is tried to be rendered on the incorrect Renderer the operation is cancelled.
+-   Antialiased lines are not available.

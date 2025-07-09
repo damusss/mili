@@ -6,6 +6,7 @@ from mili import data as _data
 
 if typing.TYPE_CHECKING:
     from mili._core import _ctx
+    from mili import canva as _canva
 
 __all__ = ()
 
@@ -183,6 +184,7 @@ def _render_text(
     strikethrough,
     wraplen,
     outline_color,
+    canva: "_canva._AbstractCanva",
 ):
     font.align = fontalign
     font.bold = bold
@@ -191,7 +193,9 @@ def _render_text(
     font.strikethrough = strikethrough
     font.set_direction(fontdir)
     if outline_color is None:
-        return font.render(str(data), antialias, color, bg_color, max(0, int(wraplen)))
+        return canva._get_image(
+            font.render(str(data), antialias, color, bg_color, max(0, int(wraplen)))
+        )
     middle = font.render(str(data), antialias, color, None, max(0, int(wraplen)))
     outline = font.render(
         str(data), antialias, outline_color, bg_color, max(0, int(wraplen))
@@ -200,7 +204,23 @@ def _render_text(
     for offset in _OUTLINE_OFFSETS:
         output.blit(outline, offset)
     output.blit(middle, (1, 1))
-    return output
+    return canva._get_image(output)
+
+
+def _get_image_rect(rect: pygame.Rect, padx, pady, do_stretchx, do_stretchy, data):
+    iw, ih = data.width, data.height
+    tw, th = max(rect.w - padx * 2, 1), max(rect.h - pady * 2, 1)
+    w = tw
+    h = int(ih * (w / iw))
+    if h > th:
+        h = th
+        w = int(iw * (h / ih))
+    w, h = max(w, 1), max(h, 1)
+    if w < tw and do_stretchx:
+        w = tw
+    if h < th and do_stretchy:
+        h = th
+    return pygame.Rect(0, 0, w, h).move_to(center=rect.center)
 
 
 def _get_image(
@@ -218,7 +238,9 @@ def _get_image(
     nine_patch,
     transforms,
     filters,
-) -> pygame.Surface:
+    canva: "_canva._AbstractCanva | None" = None,
+    old_source=None,
+):
     if transforms is not None:
         for transform in transforms:
             if callable(transform):
@@ -235,20 +257,23 @@ def _get_image(
     tw, th = max(rect.w - padx * 2, 1), max(rect.h - pady * 2, 1)
     if nine_patch == 0:
         if not do_fill:
-            w = tw
-            h = int(ih * (w / iw))
-            if h > th:
-                h = th
-                w = int(iw * (h / ih))
-            w, h = max(w, 1), max(h, 1)
-            if w < tw and do_stretchx:
+            if canva is None or canva.backend == "surface" or smoothscale:
                 w = tw
-            if h < th and do_stretchy:
-                h = th
-            if smoothscale:
-                image = pygame.transform.smoothscale(data, (w, h))
+                h = int(ih * (w / iw))
+                if h > th:
+                    h = th
+                    w = int(iw * (h / ih))
+                w, h = max(w, 1), max(h, 1)
+                if w < tw and do_stretchx:
+                    w = tw
+                if h < th and do_stretchy:
+                    h = th
+                if smoothscale:
+                    image = pygame.transform.smoothscale(data, (w, h))
+                else:
+                    image = pygame.transform.scale(data, (w, h))
             else:
-                image = pygame.transform.scale(data, (w, h))
+                image = data
         else:
             w = tw
             h = int(ih * (w / iw))
@@ -302,7 +327,7 @@ def _get_image(
                     "Image filter must return a new Surface or the same Surface"
                 )
             image = res
-    return image
+    return image if canva is None else canva._get_image(image, old_source)
 
 
 def _element_data(ctx: "_ctx", el: dict[str, typing.Any]) -> "_data.ElementData":
@@ -482,26 +507,25 @@ def _get_conditional_color(it, color):
     return color["default"]
 
 
-def _draw_line(canva, antialias, width, color, points, dash_size, dash_offset):
+def _draw_line(
+    canva: "_canva._AbstractCanva",
+    antialias,
+    width,
+    color,
+    points,
+    dash_size,
+    dash_offset,
+):
     if dash_size is None:
         if antialias and (width == 1 or pygame.vernum >= (2, 5, 6)):
-            if pygame.vernum >= (2, 5, 6):
-                pygame.draw.aaline(
-                    canva,
+                canva._draw_aaline(
                     color,
                     points[0],
                     points[1],
                     width,
                 )
-            else:
-                pygame.draw.aaline(
-                    canva,
-                    color,
-                    points[0],
-                    points[1],
-                )
         else:
-            pygame.draw.line(canva, color, points[0], points[1], width)
+            canva._draw_line(color, points[0], points[1], width)
     else:
         if isinstance(dash_size, (str, int, float)):
             fill_size = space_size = dash_size
@@ -534,12 +558,9 @@ def _draw_line(canva, antialias, width, color, points, dash_size, dash_offset):
                 do_break = True
             if do_fill:
                 if antialias and (width == 1 or pygame.vernum >= (2, 5, 6)):
-                    if pygame.vernum >= (2, 5, 6):
-                        pygame.draw.aaline(canva, color, cur_point, next_point, width)
-                    else:
-                        pygame.draw.aaline(canva, color, cur_point, next_point)
+                        canva._draw_aaline(color, cur_point, next_point, width)
                 else:
-                    pygame.draw.line(canva, color, cur_point, next_point, width)
+                    canva._draw_line(color, cur_point, next_point, width)
                 do_fill = False
                 cur_size = space_size
             else:
@@ -551,21 +572,28 @@ def _draw_line(canva, antialias, width, color, points, dash_size, dash_offset):
 
 
 def _draw_circle(
-    canva, circle_rect, antialias, color, outline, corners, dash_size, dash_anchor
+    canva: "_canva._AbstractCanva",
+    circle_rect,
+    antialias,
+    color,
+    outline,
+    corners,
+    dash_size,
+    dash_anchor,
 ):
     if dash_size is None or outline <= 0:
         if circle_rect.w == circle_rect.h:
             if corners is None:
-                (pygame.draw.aacircle if antialias else pygame.draw.circle)(
-                    canva,
+                canva._draw_circle(
+                    antialias,
                     color,
                     circle_rect.center,
                     circle_rect.w / 2,
                     outline,
                 )
             else:
-                (pygame.draw.aacircle if antialias else pygame.draw.circle)(
-                    canva,
+                canva._draw_circle(
+                    antialias,
                     color,
                     circle_rect.center,
                     circle_rect.w / 2,
@@ -573,8 +601,11 @@ def _draw_circle(
                     *corners,
                 )
         else:
-            pygame.draw.ellipse(canva, color, circle_rect, outline)
+            canva._draw_ellipse(color, circle_rect, outline)
     else:
+        if canva.backend != "surface":
+            return
+            raise error.MILIBackendUnsupportedOperation()
         pi2 = math.pi * 2
         if isinstance(dash_size, (int, float)):
             fill_size = space_size = dash_size
@@ -605,7 +636,9 @@ def _draw_circle(
                 next_ang = real_end
                 do_break = True
             if do_fill:
-                pygame.draw.arc(canva, color, circle_rect, cur_ang, next_ang, outline)
+                pygame.draw.arc(
+                    canva._surface, color, circle_rect, cur_ang, next_ang, outline
+                )  # TODO RENDERER
                 do_fill = False
                 cur_size = space_size
             else:
@@ -630,11 +663,18 @@ def _dash_get_side(pos, rect):
     return "", 0
 
 
-def _draw_rect(canva, color, base_rect, outline, border_radius, dash_size, dash_offset):
+def _draw_rect(
+    canva: "_canva._AbstractCanva",
+    color,
+    base_rect,
+    outline,
+    border_radius,
+    dash_size,
+    dash_offset,
+):
     if dash_size is None or outline <= 0:
         if isinstance(border_radius, list):
-            pygame.draw.rect(
-                canva,
+            canva._draw_rect(
                 color,
                 base_rect,
                 int(outline),
@@ -642,8 +682,7 @@ def _draw_rect(canva, color, base_rect, outline, border_radius, dash_size, dash_
                 *border_radius,
             )
         else:
-            pygame.draw.rect(
-                canva,
+            canva._draw_rect(
                 color,
                 base_rect,
                 int(outline),
@@ -688,7 +727,7 @@ def _draw_rect(canva, color, base_rect, outline, border_radius, dash_size, dash_
 
 
 def _dash_tt(canva, a, b, rect, color, size):
-    pygame.draw.rect(canva, color, (rect.x + a, rect.y, b - a, size))
+    canva._draw_rect(color, (rect.x + a, rect.y, b - a, size))
 
 
 def _dash_tr(canva, a, b, rect, color, size):
@@ -718,7 +757,7 @@ def _dash_to(canva, a, b, rect, color, size):
 
 
 def _dash_rr(canva, a, b, rect, color, size):
-    pygame.draw.rect(canva, color, (rect.right - size, rect.y + a, size, b - a))
+    canva._draw_rect(color, (rect.right - size, rect.y + a, size, b - a))
 
 
 def _dash_rb(canva, a, b, rect, color, size):
@@ -740,9 +779,7 @@ def _dash_ro(canva, a, b, rect, color, size):
 
 
 def _dash_bb(canva, a, b, rect, color, size):
-    pygame.draw.rect(
-        canva, color, (rect.x + (rect.w - b), rect.bottom - size, b - a, size)
-    )
+    canva._draw_rect(color, (rect.x + (rect.w - b), rect.bottom - size, b - a, size))
 
 
 def _dash_bl(canva, a, b, rect, color, size):
@@ -757,7 +794,7 @@ def _dash_bo(canva, a, b, rect, color, size):
 
 
 def _dash_ll(canva, a, b, rect, color, size):
-    pygame.draw.rect(canva, color, (rect.x, rect.y + (rect.h - b), size, b - a))
+    canva._draw_rect(color, (rect.x, rect.y + (rect.h - b), size, b - a))
 
 
 def _dash_lo(canva, a, b, rect, color, size):

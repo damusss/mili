@@ -9,10 +9,12 @@ import html.parser
 from mili import _coreutils
 from mili import icon as mili_icon
 from mili.data import TextCache, ImageCache
+from pygame._sdl2 import video as pgvideo
 
 if typing.TYPE_CHECKING:
     from mili.mili import MILI, MarkDown
     from mili.typing import MarkDownStyleLike, _TextRichMarkdownStyleLike
+    from mili.canva import _AbstractCanva
 
 
 def _markdown_ui(mili: "MILI", markdown: "MarkDown"):
@@ -300,14 +302,14 @@ def _md_ui_image(
             state,
         )
     else:
-        sw, sh = surface.size
+        sw, sh = surface.width, surface.height
         ratio = sh / sw
         oratio = sw / sh
         real_w = min(sw, parent_w)
         real_h = real_w * ratio
-        if mili._ctx._canva_rect is not None:
-            if real_h > mili._ctx._canva_rect.height:
-                real_h = mili._ctx._canva_rect.height
+        if mili._ctx._canva._rect is not None:
+            if real_h > mili._ctx._canva._rect.height:
+                real_h = mili._ctx._canva._rect.height
                 real_w = real_h * oratio
         it = mili.image_element(
             surface,
@@ -654,7 +656,7 @@ def _md_ui_line_break(mili, style, state):
 def _md_update_state(it, mili, state):
     if not state["skiph"]:
         state["bottom"] = it.data.absolute_rect.bottom
-        if state["bottom"] > mili._ctx._canva_rect.h * 2:
+        if state["bottom"] > mili._ctx._canva._rect.h * 2:
             state["skiph"] = True
 
 
@@ -1839,12 +1841,12 @@ def _process_render_full(ctx, txt, mods, wraplen, fontalign):
     oc = mods["oc"]
     size = font.render(txt, mods["fa"], "white").size
     wraplen = min(max(0, int(wraplen)), int(size[0] * 1.1))
-    surf = font.render(
+    surf = ctx._canva._get_image(font.render(
         txt, mods["fa"], mods["fc"], mods["bc"] if oc is None else None, int(wraplen)
-    )
-    size = surf.size
+    ))
+    size = surf.width, surf.height
     if oc is not None:
-        surf2 = font.render(txt, mods["fa"], oc, mods["bc"], int(wraplen))
+        surf2 = ctx._canva._get_image(font.render(txt, mods["fa"], oc, mods["bc"], int(wraplen)))
         surf = (surf2, surf)
     return surf, size
 
@@ -2108,25 +2110,26 @@ def _process_default_mods(ctx, style):
 def _render(
     ctx, cache: "TextCache", absr: pygame.Rect, blit_flags, align, padx, pady, actions
 ):
+    canva: "_AbstractCanva" = ctx._canva
     rich = cache._rich
     if rich is None:
         return
     if rich["render_full"]:
         surf = rich["full_surf"]
-        if isinstance(surf, pygame.Surface):
+        if isinstance(surf, pygame.Surface|pgvideo.Texture):
             rect = surf.get_rect(**_coreutils._align_rect(align, absr, padx, pady))
-            ctx._canva.blit(surf, rect, special_flags=blit_flags)
+            canva._blit(surf, rect, special_flags=blit_flags)
         else:
             rect = surf[1].get_rect(**_coreutils._align_rect(align, absr, padx, pady))
             for direction in _coreutils._OUTLINE_OFFSETS_CENTERED:
-                ctx._canva.blit(
+                canva._blit(
                     surf[0],
                     (rect.x + direction[0], rect.y + direction[1]),
                     special_flags=blit_flags,
                 )
-            ctx._canva.blit(surf[1], rect, special_flags=blit_flags)
+            canva._blit(surf[1], rect, special_flags=blit_flags)
         return
-    clip = ctx._canva.get_clip()
+    clip = canva._get_clip()
     full_rect = pygame.Rect((0, 0), rich["size"]).move_to(
         **_coreutils._align_rect(align, absr, padx, pady)
     )
@@ -2160,28 +2163,28 @@ def _render(
             font.underline = mods["u"]
             font.strikethrough = mods["s"]
             outline_col = mods["oc"]
-            surface = font.render(
+            surface = canva._get_image(font.render(
                 block["text"],
                 mods["fa"],
                 mods["fc"],
                 mods["bc"] if outline_col is None else None,
-            )
+            ))
             if outline_col is not None:
-                outline_surf = font.render(
+                outline_surf = canva._get_image(font.render(
                     block["text"], mods["fa"], outline_col, mods["bc"]
-                )
+                ))
                 surface = (outline_surf, surface)
             render_data[i] = surface
-        if isinstance(surface, pygame.Surface):
-            ctx._canva.blit(surface, rect, special_flags=blit_flags)
+        if isinstance(surface, pygame.Surface|pgvideo.Texture):
+            canva._blit(surface, rect, special_flags=blit_flags)
         else:
             for direction in _coreutils._OUTLINE_OFFSETS_CENTERED:
-                ctx._canva.blit(
+                canva._blit(
                     surface[0],
                     (rect.x + direction[0], rect.y + direction[1]),
                     special_flags=blit_flags,
                 )
-            ctx._canva.blit(surface[1], rect, special_flags=blit_flags)
+            canva._blit(surface[1], rect, special_flags=blit_flags)
         hovered = rect.collidepoint(mpos)
         for tagid, condition in mods["conds"].items():
             if tagid not in tags_stats:

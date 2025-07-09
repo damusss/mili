@@ -5,9 +5,11 @@ from mili import data as _data
 from mili import typing as _typing
 from mili import _coreutils
 from mili import _richtext
+from pygame._sdl2 import video as pgvideo
 
 if typing.TYPE_CHECKING:
     from mili import MILI as _MILI
+    from mili import canva as _canva
 
 __all__ = ()
 
@@ -72,14 +74,12 @@ class _ctx:
         self._old_data: dict[int, dict[str, typing.Any]] = {}
         self._interaction_cache: dict[int, _data.Interaction] = {}
         self._element: dict[str, typing.Any] = self._parent
-        self._canva: pygame.Surface | None = None
-        self._canva_rect: pygame.Rect | None = None
+        self._canva: _canva._AbstractCanva = None  # type: ignore
         self._abs_hovered: list[dict[str, typing.Any]] = []
         self._started = False
         self._started_pressing_element = None
         self._started_pressing_button = -1
         self._z = 0
-        self._offset = pygame.Vector2()
         self._mouse_pos = pygame.Vector2()
         self._mouse_rel = pygame.Vector2()
         self._global_mouse = False
@@ -667,11 +667,10 @@ class _ctx:
         return value
 
     def _start(self, style, winpos):
-        if self._canva is None:
-            return
+        self._canva._start()
         self._parent = {
-            "rect": self._canva.get_rect(),
-            "abs_rect": self._canva.get_rect(),
+            "rect": self._canva._rect.copy(),
+            "abs_rect": self._canva._rect.copy(),
             "style": style,
             "id": 0,
             "cd": {
@@ -695,7 +694,8 @@ class _ctx:
         self._started = True
         self._z = 0
         mouse_pos = (
-            pygame.Vector2(pygame.mouse.get_pos(self._global_mouse)) - self._offset
+            pygame.Vector2(pygame.mouse.get_pos(self._global_mouse))
+            - self._canva._offset
         )
         if self._global_mouse:
             if winpos:
@@ -895,8 +895,6 @@ class _ctx:
         return _globalctx._font_cache[key]
 
     def _draw_comp_rect(self, data, style, el, rect: pygame.Rect):
-        if self._canva is None:
-            return
         color = self._style_val(style, "rect", "color", "black")
         if color is None:
             return
@@ -945,8 +943,6 @@ class _ctx:
         )
 
     def _draw_comp_circle(self, data, style, el, rect: pygame.Rect):
-        if self._canva is None:
-            return
         color = self._style_val(style, "circle", "color", "black")
         if color is None:
             return
@@ -992,8 +988,6 @@ class _ctx:
     def _draw_comp_polygon(
         self, data: list[tuple[int, int]], style, el, rect: pygame.Rect
     ):
-        if self._canva is None:
-            return
         color = self._style_val(style, "polygon", "color", "black")
         if color is None:
             return
@@ -1005,6 +999,9 @@ class _ctx:
             int(_coreutils._abs_perc(padx, rect.w)),
             int(_coreutils._abs_perc(pady, rect.h)),
         )
+        cx, cy = rect.centerx, rect.centery
+        if self._canva.backend == "renderer":
+            cx, cy = rect.width // 2, rect.height // 2
         for raw_p in data:
             rx, ry = raw_p
             rx, ry = _coreutils._abs_perc(rx, rect.w), _coreutils._abs_perc(ry, rect.h)
@@ -1012,19 +1009,17 @@ class _ctx:
                 rx = pygame.math.clamp(rx, -rect.w // 2 + padx, rect.w // 2 - padx)
             if pady * 2 < rect.h:
                 ry = pygame.math.clamp(ry, -rect.h // 2 + pady, rect.h // 2 - pady)
-            points.append((rect.centerx + rx, rect.centery + ry))
+            points.append((cx + rx, cy + ry))
         outline = int(
             _coreutils._abs_perc(
                 self._style_val(style, "polygon", "outline", 0), min(rect.w, rect.h)
             )
         )
-        pygame.draw.polygon(self._canva, color, points, outline)
+        self._canva._draw_poly(color, points, outline, rect)
 
     def _draw_comp_line(
         self, data: list[tuple[int, int]], style, el, rect: pygame.Rect
     ):
-        if self._canva is None:
-            return
         color = self._style_val(style, "line", "color", "black")
         if color is None:
             return
@@ -1058,8 +1053,6 @@ class _ctx:
         )
 
     def _draw_comp_text(self, data: str, style, el, rect: pygame.Rect):
-        if self._canva is None:
-            return
         blit_flags = self._style_val(style, "text", "blit_flags", 0)
         align = self._style_val(style, "text", "align", "center")
         padx = self._style_val(style, "text", "padx", 5)
@@ -1117,24 +1110,13 @@ class _ctx:
                 strikethrough,
                 wraplen,
                 outline_col,
+                self._canva,
             )
         else:
             if cache._cache is None:
                 new_cache = {
                     "font": font,
-                    "fontalign": fontalign,
-                    "fontdir": fontdir,
-                    "bold": bold,
-                    "italic": italic,
-                    "underline": underline,
-                    "strike": strikethrough,
-                    "antialias": antialias,
-                    "color": color,
-                    "bg_color": bg_color,
-                    "outline_col": outline_col,
-                    "padx": padx,
-                    "pady": pady,
-                    "wraplen": wraplen,
+                    "style": style,
                     "data": data,
                 }
                 surf = _coreutils._render_text(
@@ -1151,6 +1133,7 @@ class _ctx:
                     strikethrough,
                     wraplen,
                     outline_col,
+                    self._canva,
                 )
                 new_cache["output"] = surf
                 cache._cache = new_cache
@@ -1159,36 +1142,12 @@ class _ctx:
                 if (
                     font is not _cache["font"]
                     or data != _cache["data"]
-                    or fontalign != _cache["fontalign"]
-                    or fontdir != _cache["fontdir"]
-                    or bold != _cache["bold"]
-                    or italic != _cache["italic"]
-                    or underline != _cache["underline"]
-                    or strikethrough != _cache["strike"]
-                    or antialias != _cache["antialias"]
-                    or color != _cache["color"]
-                    or bg_color != _cache["bg_color"]
-                    or outline_col != _cache["outline_col"]
-                    or padx != _cache["padx"]
-                    or pady != _cache["pady"]
-                    or wraplen != _cache["wraplen"]
+                    or style != _cache["style"]
                 ):
                     new_cache = {
                         "font": font,
                         "data": data,
-                        "fontalign": fontalign,
-                        "fontdir": fontdir,
-                        "bold": bold,
-                        "italic": italic,
-                        "underline": underline,
-                        "strike": strikethrough,
-                        "antialias": antialias,
-                        "color": color,
-                        "bg_color": bg_color,
-                        "outline_col": outline_col,
-                        "padx": padx,
-                        "pady": pady,
-                        "wraplen": wraplen,
+                        "style": style,
                     }
                     surf = _coreutils._render_text(
                         data,
@@ -1204,19 +1163,20 @@ class _ctx:
                         strikethrough,
                         wraplen,
                         outline_col,
+                        self._canva,
                     )
                     new_cache["output"] = surf
                     cache._cache = new_cache
                 else:
                     surf = _cache["output"]
-        sw, sh = surf.size
+        sw, sh = surf.width, surf.height
         if growy and sh > rect.h + pady * 2:
             rect.h = sh + pady * 2
         if growx and sw > rect.w + padx * 2:
             rect.w = sw + padx * 2
 
         txtrect = surf.get_rect(**_coreutils._align_rect(align, rect, padx, pady))
-        self._canva.blit(surf, txtrect, special_flags=blit_flags)
+        self._canva._blit(surf, txtrect, special_flags=blit_flags)
 
     def _text_size(self, data: str, style):
         rich = self._style_val(style, "text", "rich", False)
@@ -1284,13 +1244,10 @@ class _ctx:
                     if (
                         font == _cache["font"]
                         and data == _cache["data"]
-                        and fontalign == _cache["fontalign"]
-                        and fontdir == _cache["fontdir"]
-                        and padx == _cache["padx"]
-                        and pady == _cache["pady"]
-                        and wraplen == _cache["wraplen"]
+                        and style == _cache["style"]
                     ):
-                        sw, sh = cache._cache["output"].get_size()
+                        output = cache._cache["output"]
+                        sw, sh = output.width, output.height
                     else:
                         font.align = fontalign
                         font.set_direction(fontdir)
@@ -1317,11 +1274,28 @@ class _ctx:
             return
         ready = self._style_val(style, "image", "ready", False)
         blit_flags = self._style_val(style, "image", "blit_flags", 0)
-        if ready:
+        istex = False
+        if ready or (istex := isinstance(data, pgvideo.Texture)):
             output = data
+            if istex:
+                layer_cache = None
+                nine_patch = 0
+                do_fill = False
+                smoothscale = False
+                pad = self._style_val(style, "image", "pad", 0)
+                padx = self._style_val(style, "image", "padx", pad)
+                pady = self._style_val(style, "image", "pady", pad)
+                padx, pady = (
+                    _coreutils._abs_perc(padx, rect.w),
+                    _coreutils._abs_perc(pady, rect.h),
+                )
+                do_stretchx = self._style_val(style, "image", "stretchx", False)
+                do_stretchy = self._style_val(style, "image", "stretchy", False)
         else:
             cache = style.get("cache", None)
             layer_cache = style.get("layer_cache", None)
+            if self._canva.backend != "surface":
+                layer_cache = None
             pad = self._style_val(style, "image", "pad", 0)
             padx = self._style_val(style, "image", "padx", pad)
             pady = self._style_val(style, "image", "pady", pad)
@@ -1369,6 +1343,7 @@ class _ctx:
                     nine_patch,
                     transforms,
                     filters,
+                    self._canva,
                 )
                 if layer_cache:
                     layer_cache._dirty = True
@@ -1376,20 +1351,9 @@ class _ctx:
                 if cache._cache is None:
                     new_cache = {
                         "data": data,
-                        "padx": padx,
-                        "pady": pady,
-                        "fill": do_fill,
-                        "stretchx": do_stretchx,
-                        "stretchy": do_stretchy,
-                        "fill_color": fill_color,
-                        "border_radius": border_radius,
-                        "alpha": alpha,
-                        "size": rect.size,
-                        "smoothscale": smoothscale,
-                        "nine_patch": nine_patch,
+                        "style": style,
                         "pos": None,
-                        "transforms": transforms,
-                        "filters": filters,
+                        "size": rect.size,
                     }
                     output = _coreutils._get_image(
                         rect,
@@ -1406,6 +1370,7 @@ class _ctx:
                         nine_patch,
                         transforms,
                         filters,
+                        self._canva,
                     )
                     new_cache["output"] = output
                     cache._cache = new_cache
@@ -1415,36 +1380,22 @@ class _ctx:
                     _cache = cache._cache
                     if (
                         data is not _cache["data"]
-                        or smoothscale != _cache["smoothscale"]
-                        or rect.size != _cache["size"]
-                        or padx != _cache["padx"]
-                        or pady != _cache["pady"]
-                        or do_fill != _cache["fill"]
-                        or do_stretchx != _cache["stretchx"]
-                        or do_stretchy != _cache["stretchy"]
-                        or fill_color != _cache["fill_color"]
-                        or border_radius != _cache["border_radius"]
-                        or alpha != _cache["alpha"]
-                        or nine_patch != _cache["nine_patch"]
-                        or transforms != _cache["transforms"]
-                        or filters != _cache["filters"]
+                        or (
+                            rect.size != _cache["size"]
+                            and (
+                                self._canva.backend == "surface"
+                                or smoothscale
+                                or do_fill
+                                or nine_patch != 0
+                            )
+                        )
+                        or style != _cache["style"]
                     ):
                         new_cache = {
                             "data": data,
-                            "padx": padx,
-                            "pady": pady,
-                            "fill": do_fill,
-                            "stretchx": do_stretchx,
-                            "stretchy": do_stretchy,
-                            "fill_color": fill_color,
-                            "border_radius": border_radius,
-                            "alpha": alpha,
-                            "size": rect.size,
-                            "smoothscale": smoothscale,
-                            "nine_patch": nine_patch,
-                            "transforms": transforms,
-                            "filters": filters,
+                            "style": style,
                             "pos": None,
+                            "size": rect.size,
                         }
                         output = _coreutils._get_image(
                             rect,
@@ -1461,6 +1412,8 @@ class _ctx:
                             nine_patch,
                             transforms,
                             filters,
+                            self._canva,
+                            _cache.get("output", None),
                         )
                         new_cache["output"] = output
                         cache._cache = new_cache
@@ -1468,9 +1421,20 @@ class _ctx:
                             layer_cache._dirty = True
                     else:
                         output = _cache["output"]
-        image_rect = output.get_rect(center=rect.center)
+        if (
+            self._canva.backend == "surface"
+            or ready
+            or smoothscale
+            or nine_patch != 0
+            or do_fill
+        ):
+            image_rect = output.get_rect(center=rect.center)
+        else:
+            image_rect = _coreutils._get_image_rect(
+                rect, padx, pady, do_stretchx, do_stretchy, data
+            )
         if ready or not layer_cache:
-            self._canva.blit(output, image_rect, special_flags=blit_flags)
+            self._canva._blit(output, image_rect, special_flags=blit_flags)
         else:
             prev = cache._cache["pos"]
             new = pygame.Vector2(image_rect.topleft)
@@ -1483,18 +1447,16 @@ class _ctx:
             layer_cache._caches_activity[cache] = True
 
     def _draw_comp_image_layer(self, data: _data.ImageLayerCache, style, el, rect):
-        if self._canva is None:
+        if self._canva.backend != "surface":
             return
-        clip = self._canva.get_clip()
-        self._canva.set_clip(self._canva_rect)
-        _coreutils._render_layer_cache(data, self._canva)
-        self._canva.set_clip(clip)
+        clip = self._canva._get_clip()
+        self._canva._set_clip(self._canva._rect)
+        _coreutils._render_layer_cache(data, self._canva._surface)
+        self._canva._set_clip(clip)
 
     def _draw_update_element(
         self, element: dict[str, typing.Any], parent_pos, parent_clip=None
     ):
-        if self._canva is None:
-            return
         el_style = element["style"]
         offset = self._style_val(el_style, "element", "offset", (0, 0))
         do_clip = self._style_val(el_style, "element", "clip_draw", True)
@@ -1513,7 +1475,7 @@ class _ctx:
         else:
             clip = parent_clip
         self._check_interaction(element)
-        self._canva.set_clip(clip)
+        self._canva._set_clip(clip)
         render_above = []
         for component in element["components"]:
             comp_type = component["type"]
@@ -1532,9 +1494,9 @@ class _ctx:
         cd = element["cd"]
         if len(cd.get("children", ())) > 0:
             for child in sorted(cd["children"], key=lambda c: c["z"]):
-                self._canva.set_clip(clip)
+                self._canva._set_clip(clip)
                 self._draw_update_element(child, absolute_rect.topleft, clip)
-                self._canva.set_clip(clip)
+                self._canva._set_clip(clip)
         for component in render_above:
             comp_type = component["type"]
             compobj = _globalctx._component_types[comp_type]
