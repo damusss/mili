@@ -368,11 +368,11 @@ class _ctx:
 
                     if (
                         resizeoa
-                        and current_pos_oa + padoa * 2 <= maxresizeoa
-                        and current_pos_oa + padoa * 2 >= minresizeoa
+                        and current_pos_oa + padoa <= maxresizeoa
+                        and current_pos_oa + padoa >= minresizeoa
                     ):
-                        setattr(rect, oav, current_pos_oa + padoa * 2)
-                        padded_oa = current_pos_oa
+                        setattr(rect, oav, current_pos_oa + padoa)
+                        padded_oa = current_pos_oa - padoa
 
         if len(line_elements) > 0:
             lines.append([line_elements, longest_line_size_oa, line_size_a])
@@ -381,11 +381,11 @@ class _ctx:
             current_pos_oa += longest_line_size_oa
             if (
                 resizeoa
-                and current_pos_oa + padoa * 2 <= maxresizeoa
-                and current_pos_oa + padoa * 2 >= minresizeoa
+                and current_pos_oa + padoa <= maxresizeoa
+                and current_pos_oa + padoa >= minresizeoa
             ):
-                setattr(rect, oav, current_pos_oa + padoa * 2)
-                padded_oa = current_pos_oa
+                setattr(rect, oav, current_pos_oa + padoa)
+                padded_oa = current_pos_oa - padoa
 
         rectav = getattr(rect, av)
         rectoav = getattr(rect, oav)

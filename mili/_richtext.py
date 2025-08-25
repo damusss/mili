@@ -599,9 +599,6 @@ def _md_ui_code_block(
     _md_update_state(it, mili, state)
 
 
-
-
-
 def _md_ui_title(
     mili: "MILI",
     element: "_MDElement",
@@ -1824,7 +1821,12 @@ def _process(
     if default_mods["oc"] is not None:
         longest_line += 1
     output_blocks, total_h = _process_block_rects(
-        lines_data, longest_line, fontalign, y_align, line_space, default_mods["oc"] is not None
+        lines_data,
+        longest_line,
+        fontalign,
+        y_align,
+        line_space,
+        default_mods["oc"] is not None,
     )
     rich["wrap_overflow"] = overflow
     rich["size"] = (longest_line, total_h)
@@ -1841,12 +1843,20 @@ def _process_render_full(ctx, txt, mods, wraplen, fontalign):
     oc = mods["oc"]
     size = font.render(txt, mods["fa"], "white").size
     wraplen = min(max(0, int(wraplen)), int(size[0] * 1.1))
-    surf = ctx._canva._get_image(font.render(
-        txt, mods["fa"], mods["fc"], mods["bc"] if oc is None else None, int(wraplen)
-    ))
+    surf = ctx._canva._get_image(
+        font.render(
+            txt,
+            mods["fa"],
+            mods["fc"],
+            mods["bc"] if oc is None else None,
+            int(wraplen),
+        )
+    )
     size = surf.width, surf.height
     if oc is not None:
-        surf2 = ctx._canva._get_image(font.render(txt, mods["fa"], oc, mods["bc"], int(wraplen)))
+        surf2 = ctx._canva._get_image(
+            font.render(txt, mods["fa"], oc, mods["bc"], int(wraplen))
+        )
         surf = (surf2, surf)
     return surf, size
 
@@ -1886,7 +1896,9 @@ def _process_styles(ctx, style, uh):
     )
 
 
-def _process_block_rects(lines_data, longest_line, fontalign, y_align, line_space, outlined):
+def _process_block_rects(
+    lines_data, longest_line, fontalign, y_align, line_space, outlined
+):
     output_blocks = []
     cur_h = int(outlined)
     for line in lines_data:
@@ -1914,7 +1926,7 @@ def _process_block_rects(lines_data, longest_line, fontalign, y_align, line_spac
             cur_w += block["w"]
         cur_h += line["h"] + line_space
     cur_h -= line_space
-    return output_blocks, cur_h+2*outlined
+    return output_blocks, cur_h + 2 * outlined
 
 
 def _process_lines_blocks(
@@ -2116,7 +2128,7 @@ def _render(
         return
     if rich["render_full"]:
         surf = rich["full_surf"]
-        if isinstance(surf, pygame.Surface|pgvideo.Texture):
+        if isinstance(surf, pygame.Surface | pgvideo.Texture):
             rect = surf.get_rect(**_coreutils._align_rect(align, absr, padx, pady))
             canva._blit(surf, rect, special_flags=blit_flags)
         else:
@@ -2163,19 +2175,21 @@ def _render(
             font.underline = mods["u"]
             font.strikethrough = mods["s"]
             outline_col = mods["oc"]
-            surface = canva._get_image(font.render(
-                block["text"],
-                mods["fa"],
-                mods["fc"],
-                mods["bc"] if outline_col is None else None,
-            ))
+            surface = canva._get_image(
+                font.render(
+                    block["text"],
+                    mods["fa"],
+                    mods["fc"],
+                    mods["bc"] if outline_col is None else None,
+                )
+            )
             if outline_col is not None:
-                outline_surf = canva._get_image(font.render(
-                    block["text"], mods["fa"], outline_col, mods["bc"]
-                ))
+                outline_surf = canva._get_image(
+                    font.render(block["text"], mods["fa"], outline_col, mods["bc"])
+                )
                 surface = (outline_surf, surface)
             render_data[i] = surface
-        if isinstance(surface, pygame.Surface|pgvideo.Texture):
+        if isinstance(surface, pygame.Surface | pgvideo.Texture):
             canva._blit(surface, rect, special_flags=blit_flags)
         else:
             for direction in _coreutils._OUTLINE_OFFSETS_CENTERED:
@@ -2328,7 +2342,8 @@ class _RichTextParser(html.parser.HTMLParser):
                 ],
             )
             self.handle_starttag(
-                "action", [("name", "link_hover"), ("condition", "hovered")]
+                "action",
+                [("name", "link_hover"), ("condition", "hovered"), ("data", data)],
             )
             self.handle_starttag("color", [("fg", self.link_color)])
             self.handle_starttag("u", [("condition", "hovered")])

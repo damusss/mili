@@ -217,6 +217,7 @@ class EntryLineStyleLike(typing.TypedDict):
     redo_key: int | None
     scroll: "utility.Scroll|None"
     characters_limit: int | None
+    space_characters: pygame.typing.SequenceLike[str]
 
 
 class _TextBoxScrollbarStyleLike(typing.TypedDict):

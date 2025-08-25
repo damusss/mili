@@ -777,6 +777,7 @@ class EntryLine:
             "history_limit": style.get("history_limit", 1000),
             "text_anchor": style.get("text_anchor", "left"),
             "characters_limit": style.get("characters_limit", None),
+            "space_characters": style.get("space_characters", [" "]),
         }
         self._text = str(text)
         self.cursor = len(self._text)
@@ -980,6 +981,7 @@ class EntryLine:
                 {"color": self.style["cursor_color"], "border_radius": 0, "outline": 0},
             )
         if container_element.left_just_pressed:
+            spaces = self.style["space_characters"]
             self._focus_press = True
             self.focused = True
             self._press_time = pygame.time.get_ticks()
@@ -991,7 +993,7 @@ class EntryLine:
                 if self._press_count == 1:
                     checkspace = True
                     try:
-                        if self._text[self.cursor] == " ":
+                        if self._text[self.cursor] in spaces:
                             checkspace = False
                     except IndexError:
                         ...
@@ -999,8 +1001,8 @@ class EntryLine:
                     li = len(left) - 1
                     while li >= 0:
                         char = left[li]
-                        if (char == " " and checkspace) or (
-                            char != " " and not checkspace
+                        if (char in spaces and checkspace) or (
+                            char not in spaces and not checkspace
                         ):
                             break
                         li -= 1
@@ -1008,8 +1010,8 @@ class EntryLine:
                     ri = 0
                     while ri < len(right):
                         char = right[ri]
-                        if (char == " " and checkspace) or (
-                            char != " " and not checkspace
+                        if (char in spaces and checkspace) or (
+                            char not in spaces and not checkspace
                         ):
                             break
                         ri += 1

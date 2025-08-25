@@ -143,8 +143,14 @@ class UIApp:
             mili_canva = canva
         self.mili = _MILI(mili_canva, use_global_mouse)
         self.win_borders = CustomWindowBorders(self.window)
+        desktop_size = pygame.display.get_desktop_sizes()[0]
         self.win_behavior = CustomWindowBehavior(
-            self.window, self.win_borders, pygame.display.get_desktop_sizes()[0]
+            self.window,
+            self.win_borders,
+            desktop_size,
+            CustomWindowBehavior.usable_display_area_from_taskbar(
+                desktop_size, 30, "bottom"
+            ),
         )
         self.adaptive_scaler = AdaptiveUIScaler(self.window, self.window.size)
         self.scale = self.adaptive_scaler.scale
@@ -465,7 +471,12 @@ class CustomWindowBorders:
         ]
 
     def can_interact(self):
-        return self.window.focused and self.cumulative_relative.length() == 0
+        return (
+            self.window.focused
+            and self.cumulative_relative.length() == 0
+            and not self.dragging
+            and not self.resizing
+        )
 
     def mouse_changed(self):
         self._press_rel = pygame.mouse.get_pos()
@@ -755,23 +766,22 @@ class CustomWindowBehavior:
         self,
         window: pygame.Window,
         borders: CustomWindowBorders,
-        display_size: typing.Sequence[float],
-        taskbar_size: int = 30,
-        taskbar_position: typing.Literal["bottom", "left", "right", "top"] = "bottom",
+        display_size: pygame.typing.Point,
+        usable_display_area: pygame.typing.RectLike,
         double_click_cooldown: int | None = 300,
         snap_border_size=10,
         snap_corner_size=30,
         allow_snap: bool = True,
         before_maximize_data: tuple[tuple[int, int], tuple[int, int]] | None = None,
     ):
-        self._taskbar_size = taskbar_size
-        self._taskbar_position = taskbar_position
         self._display_size = display_size
+        self._usable_display_area = pygame.Rect(usable_display_area)
         self.window = window
         self.borders = borders
         self.allow_snap = allow_snap
         self._maximized = False
         self._before_maximize_data = before_maximize_data
+        self._before_fullscreen_data = None
         self._minimized = False
         self._snapped = False
         self._snapped_name = None
@@ -824,6 +834,10 @@ class CustomWindowBehavior:
     def before_maximized_data(self):
         return self._before_maximize_data
 
+    @before_maximized_data.setter
+    def before_maximized_data(self, value):
+        self._before_maximize_data = value
+
     @property
     def maximized(self):
         return self._maximized
@@ -847,31 +861,21 @@ class CustomWindowBehavior:
             self.unminimize()
 
     @property
+    def usable_display_area(self):
+        return self._usable_display_area
+
+    @usable_display_area.setter
+    def usable_display_area(self, value: pygame.typing.RectLike):
+        self._usable_display_area = pygame.Rect(value)
+        self._rebuild()
+
+    @property
     def display_size(self):
         return self._display_size
 
     @display_size.setter
-    def display_size(self, value):
+    def display_size(self, value: pygame.typing.Point):
         self._display_size = value
-        self._rebuild()
-
-    @property
-    def taskbar_size(self):
-        return self._taskbar_size
-
-    @taskbar_size.setter
-    def taskbar_size(self, value):
-        self._taskbar_size = value
-        self._rebuild()
-
-    @property
-    def taskbar_position(self):
-        return self._taskbar_position
-
-    @taskbar_position.setter
-    def taskbar_position(self, value):
-        self._taskbar_position = value
-        self._rebuild()
 
     @property
     def double_click_cooldown(self):
@@ -890,39 +894,7 @@ class CustomWindowBehavior:
             self.borders._toggle_maximize_func = self.toggle_maximize
 
     def _rebuild(self):
-        r = None
-        match self._taskbar_position:
-            case "left":
-                r = pygame.Rect(
-                    self._taskbar_size,
-                    0,
-                    self._display_size[0] - self._taskbar_size,
-                    self._display_size[1],
-                )
-            case "right":
-                r = pygame.Rect(
-                    0,
-                    0,
-                    self._display_size[0] - self._taskbar_size,
-                    self._display_size[1],
-                )
-            case "top":
-                r = pygame.Rect(
-                    0,
-                    self._taskbar_size,
-                    self._display_size[0],
-                    self._display_size[1] - self._taskbar_size,
-                )
-            case "bottom":
-                r = pygame.Rect(
-                    0,
-                    0,
-                    self._display_size[0],
-                    self._display_size[1] - self._taskbar_size,
-                )
-        if r is None:
-            r = pygame.Rect()
-        self._display_rect = r
+        r = self._usable_display_area
         cs = self.snap_corner_size
         bs = self.snap_border_size
         self._snap_areas = {
@@ -951,16 +923,19 @@ class CustomWindowBehavior:
     def center(self):
         w, h = self.window.size
         self.window.position = (
-            self._display_rect.w / 2 - w / 2,
-            self._display_rect.h / 2 - h / 2,
+            self._usable_display_area.w / 2 - w / 2,
+            self._usable_display_area.h / 2 - h / 2,
         )
 
     def snap(self, position: _SNAP_POSITIONS):
         if not self._snapped:
             self._before_snap_data = self.window.size, self.window.position
         if position == "height":
-            self.window.position = (self.window.position[0], self._display_rect.top)
-            self.window.size = (self.window.size[0], self._display_rect.h)
+            self.window.position = (
+                self.window.position[0],
+                self._usable_display_area.top,
+            )
+            self.window.size = (self.window.size[0], self._usable_display_area.h)
             self._snapped_h = True
             self._snapped = True
             return
@@ -975,20 +950,26 @@ class CustomWindowBehavior:
     def fullscreen_on(self):
         if self._fullscreen:
             return
+        maximized, snapped, snapped_h = self._maximized, self._snapped, self._snapped_h
         self._maximized = self._snapped = self._snap_preview = self._snapped_h = False
         self._snapped_name = None
-        self._before_maximize_data = self.window.size, self.window.position
+        self._before_fullscreen_data = (
+            self.window.size,
+            self.window.position,
+            (maximized, snapped, snapped_h),
+        )
         self.window.position = (0, 0)
         self.window.size = self._display_size
         self.borders.active = False
         self._fullscreen = True
 
     def fullscreen_off(self):
-        if not self._fullscreen or self._before_maximize_data is None:
+        if not self._fullscreen or self._before_fullscreen_data is None:
             return
         self._fullscreen = False
         self.borders.active = True
-        self.window.size, self.window.position = self._before_maximize_data
+        self.window.size, self.window.position, extra = self._before_fullscreen_data
+        self._maximized, self._snapped, self._snapped_h = extra
 
     def toggle_fullscreen(self):
         if self._fullscreen:
@@ -1021,8 +1002,8 @@ class CustomWindowBehavior:
         self._maximized = True
         self._before_maximize_data = self.window.size, self.window.position
         self.window.size, self.window.position = (
-            self._display_rect.size,
-            self._display_rect.topleft,
+            self._usable_display_area.size,
+            self._usable_display_area.topleft,
         )
         self.borders.resizing = self.borders.dragging = False
         self._snapped = self._snapped_h = False
@@ -1110,8 +1091,11 @@ class CustomWindowBehavior:
                     )
                     self._snapped = True
                     self._snapped_h = True
-                self.window.size = (self.window.size[0], self._display_rect.h)
-                self.window.position = (self.window.position[0], self._display_rect.top)
+                self.window.size = (self.window.size[0], self._usable_display_area.h)
+                self.window.position = (
+                    self.window.position[0],
+                    self._usable_display_area.top,
+                )
                 self._maximize_snap_time = pygame.time.get_ticks()
                 break
 
@@ -1181,8 +1165,8 @@ class CustomWindowBehavior:
                             self.window.position,
                         )
                         self.window.size, self.window.position = (
-                            self._display_rect.size,
-                            self._display_rect.topleft,
+                            self._usable_display_area.size,
+                            self._usable_display_area.topleft,
                         )
                         self.borders.resizing = self.borders.dragging = False
                         self._snapped = self._snapped_h = False
@@ -1203,3 +1187,43 @@ class CustomWindowBehavior:
                         self.window.size = rect.size
                         self.window.position = rect.topleft
                 break
+
+    @staticmethod
+    def usable_display_area_from_taskbar(
+        display_size: pygame.typing.Point,
+        taskbar_size: int,
+        taskbar_position: typing.Literal["left", "right", "top", "bottom"] = "bottom",
+    ):
+        r = None
+        match taskbar_position:
+            case "left":
+                r = pygame.Rect(
+                    taskbar_size,
+                    0,
+                    display_size[0] - taskbar_size,
+                    display_size[1],
+                )
+            case "right":
+                r = pygame.Rect(
+                    0,
+                    0,
+                    display_size[0] - taskbar_size,
+                    display_size[1],
+                )
+            case "top":
+                r = pygame.Rect(
+                    0,
+                    taskbar_size,
+                    display_size[0],
+                    display_size[1] - taskbar_size,
+                )
+            case "bottom":
+                r = pygame.Rect(
+                    0,
+                    0,
+                    display_size[0],
+                    display_size[1] - taskbar_size,
+                )
+        if r is None:
+            raise _error.MILIValueError("Invalid taskbar position")
+        return r

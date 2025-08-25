@@ -389,9 +389,8 @@ This object solely works on state changes, meaning you don't need to call any up
 
 -   `window`: The `pygame.Window` object to customize.
 -   `borders`: The independent `CustomWindowBorders` instance responsible for dragging and resizing. Note that some callbacks will be overridden by this utility.
--   `display_size`: The size of the monitor the window is in, size that will be used for maximizing and snapping.
--   `taskbar_size`: The height (or width, depending on orientation) of the taskbar that will be excluded from calculations.
--   `taskbar_position`: The position of the taskbar, either `left`, `right`, `top` or `bottom` (most common).
+-   `display_size`: The size of the monitor the window is in, size that will be used for maximizing and snapping. `pygame.display.get_desktop_sizes` is advised for this task.
+-   `usable_display_area`: The rect representing the area of the display not used by the operating system (excludes for example the taskbar) that will be used to snap and maximize the window. A future display function `pygame.display.get_desktop_usable_bounds` is advised for this task. In the meantime, the `CustomWindowBehavior.usable_display_area_from_taskbar` static method can be used.
 -   `double_click_cooldown`: The cooldown that allows the window to be maximized when double clicking the top portion. None means this feature is disabled.
 -   `snap_border_size`: The size of the areas that the mouse must collide with to trigger snapping in the left, right, top, bottom sides.
 -   `snap_corner_size`: The size of the areas that the mouse must collide with to trigger snapping in the topleft, topright, bottomleft, bottomright corners.
@@ -413,6 +412,8 @@ You can manually control the window state with the following methods:
 -   `snap(position)`: Snap the window to an allowed position. Snapping to the top or bottom is the same as maximizing. `heigt` is allowed.
 -   `unsnap()`: Restore the window from a snapped position.
 -   `center()`: Center the window inside the display.
+
+The staticmethod `CustomWindowBehavior.usable_display_area_from_taskbar` takes the display size and a taskbar size and position and returns the usable area.
 
 ## `AdaptiveUIScaler`
 
